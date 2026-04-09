@@ -1,0 +1,46 @@
+.card {
+  position: relative;
+  min-width: 220px;
+  height: 130px;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.3s ease, z-index 0.3s;
+}
+
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card:hover {
+  transform: scale(1.4);
+  z-index: 20;
+}
+
+.card-overlay {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 0.5rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.card:hover .card-overlay {
+  opacity: 1;
+}
+
+.progress {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.progress div {
+  height: 100%;
+  background: #e50914;
+}

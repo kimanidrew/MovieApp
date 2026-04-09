@@ -1,0 +1,39 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/app/generated/prisma"
+  previewFeatures = ["driverAdapters"] // Explicitly ensuring adapter features are ready
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id               String    @id @default(uuid())
+  firebaseUid      String    @unique
+  email            String    @unique
+  subscriptionTier String    @default("basic")
+  createdAt        DateTime  @default(now())
+  profiles         Profile[]
+}
+
+model Profile {
+  id             String  @id @default(uuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  avatarUrl      String?
+  maturityRating String  @default("R")
+}
+
+model Video {
+  id              String   @id @default(uuid())
+  title           String
+  description     String?
+  releaseYear     Int?
+  durationSeconds Int?
+  hlsManifestUrl  String?
+  videoUrl        String?
+  thumbnailUrl    String?
+  createdAt       DateTime @default(now())
+}
