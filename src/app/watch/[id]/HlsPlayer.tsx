@@ -30,33 +30,38 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
   const [showControls, setShowControls] = useState(true);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+  const video = videoRef.current;
+  if (!video) return;
 
-    let hls: Hls;
+  let hls: Hls | null = null;
 
-    if (src.endsWith('.m3u8') && Hls.isSupported()) {
+  if (src.endsWith('.m3u8')) {
+    if (Hls.isSupported()) {
       hls = new Hls({ capLevelToPlayerSize: true });
       hls.loadSource(src);
       hls.attachMedia(video);
+
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (autoPlay) {
-          video.play().then(() => setIsPlaying(true)).catch(e => console.log('Auto-play blocked', e));
+          video.play().catch(() => {});
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src;
-      video.addEventListener('loadedmetadata', () => {
-        if (autoPlay) {
-          video.play().then(() => setIsPlaying(true)).catch(e => console.log('Auto-play blocked', e));
-        }
-      });
     }
+  } else {
+    // ✅ THIS WAS MISSING
+    video.src = src;
 
-    return () => {
-      if (hls) hls.destroy();
-    };
-  }, [src, autoPlay]);
+    if (autoPlay) {
+      video.play().catch(() => {});
+    }
+  }
+
+  return () => {
+    if (hls) hls.destroy();
+  };
+}, [src, autoPlay]);
 
   // Handle restoring time on initial load
   useEffect(() => {

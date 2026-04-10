@@ -103,31 +103,49 @@ function VideoCard({
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
-        if (!isHovered || !videoRef.current) return;
+  if (!isHovered || !videoRef.current) return;
 
-        const vid = videoRef.current;
-        let hls: Hls | null = null;
+  const vid = videoRef.current;
+  let hls: Hls | null = null;
 
-        const src = video.hlsManifestUrl || video.videoUrl;
-        if (!src) return;
+  const src = video.hlsManifestUrl || video.videoUrl;
+  if (!src) return;
 
-        if (src.endsWith(".m3u8") && Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(src);
-            hls.attachMedia(vid);
-        } else {
-            vid.src = src;
-        }
+  vid.muted = true;
+  vid.playsInline = true;
+  vid.preload = "auto";
 
-        vid.muted = true;
-        vid.currentTime = 5;
-        vid.play().catch(() => { });
+  const playVideo = () => {
+    vid.currentTime = 2; // safer than 5
+    vid.play().catch(() => {});
+  };
 
-        return () => {
-            vid.pause();
-            if (hls) hls.destroy();
-        };
-    }, [isHovered, video]);
+  if (src.endsWith(".m3u8")) {
+    if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(vid);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        playVideo();
+      });
+    } else if (vid.canPlayType("application/vnd.apple.mpegurl")) {
+      vid.src = src;
+      vid.addEventListener("loadedmetadata", playVideo, { once: true });
+    }
+  } else {
+    // ✅ MP4 fallback
+    vid.src = src;
+    vid.addEventListener("loadedmetadata", playVideo, { once: true });
+  }
+
+  return () => {
+    vid.pause();
+    vid.removeAttribute("src");
+    vid.load();
+    if (hls) hls.destroy();
+  };
+}, [isHovered, video]);
 
     return (
         <div
