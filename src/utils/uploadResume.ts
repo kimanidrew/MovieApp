@@ -15,7 +15,14 @@ export function saveUploadState(key: string, data: any) {
       urlsCreatedAt: data.urlsCreatedAt ?? Date.now(),
     };
 
-    localStorage.setItem(PREFIX + key, JSON.stringify(payload));
+    // Check if data size is too large for localStorage
+    const payloadString = JSON.stringify(payload);
+    if (payloadString.length > 5000000) {  // Arbitrary size check (5MB)
+      console.warn("Upload state is too large to save to localStorage.");
+      return;
+    }
+
+    localStorage.setItem(PREFIX + key, payloadString);
   } catch (err) {
     console.warn("saveUploadState failed", err);
   }
