@@ -35,7 +35,7 @@ export default function UploadPage() {
       const thumbRes = await uploadManager(thumbFile);
 
       console.log("🎬 Uploading video (multipart)...");
-      const videoRes = await uploadLargeFile(videoFile, setProgress);// ✅ FIX
+      const videoRes = await uploadLargeFile(videoFile, setProgress);
 
       console.log("💾 Saving to DB...");
       const dbRes = await fetch("/api/videos", {
