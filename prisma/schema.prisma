@@ -35,5 +35,6 @@ model Video {
   hlsManifestUrl  String?
   videoUrl        String?
   thumbnailUrl    String?
+  videoKey        String
   createdAt       DateTime @default(now())
 }

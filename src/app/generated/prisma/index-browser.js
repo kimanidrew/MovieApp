@@ -145,6 +145,7 @@ exports.Prisma.VideoScalarFieldEnum = {
   hlsManifestUrl: 'hlsManifestUrl',
   videoUrl: 'videoUrl',
   thumbnailUrl: 'thumbnailUrl',
+  videoKey: 'videoKey',
   createdAt: 'createdAt'
 };
 

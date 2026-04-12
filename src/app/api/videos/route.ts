@@ -14,6 +14,7 @@ export async function POST(req: Request) {
         // R2 storage fields
         videoUrl: body.videoUrl,
         thumbnailUrl: body.thumbnailUrl,
+        videoKey: body.videoKey, // ✅ IMPORTANT (R2 object key)
 
         status: "uploaded",
       },

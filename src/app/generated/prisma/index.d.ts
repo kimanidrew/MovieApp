@@ -3247,6 +3247,7 @@ export namespace Prisma {
     hlsManifestUrl: string | null
     videoUrl: string | null
     thumbnailUrl: string | null
+    videoKey: string | null
     createdAt: Date | null
   }
 
@@ -3259,6 +3260,7 @@ export namespace Prisma {
     hlsManifestUrl: string | null
     videoUrl: string | null
     thumbnailUrl: string | null
+    videoKey: string | null
     createdAt: Date | null
   }
 
@@ -3271,6 +3273,7 @@ export namespace Prisma {
     hlsManifestUrl: number
     videoUrl: number
     thumbnailUrl: number
+    videoKey: number
     createdAt: number
     _all: number
   }
@@ -3295,6 +3298,7 @@ export namespace Prisma {
     hlsManifestUrl?: true
     videoUrl?: true
     thumbnailUrl?: true
+    videoKey?: true
     createdAt?: true
   }
 
@@ -3307,6 +3311,7 @@ export namespace Prisma {
     hlsManifestUrl?: true
     videoUrl?: true
     thumbnailUrl?: true
+    videoKey?: true
     createdAt?: true
   }
 
@@ -3319,6 +3324,7 @@ export namespace Prisma {
     hlsManifestUrl?: true
     videoUrl?: true
     thumbnailUrl?: true
+    videoKey?: true
     createdAt?: true
     _all?: true
   }
@@ -3418,6 +3424,7 @@ export namespace Prisma {
     hlsManifestUrl: string | null
     videoUrl: string | null
     thumbnailUrl: string | null
+    videoKey: string
     createdAt: Date
     _count: VideoCountAggregateOutputType | null
     _avg: VideoAvgAggregateOutputType | null
@@ -3449,6 +3456,7 @@ export namespace Prisma {
     hlsManifestUrl?: boolean
     videoUrl?: boolean
     thumbnailUrl?: boolean
+    videoKey?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["video"]>
 
@@ -3461,6 +3469,7 @@ export namespace Prisma {
     hlsManifestUrl?: boolean
     videoUrl?: boolean
     thumbnailUrl?: boolean
+    videoKey?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["video"]>
 
@@ -3473,6 +3482,7 @@ export namespace Prisma {
     hlsManifestUrl?: boolean
     videoUrl?: boolean
     thumbnailUrl?: boolean
+    videoKey?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["video"]>
 
@@ -3485,10 +3495,11 @@ export namespace Prisma {
     hlsManifestUrl?: boolean
     videoUrl?: boolean
     thumbnailUrl?: boolean
+    videoKey?: boolean
     createdAt?: boolean
   }
 
-  export type VideoOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "description" | "releaseYear" | "durationSeconds" | "hlsManifestUrl" | "videoUrl" | "thumbnailUrl" | "createdAt", ExtArgs["result"]["video"]>
+  export type VideoOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "title" | "description" | "releaseYear" | "durationSeconds" | "hlsManifestUrl" | "videoUrl" | "thumbnailUrl" | "videoKey" | "createdAt", ExtArgs["result"]["video"]>
 
   export type $VideoPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Video"
@@ -3502,6 +3513,7 @@ export namespace Prisma {
       hlsManifestUrl: string | null
       videoUrl: string | null
       thumbnailUrl: string | null
+      videoKey: string
       createdAt: Date
     }, ExtArgs["result"]["video"]>
     composites: {}
@@ -3934,6 +3946,7 @@ export namespace Prisma {
     readonly hlsManifestUrl: FieldRef<"Video", 'String'>
     readonly videoUrl: FieldRef<"Video", 'String'>
     readonly thumbnailUrl: FieldRef<"Video", 'String'>
+    readonly videoKey: FieldRef<"Video", 'String'>
     readonly createdAt: FieldRef<"Video", 'DateTime'>
   }
     
@@ -4351,6 +4364,7 @@ export namespace Prisma {
     hlsManifestUrl: 'hlsManifestUrl',
     videoUrl: 'videoUrl',
     thumbnailUrl: 'thumbnailUrl',
+    videoKey: 'videoKey',
     createdAt: 'createdAt'
   };
 
@@ -4567,6 +4581,7 @@ export namespace Prisma {
     hlsManifestUrl?: StringNullableFilter<"Video"> | string | null
     videoUrl?: StringNullableFilter<"Video"> | string | null
     thumbnailUrl?: StringNullableFilter<"Video"> | string | null
+    videoKey?: StringFilter<"Video"> | string
     createdAt?: DateTimeFilter<"Video"> | Date | string
   }
 
@@ -4579,6 +4594,7 @@ export namespace Prisma {
     hlsManifestUrl?: SortOrderInput | SortOrder
     videoUrl?: SortOrderInput | SortOrder
     thumbnailUrl?: SortOrderInput | SortOrder
+    videoKey?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -4594,6 +4610,7 @@ export namespace Prisma {
     hlsManifestUrl?: StringNullableFilter<"Video"> | string | null
     videoUrl?: StringNullableFilter<"Video"> | string | null
     thumbnailUrl?: StringNullableFilter<"Video"> | string | null
+    videoKey?: StringFilter<"Video"> | string
     createdAt?: DateTimeFilter<"Video"> | Date | string
   }, "id">
 
@@ -4606,6 +4623,7 @@ export namespace Prisma {
     hlsManifestUrl?: SortOrderInput | SortOrder
     videoUrl?: SortOrderInput | SortOrder
     thumbnailUrl?: SortOrderInput | SortOrder
+    videoKey?: SortOrder
     createdAt?: SortOrder
     _count?: VideoCountOrderByAggregateInput
     _avg?: VideoAvgOrderByAggregateInput
@@ -4626,6 +4644,7 @@ export namespace Prisma {
     hlsManifestUrl?: StringNullableWithAggregatesFilter<"Video"> | string | null
     videoUrl?: StringNullableWithAggregatesFilter<"Video"> | string | null
     thumbnailUrl?: StringNullableWithAggregatesFilter<"Video"> | string | null
+    videoKey?: StringWithAggregatesFilter<"Video"> | string
     createdAt?: DateTimeWithAggregatesFilter<"Video"> | Date | string
   }
 
@@ -4753,6 +4772,7 @@ export namespace Prisma {
     hlsManifestUrl?: string | null
     videoUrl?: string | null
     thumbnailUrl?: string | null
+    videoKey: string
     createdAt?: Date | string
   }
 
@@ -4765,6 +4785,7 @@ export namespace Prisma {
     hlsManifestUrl?: string | null
     videoUrl?: string | null
     thumbnailUrl?: string | null
+    videoKey: string
     createdAt?: Date | string
   }
 
@@ -4777,6 +4798,7 @@ export namespace Prisma {
     hlsManifestUrl?: NullableStringFieldUpdateOperationsInput | string | null
     videoUrl?: NullableStringFieldUpdateOperationsInput | string | null
     thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    videoKey?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -4789,6 +4811,7 @@ export namespace Prisma {
     hlsManifestUrl?: NullableStringFieldUpdateOperationsInput | string | null
     videoUrl?: NullableStringFieldUpdateOperationsInput | string | null
     thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    videoKey?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -4801,6 +4824,7 @@ export namespace Prisma {
     hlsManifestUrl?: string | null
     videoUrl?: string | null
     thumbnailUrl?: string | null
+    videoKey: string
     createdAt?: Date | string
   }
 
@@ -4813,6 +4837,7 @@ export namespace Prisma {
     hlsManifestUrl?: NullableStringFieldUpdateOperationsInput | string | null
     videoUrl?: NullableStringFieldUpdateOperationsInput | string | null
     thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    videoKey?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -4825,6 +4850,7 @@ export namespace Prisma {
     hlsManifestUrl?: NullableStringFieldUpdateOperationsInput | string | null
     videoUrl?: NullableStringFieldUpdateOperationsInput | string | null
     thumbnailUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    videoKey?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -5007,6 +5033,7 @@ export namespace Prisma {
     hlsManifestUrl?: SortOrder
     videoUrl?: SortOrder
     thumbnailUrl?: SortOrder
+    videoKey?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -5024,6 +5051,7 @@ export namespace Prisma {
     hlsManifestUrl?: SortOrder
     videoUrl?: SortOrder
     thumbnailUrl?: SortOrder
+    videoKey?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -5036,6 +5064,7 @@ export namespace Prisma {
     hlsManifestUrl?: SortOrder
     videoUrl?: SortOrder
     thumbnailUrl?: SortOrder
+    videoKey?: SortOrder
     createdAt?: SortOrder
   }
 
