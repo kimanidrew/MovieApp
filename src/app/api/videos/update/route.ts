@@ -7,7 +7,6 @@ export async function POST(req: Request) {
   const updated = await prisma.video.update({
     where: { id: body.id },
     data: {
-      status: body.status,
       hlsUrl: body.hlsUrl,
     },
   });
