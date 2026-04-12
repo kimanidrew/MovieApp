@@ -9,7 +9,7 @@ export async function uploadLargeFile(
 ) {
   console.log("🎬 START UPLOAD", files.map((f) => f.name));
 
-  const CHUNK_SIZE = 15 * 1024 * 1024; // 15 MB
+  const CHUNK_SIZE = 15 * 1024 * 1024; // 15 MB per part
   let totalParts = 0;
 
   // Calculate total parts for all files
@@ -42,7 +42,6 @@ export async function uploadLargeFile(
     });
 
     const data = await res.json();
-
     console.log("📦 URL RESPONSE:", data);
 
     if (!Array.isArray(data.urls)) {
@@ -50,9 +49,7 @@ export async function uploadLargeFile(
     }
 
     if (data.urls.length !== totalParts) {
-      throw new Error(
-        `URL mismatch: expected ${totalParts}, got ${data.urls.length}`
-      );
+      throw new Error(`URL mismatch: expected ${totalParts}, got ${data.urls.length}`);
     }
 
     if (data.urls.some((u: any) => typeof u !== "string" || !u)) {
@@ -105,8 +102,8 @@ export async function uploadLargeFile(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        fileType: "application/x-mpegURL", // Use HLS MIME type
-        fileName: files.map((file) => file.name).join(", "), // For multi-file uploads
+        fileType: "application/x-mpegURL", // Use HLS MIME type for .m3u8
+        fileName: files.map((file) => file.name).join(", "), // Multiple file names
       }),
     }).then((r) => r.json());
 
@@ -187,10 +184,7 @@ export async function uploadLargeFile(
 
     // 🔥 HARD STOP (prevents /undefined)
     if (!url) {
-      console.error("🚨 INVALID URL STATE", {
-        part,
-        urlsLength: urls?.length,
-      });
+      console.error("🚨 INVALID URL STATE", { part, urlsLength: urls?.length });
       throw new Error(`Missing URL for part ${part}`);
     }
 

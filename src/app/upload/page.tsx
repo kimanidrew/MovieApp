@@ -1,7 +1,6 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { uploadManager } from "@/utils/uploadManager";
 import { uploadLargeFile } from "@/utils/multipartUpload";
 import "./upload.css";
 
@@ -24,18 +23,18 @@ export default function UploadPage() {
     try {
       const form = e.currentTarget;
 
-      const videoFile = (form.elements.namedItem("video") as HTMLInputElement).files?.[0];
+      const videoFiles = (form.elements.namedItem("video") as HTMLInputElement).files;
       const thumbFile = (form.elements.namedItem("thumbnail") as HTMLInputElement).files?.[0];
 
-      if (!videoFile || !thumbFile) {
+      if (!videoFiles || !thumbFile || videoFiles.length === 0) {
         throw new Error("Please select both video and thumbnail");
       }
 
       console.log("📤 Uploading thumbnail...");
-      const thumbRes = await uploadManager(thumbFile);
+      const thumbRes = await uploadLargeFile([thumbFile], setProgress);
 
       console.log("🎬 Uploading video (multipart)...");
-      const videoRes = await uploadLargeFile(videoFile, setProgress);
+      const videoRes = await uploadLargeFile(Array.from(videoFiles), setProgress);
 
       console.log("💾 Saving to DB...");
       const dbRes = await fetch("/api/videos", {
@@ -64,16 +63,13 @@ export default function UploadPage() {
     <div className="upload-container">
       <div className="upload-card">
         <h1 className="upload-title">Add New Movie</h1>
-
         <form onSubmit={handleFormSubmit} className="upload-form">
           <div className="form-group">
             <label>Title</label>
             <input
               type="text"
               required
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
           </div>
 
@@ -82,9 +78,7 @@ export default function UploadPage() {
             <textarea
               rows={3}
               required
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
 
@@ -93,12 +87,7 @@ export default function UploadPage() {
             <input
               type="number"
               defaultValue={new Date().getFullYear()}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  releaseYear: Number(e.target.value),
-                })
-              }
+              onChange={(e) => setFormData({ ...formData, releaseYear: Number(e.target.value) })}
             />
           </div>
 
@@ -108,17 +97,14 @@ export default function UploadPage() {
           </div>
 
           <div className="form-group">
-            <label>Video File</label>
-            <input type="file" name="video" accept="video/*" required />
+            <label>Video Files (.m3u8, .ts)</label>
+            <input type="file" name="video" accept="video/*" multiple required />
           </div>
 
           {isUploading && (
             <div className="progress-section">
               <div className="progress-bar-container">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${progress}%` }}
-                />
+                <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
               </div>
               <p className="progress-text">{progress}% Uploaded</p>
             </div>
