@@ -7,6 +7,10 @@ export async function uploadLargeFile(
   files: File[], // Accept multiple files (e.g., .ts and .m3u8)
   onProgress?: (p: number) => void
 ) {
+  if (!Array.isArray(files) || files.length === 0) {
+    throw new Error("No files selected for upload");
+  }
+
   console.log("🎬 START UPLOAD", files.map((f) => f.name));
 
   const CHUNK_SIZE = 15 * 1024 * 1024; // 15 MB per part
