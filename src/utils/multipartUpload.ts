@@ -4,15 +4,21 @@ import { saveUploadState, loadUploadState, clearUploadState, getUploadKey } from
 type Part = { ETag: string; PartNumber: number };
 
 export async function uploadLargeFile(
-  file: File,
+  files: File[], // Accept multiple files (e.g., .ts and .m3u8)
   onProgress?: (p: number) => void
 ) {
-  console.log("🎬 START UPLOAD", file.name);
+  console.log("🎬 START UPLOAD", files.map((f) => f.name));
 
   const CHUNK_SIZE = 15 * 1024 * 1024; // 15 MB
-  const totalParts = Math.ceil(file.size / CHUNK_SIZE);
+  let totalParts = 0;
 
-  const uploadKey = getUploadKey(file);
+  // Calculate total parts for all files
+  files.forEach((file) => {
+    totalParts += Math.ceil(file.size / CHUNK_SIZE);
+  });
+
+  // Initialize variables for multipart upload
+  const uploadKey = getUploadKey(files); // Now assuming this can handle multiple files
   let uploadId = "";
   let key = "";
   let urls: string[] = [];
@@ -74,7 +80,7 @@ export async function uploadLargeFile(
 
     uploadedBytes = saved.parts?.reduce((sum: number, p: Part) => {
       const start = (p.PartNumber - 1) * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const end = Math.min(start + CHUNK_SIZE, files[p.PartNumber - 1].size);
       return sum + (end - start);
     }, 0);
 
@@ -99,8 +105,8 @@ export async function uploadLargeFile(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        fileType: file.type,
-        fileName: file.name,
+        fileType: "application/x-mpegURL", // Use HLS MIME type
+        fileName: files.map((file) => file.name).join(", "), // For multi-file uploads
       }),
     }).then((r) => r.json());
 
@@ -130,7 +136,7 @@ export async function uploadLargeFile(
 
     const progress = Math.min(
       99,
-      Math.round((uploadedBytes / file.size) * 100)
+      Math.round((uploadedBytes / files.reduce((sum, file) => sum + file.size, 0)) * 100)
     );
 
     console.log(`📊 ${progress}%`);
@@ -174,7 +180,7 @@ export async function uploadLargeFile(
   // =========================
   // UPLOAD PART
   // =========================
-  async function uploadPart(part: number) {
+  async function uploadPart(file: File, part: number) {
     if (completed.has(part)) return;
 
     const url = urls?.[part - 1];
@@ -214,14 +220,17 @@ export async function uploadLargeFile(
   let next = 1;
   const concurrency = 3;
 
-  async function worker() {
+  async function worker(file: File) {
     while (next <= totalParts) {
       const p = next++;
-      await uploadPart(p);
+      await uploadPart(file, p);
     }
   }
 
-  await Promise.all(Array.from({ length: concurrency }, worker));
+  // Handle each file (e.g., .ts or .m3u8) individually
+  await Promise.all(
+    files.map((file) => worker(file))
+  );
 
   console.log("📦 FINALIZING");
 
