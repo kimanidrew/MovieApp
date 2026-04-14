@@ -7,29 +7,13 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    console.log("🚀 Presign request started");
-
-    // 🔥 DEBUG ENV FIRST
-    console.log("ENV CHECK:", {
-      bucket: process.env.R2_BUCKET,
-      account: process.env.R2_ACCOUNT_ID,
-      hasKey: !!process.env.R2_ACCESS_KEY,
-      hasSecret: !!process.env.R2_SECRET_KEY,
-    });
-
-    const body = await req.json();
-    const { fileName, fileType } = body;
+    const { fileName, fileType } = await req.json();
 
     if (!fileName) {
-      return NextResponse.json(
-        { error: "fileName missing" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "fileName missing" }, { status: 400 });
     }
 
     const key = `uploads/${Date.now()}-${fileName.replace(/\s+/g, "-")}`;
-
-    console.log("🔑 Key:", key);
 
     const command = new PutObjectCommand({
       Bucket: process.env.R2_BUCKET!,
@@ -37,24 +21,20 @@ export async function POST(req: Request) {
       ContentType: fileType || "application/octet-stream",
     });
 
-    const url = await getSignedUrl(r2, command, {
+    const uploadUrl = await getSignedUrl(r2, command, {
       expiresIn: 600,
     });
 
-    console.log("✅ Signed URL generated");
+    // ✅ IMPORTANT: generate PUBLIC URL
+    const publicUrl = `https://${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${key}`;
 
     return NextResponse.json({
-      url,
+      uploadUrl, // for PUT
       key,
+      publicUrl, // for viewing
     });
   } catch (err: any) {
-    console.error("❌ PRESIGN ERROR:", err);
-
-    return NextResponse.json(
-      {
-        error: err.message,
-      },
-      { status: 500 }
-    );
+    console.error(err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-// uploadResume.ts
+// @/lib/uploadResume.ts
 const PREFIX = "upload_";
 
 // Constants for upload state expiration

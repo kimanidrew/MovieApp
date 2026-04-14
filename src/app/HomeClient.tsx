@@ -16,17 +16,25 @@ interface Video {
   releaseYear: number | null;
 }
 
-export default function HomeClient({ initialVideos }: { initialVideos: Video[] }) {
+const FALLBACK_IMAGE =
+  "https://images.unsplash.com/photo-1552526922-8393e878411d?q=80&w=1200";
+
+export default function HomeClient({
+  initialVideos,
+}: {
+  initialVideos: Video[];
+}) {
   const [history, setHistory] = useState<any>({});
 
   useEffect(() => {
     try {
-      const hist = JSON.parse(localStorage.getItem("movieflix-history") || "{}");
+      const hist = JSON.parse(
+        localStorage.getItem("movieflix-history") || "{}"
+      );
       setHistory(hist);
-    } catch { }
+    } catch {}
   }, []);
 
-  // Logic to determine if a specific video is in "Continue Watching" state
   const isContinueWatching = (videoId: string) => {
     const item = history[videoId];
     return (
@@ -37,12 +45,34 @@ export default function HomeClient({ initialVideos }: { initialVideos: Video[] }
     );
   };
 
-  // 🎯 Filtered Continue Watching Row
   const continueWatching = initialVideos
     .filter((v) => isContinueWatching(v.id))
-    .sort((a, b) => (history[b.id]?.updatedAt || 0) - (history[a.id]?.updatedAt || 0));
+    .sort(
+      (a, b) =>
+        (history[b.id]?.updatedAt || 0) -
+        (history[a.id]?.updatedAt || 0)
+    );
 
-  const heroVideo = initialVideos[0];
+  const heroVideo = initialVideos?.[0];
+
+  // ✅ FIX: normalize broken / invalid URLs
+  const normalizeUrl = (url?: string | null) => {
+    if (!url) return FALLBACK_IMAGE;
+
+    // fix double https bug
+    if (url.startsWith("https://https://")) {
+      return url.replace("https://https://", "https://");
+    }
+
+    // valid url
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+
+    return `https://${url}`;
+  };
+
+  const heroImage = normalizeUrl(heroVideo?.thumbnailUrl);
 
   return (
     <main style={{ background: "#141414", color: "#fff", minHeight: "100vh" }}>
@@ -52,28 +82,42 @@ export default function HomeClient({ initialVideos }: { initialVideos: Video[] }
           style={{
             position: "relative",
             height: "90vh",
-            backgroundImage: `url(${heroVideo.thumbnailUrl})`,
+            backgroundImage: `url(${heroImage})`, // ✅ FIXED HERE
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
         >
           {/* DARK OVERLAY */}
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(to top, #141414 10%, transparent 60%), linear-gradient(to right, #000 20%, transparent 80%)"
-          }} />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(to top, #141414 10%, transparent 60%), linear-gradient(to right, #000 20%, transparent 80%)",
+            }}
+          />
 
           {/* CONTENT */}
-          <div style={{
-            position: "absolute",
-            bottom: "20%",
-            left: "4%",
-            maxWidth: "600px"
-          }}>
-            <h1 style={{ fontSize: "3rem", fontWeight: 800 }}>{heroVideo.title}</h1>
+          <div
+            style={{
+              position: "absolute",
+              bottom: "20%",
+              left: "4%",
+              maxWidth: "600px",
+            }}
+          >
+            <h1 style={{ fontSize: "3rem", fontWeight: 800 }}>
+              {heroVideo.title}
+            </h1>
 
-            <div style={{ display: "flex", gap: "1rem", margin: "1rem 0", color: "#ccc" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "1rem",
+                margin: "1rem 0",
+                color: "#ccc",
+              }}
+            >
               <span style={{ color: "#46d369" }}>98% Match</span>
               <span>{heroVideo.releaseYear || "2024"}</span>
               <span>HD</span>
@@ -81,13 +125,15 @@ export default function HomeClient({ initialVideos }: { initialVideos: Video[] }
             </div>
 
             <p style={{ color: "#ddd", lineHeight: 1.5 }}>
-              {heroVideo.description || "AI-enhanced cinematic streaming experience."}
+              {heroVideo.description ||
+                "AI-enhanced cinematic streaming experience."}
             </p>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}>
-              {/* 🎯 Updated Play/Resume Button */}
               <Link href={`/watch/${heroVideo.id}`} style={btnPlay}>
-                {isContinueWatching(heroVideo.id) ? "▶ Resume" : "▶ Play"}
+                {isContinueWatching(heroVideo.id)
+                  ? "▶ Resume"
+                  : "▶ Play"}
               </Link>
 
               <Link href="/about" style={btnInfo}>
@@ -101,7 +147,10 @@ export default function HomeClient({ initialVideos }: { initialVideos: Video[] }
       {/* 🎞️ CONTENT ROWS */}
       <div style={{ marginTop: "-6rem", position: "relative", zIndex: 5 }}>
         {continueWatching.length > 0 && (
-          <VideoRow title="Continue Watching" videos={continueWatching} />
+          <VideoRow
+            title="Continue Watching"
+            videos={continueWatching}
+          />
         )}
 
         <VideoRow title="Trending Now" videos={initialVideos} />
@@ -120,7 +169,7 @@ const btnPlay: React.CSSProperties = {
   fontWeight: "bold",
   textDecoration: "none",
   display: "inline-block",
-  transition: "opacity 0.2s"
+  transition: "opacity 0.2s",
 };
 
 const btnInfo: React.CSSProperties = {
@@ -130,5 +179,5 @@ const btnInfo: React.CSSProperties = {
   borderRadius: "4px",
   fontWeight: "bold",
   textDecoration: "none",
-  display: "inline-block"
+  display: "inline-block",
 };

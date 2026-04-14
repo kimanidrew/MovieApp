@@ -3,63 +3,78 @@
 import React, { useEffect, useRef, useState } from "react";
 import VideoModal from "./VideoModal";
 import Hls from "hls.js";
+import Image from "next/image";
 
 interface Video {
-    id: string;
-    title: string;
-    description: string | null;
-    thumbnailUrl: string | null;
-    videoUrl?: string | null;
-    hlsManifestUrl?: string | null;
-    releaseYear: number | null;
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  videoUrl?: string | null;
+  hlsManifestUrl?: string | null;
+  releaseYear: number | null;
 }
 
-export default function VideoRow({ title, videos }: { title: string; videos: Video[] }) {
-    const [history, setHistory] = useState<any>({});
-    const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-    const [hoveredId, setHoveredId] = useState<string | null>(null);
+const FALLBACK_IMAGE =
+  "/fallback.jpg";
 
-    useEffect(() => {
-        try {
-            const hist = JSON.parse(localStorage.getItem("movieflix-history") || "{}");
-            setHistory(hist);
-        } catch { }
-    }, [selectedVideo]);
+export default function VideoRow({
+  title,
+  videos,
+}: {
+  title: string;
+  videos: Video[];
+}) {
+  const [history, setHistory] = useState<any>({});
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-    return (
-        <>
-            <section className="row-section">
-                <h2 className="row-title">{title}</h2>
+  useEffect(() => {
+    try {
+      const hist = JSON.parse(
+        localStorage.getItem("movieflix-history") || "{}"
+      );
+      setHistory(hist);
+    } catch {}
+  }, [selectedVideo]);
 
-                <div className="row-container">
-                    {videos.map((video, index) => {
-                        const hist = history[video.id];
-                        const progress =
-                            hist && hist.duration > 0
-                                ? Math.min(100, (hist.time / hist.duration) * 100)
-                                : 0;
+  return (
+    <>
+      <section className="row-section">
+        <h2 className="row-title">{title}</h2>
 
-                        return (
-                            <VideoCard
-                                key={video.id}
-                                video={video}
-                                index={index}
-                                progress={progress}
-                                isHovered={hoveredId === video.id}
-                                onHover={() => setHoveredId(video.id)}
-                                onLeave={() => setHoveredId(null)}
-                                onClick={() => setSelectedVideo(video)}
-                            />
-                        );
-                    })}
-                </div>
-            </section>
+        <div className="row-container">
+          {videos.map((video, index) => {
+            const hist = history[video.id];
+            const progress =
+              hist && hist.duration > 0
+                ? Math.min(100, (hist.time / hist.duration) * 100)
+                : 0;
 
-            {selectedVideo && (
-                <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />
-            )}
+            return (
+              <VideoCard
+                key={video.id}
+                video={video}
+                index={index}
+                progress={progress}
+                isHovered={hoveredId === video.id}
+                onHover={() => setHoveredId(video.id)}
+                onLeave={() => setHoveredId(null)}
+                onClick={() => setSelectedVideo(video)}
+              />
+            );
+          })}
+        </div>
+      </section>
 
-            <style>{`
+      {selectedVideo && (
+        <VideoModal
+          video={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
+        />
+      )}
+
+      <style>{`
         .row-section {
           padding: 2rem 0;
           position: relative;
@@ -74,12 +89,9 @@ export default function VideoRow({ title, videos }: { title: string; videos: Vid
         .row-container {
           display: flex;
           gap: 1rem;
-
-          padding: 2rem 4%; /* 🔥 FIX: adds space on left */
-
+          padding: 2rem 4%;
           overflow-x: auto;
           overflow-y: visible;
-
           scrollbar-width: none;
         }
 
@@ -87,96 +99,112 @@ export default function VideoRow({ title, videos }: { title: string; videos: Vid
           display: none;
         }
       `}</style>
-        </>
-    );
+    </>
+  );
 }
 
 function VideoCard({
-    video,
-    index,
-    progress,
-    isHovered,
-    onHover,
-    onLeave,
-    onClick,
+  video,
+  index,
+  progress,
+  isHovered,
+  onHover,
+  onLeave,
+  onClick,
 }: any) {
-    const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-    useEffect(() => {
-  if (!isHovered || !videoRef.current) return;
-
-  const vid = videoRef.current;
-  let hls: Hls | null = null;
-
-  const src = video.hlsManifestUrl || video.videoUrl;
-  if (!src) return;
-
-  vid.muted = true;
-  vid.playsInline = true;
-  vid.preload = "auto";
-
-  const playVideo = () => {
-    vid.currentTime = 2; // safer than 5
-    vid.play().catch(() => {});
+  // ✅ FIX URL SAFETY
+  const normalizeUrl = (url?: string | null) => {
+    if (!url) return FALLBACK_IMAGE;
+    if (url.startsWith("https://https://")) {
+      return url.replace("https://https://", "https://");
+    }
+    if (!url.startsWith("http") && !url.startsWith("/")) {
+      return `https://${url}`;
+    }
+    return url;
   };
 
-  if (src.endsWith(".m3u8")) {
-    if (Hls.isSupported()) {
-      hls = new Hls();
-      hls.loadSource(src);
-      hls.attachMedia(vid);
+  const thumbnail = normalizeUrl(video.thumbnailUrl);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        playVideo();
-      });
-    } else if (vid.canPlayType("application/vnd.apple.mpegurl")) {
+  useEffect(() => {
+    if (!isHovered || !videoRef.current) return;
+
+    const vid = videoRef.current;
+    let hls: Hls | null = null;
+
+    const src = video.hlsManifestUrl || video.videoUrl;
+    if (!src) return;
+
+    vid.muted = true;
+    vid.playsInline = true;
+
+    const playVideo = () => {
+      vid.currentTime = 2;
+      vid.play().catch(() => {});
+    };
+
+    if (src.endsWith(".m3u8")) {
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(vid);
+        hls.on(Hls.Events.MANIFEST_PARSED, playVideo);
+      } else {
+        vid.src = src;
+        vid.addEventListener("loadedmetadata", playVideo, { once: true });
+      }
+    } else {
       vid.src = src;
       vid.addEventListener("loadedmetadata", playVideo, { once: true });
     }
-  } else {
-    // ✅ MP4 fallback
-    vid.src = src;
-    vid.addEventListener("loadedmetadata", playVideo, { once: true });
-  }
 
-  return () => {
-    vid.pause();
-    vid.removeAttribute("src");
-    vid.load();
-    if (hls) hls.destroy();
-  };
-}, [isHovered, video]);
+    return () => {
+      vid.pause();
+      vid.removeAttribute("src");
+      vid.load();
+      if (hls) hls.destroy();
+    };
+  }, [isHovered, video]);
 
-    return (
-        <div
-            className={`card-wrapper ${index === 0 ? "first-card" : ""}`}
-            onMouseEnter={onHover}
-            onMouseLeave={onLeave}
-            onClick={onClick}
-        >
-            <div className="netflix-card">
-                <img
-                    src={video.thumbnailUrl || "/fallback.jpg"}
-                    className={`thumbnail ${isHovered ? "hide" : ""}`}
-                />
+  return (
+    <div
+      className={`card-wrapper ${index === 0 ? "first-card" : ""}`}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      onClick={onClick}
+    >
+      <div className="netflix-card">
+        {/* ✅ NEXT IMAGE FIXED THUMBNAIL */}
+        <div className={`thumb-wrapper ${isHovered ? "hide" : ""}`}>
+          <Image
+            src={thumbnail}
+            alt={video.title}
+            fill
+            sizes="240px"
+            style={{ objectFit: "cover" }}
+            priority={false}
+          />
+        </div>
 
-                <video
-                    ref={videoRef}
-                    className={`preview ${isHovered ? "show" : ""}`}
-                    loop
-                    playsInline
-                />
+        <video
+          ref={videoRef}
+          className={`preview ${isHovered ? "show" : ""}`}
+          loop
+          playsInline
+        />
 
-                <div className="gradient-overlay" />
+        <div className="gradient-overlay" />
 
-                {progress > 0 && (
-                    <div className="progress-bar">
-                        <div style={{ width: `${progress}%` }} />
-                    </div>
-                )}
-            </div>
+        {progress > 0 && (
+          <div className="progress-bar">
+            <div style={{ width: `${progress}%` }} />
+          </div>
+        )}
+      </div>
 
-            <style>{`
+      <style>{`
         .card-wrapper {
           position: relative;
           border-radius: 8px;
@@ -193,25 +221,23 @@ function VideoCard({
           transition: transform 0.3s ease;
         }
 
-        /* 🔥 DEFAULT SCALE */
         .card-wrapper:hover .netflix-card {
           transform: scale(1.5);
           z-index: 999;
         }
 
-        /* 🔥 FIX FIRST CARD CUT */
         .first-card:hover .netflix-card {
           transform-origin: left center;
         }
 
-        img.thumbnail {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
+        /* ✅ NEW WRAPPER FOR NEXT IMAGE */
+        .thumb-wrapper {
+          position: absolute;
+          inset: 0;
           transition: opacity 0.3s ease;
         }
 
-        img.hide {
+        .thumb-wrapper.hide {
           opacity: 0;
         }
 
@@ -234,7 +260,11 @@ function VideoCard({
           bottom: 0;
           width: 100%;
           height: 60%;
-          background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+          background: linear-gradient(
+            to top,
+            rgba(0, 0, 0, 0.9),
+            transparent
+          );
         }
 
         .progress-bar {
@@ -242,7 +272,7 @@ function VideoCard({
           bottom: 0;
           width: 100%;
           height: 4px;
-          background: rgba(255,255,255,0.2);
+          background: rgba(255, 255, 255, 0.2);
         }
 
         .progress-bar div {
@@ -250,6 +280,6 @@ function VideoCard({
           background: #e50914;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
