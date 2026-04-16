@@ -15,8 +15,7 @@ interface Video {
   releaseYear: number | null;
 }
 
-const FALLBACK_IMAGE =
-  "/fallback.jpg";
+const FALLBACK_IMAGE = "/fallback.jpg";
 
 export default function VideoRow({
   title,
@@ -78,20 +77,21 @@ export default function VideoRow({
         .row-section {
           padding: 2rem 0;
           position: relative;
-          z-index: 5;
         }
 
         .row-title {
           padding: 0 4%;
           margin-bottom: 1rem;
+          font-size: 1.4rem;
+          font-weight: 700;
+          color: #fff;
         }
 
         .row-container {
           display: flex;
           gap: 1rem;
-          padding: 2rem 4%;
+          padding: 1rem 4%;
           overflow-x: auto;
-          overflow-y: visible;
           scrollbar-width: none;
         }
 
@@ -102,6 +102,8 @@ export default function VideoRow({
     </>
   );
 }
+
+/* ===================== CARD ===================== */
 
 function VideoCard({
   video,
@@ -114,7 +116,6 @@ function VideoCard({
 }: any) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // ✅ FIX URL SAFETY
   const normalizeUrl = (url?: string | null) => {
     if (!url) return FALLBACK_IMAGE;
     if (url.startsWith("https://https://")) {
@@ -176,7 +177,8 @@ function VideoCard({
       onClick={onClick}
     >
       <div className="netflix-card">
-        {/* ✅ NEXT IMAGE FIXED THUMBNAIL */}
+
+        {/* THUMBNAIL */}
         <div className={`thumb-wrapper ${isHovered ? "hide" : ""}`}>
           <Image
             src={thumbnail}
@@ -184,10 +186,10 @@ function VideoCard({
             fill
             sizes="240px"
             style={{ objectFit: "cover" }}
-            priority={false}
           />
         </div>
 
+        {/* VIDEO PREVIEW */}
         <video
           ref={videoRef}
           className={`preview ${isHovered ? "show" : ""}`}
@@ -197,6 +199,7 @@ function VideoCard({
 
         <div className="gradient-overlay" />
 
+        {/* PROGRESS BAR (KEPT) */}
         {progress > 0 && (
           <div className="progress-bar">
             <div style={{ width: `${progress}%` }} />
@@ -204,33 +207,43 @@ function VideoCard({
         )}
       </div>
 
+      {/* TITLE + INFO BELOW */}
+      <div className="meta">
+        <div className="title">{video.title}</div>
+
+        <div className="sub">
+          <span>{video.releaseYear || "—"}</span>
+          {video.description && (
+            <span className="desc">
+              {video.description.length > 60
+                ? video.description.slice(0, 60) + "..."
+                : video.description}
+            </span>
+          )}
+        </div>
+      </div>
+
       <style>{`
         .card-wrapper {
-          position: relative;
-          border-radius: 8px;
+          width: 240px;
           cursor: pointer;
+          transition: transform 0.2s ease;
+        }
+
+        .card-wrapper:hover {
+          transform: scale(1.08);
+          z-index: 10;
         }
 
         .netflix-card {
           position: relative;
-          min-width: 240px;
+          width: 240px;
           height: 140px;
-          border-radius: 8px;
+          border-radius: 10px;
           overflow: hidden;
-          background: #000;
-          transition: transform 0.3s ease;
+          background: #111;
         }
 
-        .card-wrapper:hover .netflix-card {
-          transform: scale(1.5);
-          z-index: 999;
-        }
-
-        .first-card:hover .netflix-card {
-          transform-origin: left center;
-        }
-
-        /* ✅ NEW WRAPPER FOR NEXT IMAGE */
         .thumb-wrapper {
           position: absolute;
           inset: 0;
@@ -260,24 +273,49 @@ function VideoCard({
           bottom: 0;
           width: 100%;
           height: 60%;
-          background: linear-gradient(
-            to top,
-            rgba(0, 0, 0, 0.9),
-            transparent
-          );
+          background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
         }
 
+        /* PROGRESS BAR */
         .progress-bar {
           position: absolute;
           bottom: 0;
           width: 100%;
-          height: 4px;
-          background: rgba(255, 255, 255, 0.2);
+          height: 3px;
+          background: rgba(255,255,255,0.15);
         }
 
         .progress-bar div {
           height: 100%;
           background: #e50914;
+        }
+
+        /* META BELOW CARD */
+        .meta {
+          padding-top: 8px;
+          color: #fff;
+          font-family: Arial, sans-serif;
+        }
+
+        .title {
+          font-size: 1rem;
+          font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          margin-bottom: 5px;
+        }
+
+        .sub {
+          display: flex;
+          gap: 6px;
+          font-size: 0.75rem;
+          color: #aaa;
+          margin-top: 2px;
+        }
+
+        .desc {
+          color: #777;
         }
       `}</style>
     </div>
