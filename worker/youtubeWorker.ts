@@ -3,7 +3,6 @@ import { spawn } from "child_process";
 import fs from "fs";
 import { redis } from "../src/lib/redis";
 import { uploadToR2 } from "./r2Worker";
-import { updateProgress } from "./updateProgress";
 
 console.log("🚀 GCP YouTube Worker started...");
 
@@ -19,12 +18,28 @@ new Worker(
     const filePath = `/tmp/${job.id}.mp4`;
 
     try {
-      updateProgress(job.id!, 5, "starting");
+      // -------------------------
+      // START
+      // -------------------------
+      const updateProgress = async (progress: number, status: string) => {
+        const payload = {
+          jobId: job.id,
+          progress,
+          status,
+          updatedAt: Date.now(),
+        };
+
+        console.log(`📊 [${job.id}] → ${progress}% (${status})`);
+
+        redis.set(`yt-job:${job.id}`, JSON.stringify(payload));
+      };
+
+      updateProgress(5, "starting");
 
       // -------------------------
-      // DOWNLOAD VIDEO
+      // DOWNLOAD
       // -------------------------
-      console.log("⬇️ Starting yt-dlp...");
+      console.log("⬇️ yt-dlp downloading...");
 
       await new Promise((resolve, reject) => {
         const yt = spawn("yt-dlp", [
@@ -35,59 +50,60 @@ new Worker(
           url,
         ]);
 
-        yt.stdout.on("data", (d) => {
-          const msg = d.toString();
-          console.log("📥 yt-dlp:", msg);
-        });
+        yt.stdout.on("data", (d) =>
+          console.log("yt-dlp:", d.toString())
+        );
 
-        yt.stderr.on("data", (d) => {
-          const msg = d.toString();
-          console.log("⚠️ yt-dlp err:", msg);
-        });
+        yt.stderr.on("data", (d) =>
+          console.log("yt-dlp err:", d.toString())
+        );
 
         yt.on("close", (code) => {
-          console.log("📥 yt-dlp exit code:", code);
-          if (code === 0) resolve(true);
-          else reject(new Error("yt-dlp failed"));
+          console.log("📥 yt-dlp exit:", code);
+          code === 0 ? resolve(true) : reject(new Error("yt-dlp failed"));
         });
       });
 
-      console.log("✅ Download complete:", filePath);
+      console.log("✅ Download complete");
 
-      updateProgress(job.id!, 60, "uploading");
+      if (!fs.existsSync(filePath)) {
+        throw new Error("File missing after download");
+      }
+
+      updateProgress(60, "uploading");
 
       // -------------------------
-      // UPLOAD TO R2
+      // UPLOAD
       // -------------------------
       console.log("☁️ Uploading to R2...");
 
+      const start = Date.now();
+
       const videoUrl = await uploadToR2(
         filePath,
-        `videos/${job.id}.mp4`
+        `videos/${job.id}.mp4`,
+        job.id // 🔥 IMPORTANT
       );
 
-      console.log("✅ Uploaded to R2:", videoUrl);
+      console.log("⏱ Upload time:", Date.now() - start, "ms");
 
-      // cleanup
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log("🧹 Temp file removed");
-      }
+      console.log("✅ Uploaded URL:", videoUrl);
 
-      updateProgress(job.id!, 85, "saving");
+      fs.unlinkSync(filePath);
+      console.log("🧹 Temp file removed");
+
+      updateProgress(95, "saving");
 
       // -------------------------
-      // SAVE TO DB
+      // SAVE DB
       // -------------------------
-      console.log("💾 Saving to DB...");
+      console.log("💾 Saving to API...");
 
       const res = await fetch(
         `${process.env.APP_URL}/api/videos`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
             description,
@@ -101,24 +117,26 @@ new Worker(
 
       const db = await res.json();
 
-      console.log("💾 DB RESPONSE:", db);
+      console.log("💾 DB response:", db);
 
-      if (!res.ok) {
-        throw new Error("DB save failed");
-      }
-
-      updateProgress(job.id!, 100, "done");
+      updateProgress(100, "done");
 
       console.log("🎉 JOB DONE:", job.id);
-      console.log("==============================\n");
 
       return { videoUrl };
     } catch (err: any) {
-      console.error("❌ JOB FAILED:", job.id, err.message);
+      console.error("❌ JOB FAILED:", err.message);
 
-      updateProgress(job.id!, 0, "failed");
+      redis.set(
+        `yt-job:${job.id}`,
+        JSON.stringify({
+          jobId: job.id,
+          progress: 0,
+          status: "failed",
+          updatedAt: Date.now(),
+        })
+      );
 
-      // cleanup if exists
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
         console.log("🧹 Cleanup after failure");
