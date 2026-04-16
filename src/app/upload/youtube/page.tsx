@@ -88,26 +88,34 @@ export default function YoutubeUploadPage() {
   /**
    * POLL JOB STATUS
    */
-  const pollJob = async (id: string) => {
-    const interval = setInterval(async () => {
-      const res = await fetch(`/api/upload/youtube/status?id=${id}`);
-      const data = await res.json();
+const pollJob = async (id: string) => {
+  console.log("🔄 Start polling:", id);
 
-      if (data.progress) setProgress(data.progress);
+  const interval = setInterval(async () => {
+    const res = await fetch(`/api/upload/youtube/status?id=${id}`);
+    const data = await res.json();
 
-      if (data.status === "done") {
-        clearInterval(interval);
-        setIsUploading(false);
-        router.push("/dashboard");
-      }
+    console.log("📡 Poll response:", data);
 
-      if (data.status === "failed") {
-        clearInterval(interval);
-        setIsUploading(false);
-        alert("Upload failed");
-      }
-    }, 2000);
-  };
+    if (data.progress !== undefined) {
+      setProgress(data.progress);
+    }
+
+    if (data.status === "done") {
+      console.log("✅ Job completed");
+      clearInterval(interval);
+      setIsUploading(false);
+      router.push("/dashboard");
+    }
+
+    if (data.status === "failed") {
+      console.error("❌ Job failed");
+      clearInterval(interval);
+      setIsUploading(false);
+      alert("Upload failed");
+    }
+  }, 2000);
+};
 
   return (
     <div className="upload-container">

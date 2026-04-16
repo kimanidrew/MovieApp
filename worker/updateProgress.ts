@@ -1,6 +1,10 @@
 import { redis } from "../src/lib/redis";
 
-export async function updateProgress(jobId: string, progress: number, status = "processing") {
+export function updateProgress(
+  jobId: string,
+  progress: number,
+  status = "processing"
+) {
   const payload = {
     jobId,
     progress,
@@ -8,7 +12,16 @@ export async function updateProgress(jobId: string, progress: number, status = "
     updatedAt: Date.now(),
   };
 
-  console.log("📊 Progress:", payload);
+  console.log(`📊 [${jobId}] → ${progress}% (${status})`);
 
-  await redis.set(`yt-job:${jobId}`, JSON.stringify(payload));
+  redis
+    .set(`yt-job:${jobId}`, JSON.stringify(payload))
+    .then((res) => {
+      console.log(`✅ [${jobId}] Redis OK → ${res}`);
+    })
+    .catch((err) => {
+      console.error(`❌ [${jobId}] Redis error`, err);
+    });
+
+  return payload;
 }

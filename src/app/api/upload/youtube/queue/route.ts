@@ -9,7 +9,8 @@ const queue = new Queue("youtube-download", {
 export async function POST(req: Request) {
   const body = await req.json();
 
-  console.log("📥 Queue request:", body);
+  console.log("📥 Queue request received:");
+  console.log(body);
 
   const job = await queue.add("download", body);
 

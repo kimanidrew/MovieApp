@@ -12,90 +12,120 @@ new Worker(
   async (job) => {
     const { url, title, description } = job.data;
 
+    console.log("\n==============================");
     console.log("🎬 NEW JOB:", job.id);
     console.log("🔗 URL:", url);
 
     const filePath = `/tmp/${job.id}.mp4`;
 
-    await updateProgress(job.id!, 5, "starting");
+    try {
+      updateProgress(job.id!, 5, "starting");
 
-    // -------------------------
-    // DOWNLOAD VIDEO
-    // -------------------------
-    console.log("⬇️ yt-dlp downloading...");
+      // -------------------------
+      // DOWNLOAD VIDEO
+      // -------------------------
+      console.log("⬇️ Starting yt-dlp...");
 
-    await new Promise((resolve, reject) => {
-      const yt = spawn("yt-dlp", [
-        "-f",
-        "mp4",
-        "-o",
-        filePath,
-        url,
-      ]);
+      await new Promise((resolve, reject) => {
+        const yt = spawn("yt-dlp", [
+          "-f",
+          "bestvideo+bestaudio/best",
+          "-o",
+          filePath,
+          url,
+        ]);
 
-      yt.stdout.on("data", (d) =>
-        console.log("yt-dlp:", d.toString())
-      );
+        yt.stdout.on("data", (d) => {
+          const msg = d.toString();
+          console.log("📥 yt-dlp:", msg);
+        });
 
-      yt.stderr.on("data", (d) =>
-        console.log("yt-dlp err:", d.toString())
-      );
+        yt.stderr.on("data", (d) => {
+          const msg = d.toString();
+          console.log("⚠️ yt-dlp err:", msg);
+        });
 
-      yt.on("close", (code) => {
-        console.log("📥 yt-dlp exit code:", code);
-
-        if (code === 0) resolve(true);
-        else reject(new Error("Download failed"));
+        yt.on("close", (code) => {
+          console.log("📥 yt-dlp exit code:", code);
+          if (code === 0) resolve(true);
+          else reject(new Error("yt-dlp failed"));
+        });
       });
-    });
 
-    await updateProgress(job.id!, 60, "uploading");
+      console.log("✅ Download complete:", filePath);
 
-    // -------------------------
-    // UPLOAD TO R2
-    // -------------------------
-    const videoUrl = await uploadToR2(
-      filePath,
-      `videos/${job.id}.mp4`
-    );
+      updateProgress(job.id!, 60, "uploading");
 
-    fs.unlinkSync(filePath);
+      // -------------------------
+      // UPLOAD TO R2
+      // -------------------------
+      console.log("☁️ Uploading to R2...");
 
-    console.log("🧹 Temp file removed");
+      const videoUrl = await uploadToR2(
+        filePath,
+        `videos/${job.id}.mp4`
+      );
 
-    await updateProgress(job.id!, 90, "saving");
+      console.log("✅ Uploaded to R2:", videoUrl);
 
-    // -------------------------
-    // SAVE DB
-    // -------------------------
-    console.log("💾 Saving to API...");
-
-    const res = await fetch(
-      `${process.env.APP_URL}/api/videos`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          videoUrl,
-          videoKey: `videos/${job.id}.mp4`,
-          thumbnailUrl: "",
-          releaseYear: new Date().getFullYear(),
-        }),
+      // cleanup
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log("🧹 Temp file removed");
       }
-    );
 
-    const db = await res.json();
-    console.log("💾 DB response:", db);
+      updateProgress(job.id!, 85, "saving");
 
-    await updateProgress(job.id!, 100, "done");
+      // -------------------------
+      // SAVE TO DB
+      // -------------------------
+      console.log("💾 Saving to DB...");
 
-    console.log("🎉 JOB DONE:", job.id);
+      const res = await fetch(
+        `${process.env.APP_URL}/api/videos`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title,
+            description,
+            videoUrl,
+            videoKey: `videos/${job.id}.mp4`,
+            thumbnailUrl: "",
+            releaseYear: new Date().getFullYear(),
+          }),
+        }
+      );
 
-    return { videoUrl };
+      const db = await res.json();
+
+      console.log("💾 DB RESPONSE:", db);
+
+      if (!res.ok) {
+        throw new Error("DB save failed");
+      }
+
+      updateProgress(job.id!, 100, "done");
+
+      console.log("🎉 JOB DONE:", job.id);
+      console.log("==============================\n");
+
+      return { videoUrl };
+    } catch (err: any) {
+      console.error("❌ JOB FAILED:", job.id, err.message);
+
+      updateProgress(job.id!, 0, "failed");
+
+      // cleanup if exists
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log("🧹 Cleanup after failure");
+      }
+
+      throw err;
+    }
   },
   {
     connection: redis,
