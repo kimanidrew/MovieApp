@@ -4,17 +4,23 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 
-const r2 = new S3Client({
+console.log("🛠️ R2 Config Check:", {
+  endpoint: process.env.R2_ENDPOINT ? "EXISTS" : "MISSING",
+  bucket: process.env.R2_BUCKET ? "EXISTS" : "MISSING"
+});
+
+export const r2 = new S3Client({
   region: "auto",
-  endpoint: process.env.R2_ENDPOINT, // e.g., https://<id>.r2.cloudflarestorage.com
+  endpoint: process.env.R2_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY!,
-    secretAccessKey: process.env.R2_SECRET_KEY!,
+    accessKeyId: process.env.R2_ACCESS_KEY || "",
+    secretAccessKey: process.env.R2_SECRET_KEY || "",
   },
-  requestHandler: new NodeHttpHandler({
-    connectionTimeout: 10000, // 10 seconds
+  // This is vital to prevent the "stuck" state
+  requestHandler: {
+    connectionTimeout: 10000, 
     socketTimeout: 10000,
-  }),
+  },
 });
 
 async function updateProgress(jobId: string, progress: number, status = "uploading") {
