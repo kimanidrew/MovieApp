@@ -43,6 +43,7 @@ new Worker(
 
       await new Promise((resolve, reject) => {
         const yt = spawn("yt-dlp", [
+          "--js-runtimes", "node",
           "-f",
           "bestvideo+bestaudio/best",
           "-o",
