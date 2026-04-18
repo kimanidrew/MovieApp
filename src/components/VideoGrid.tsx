@@ -56,18 +56,28 @@ export default function VideoGrid({
   }
 
   // ✅ Normalize URL safely
-  const normalizeUrl = (url?: string | null) => {
-    if (!url) return FALLBACK_IMAGE;
+ const normalizeUrl = (url?: string | null) => {
+  if (!url) return FALLBACK_IMAGE;
 
-    // prevent double https://
-    if (url.startsWith("https://https://")) {
-      return url.replace("https://https://", "https://");
-    }
+  // Fix duplicated https
+  if (url.startsWith("https://https://")) {
+    return url.replace("https://https://", "https://");
+  }
 
-    if (url.startsWith("http")) return url;
+  // If already valid absolute URL, return as-is
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
 
-    return `https://${url}`;
-  };
+  // If it's a relative path, return as-is
+  if (url.startsWith("/")) {
+    return url;
+  }
+
+  // Otherwise, prepend https
+  return `https://${url}`;
+};
+
 
   return (
     <>

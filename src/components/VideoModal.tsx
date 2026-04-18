@@ -5,6 +5,8 @@ import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import Hls from 'hls.js';
 
+const FALLBACK_IMAGE = "/fallback.jpg";
+
 interface Video {
   id: string;
   title: string;
@@ -80,7 +82,29 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
   const hasHistory = history.time > 5;
   const progressPct = history.duration > 0 ? Math.min(100, Math.max(0, (history.time / history.duration) * 100)) : 0;
 
-  // Mock episodes if it's a TV show
+ const normalizeUrl = (url?: string | null) => {
+  if (!url) return FALLBACK_IMAGE;
+
+  // Fix duplicated https
+  if (url.startsWith("https://https://")) {
+    return url.replace("https://https://", "https://");
+  }
+
+  // If already valid absolute URL, return as-is
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  // If it's a relative path, return as-is
+  if (url.startsWith("/")) {
+    return url;
+  }
+
+  // Otherwise, prepend https
+  return `https://${url}`;
+};
+
+ // Mock episodes if it's a TV show
   const episodes = [
     { num: 1, title: "Pilot", desc: "The beginning of an epic journey into the unknown.", img: video.thumbnailUrl },
     { num: 2, title: "The Awakening", desc: "New friends are made, but old enemies return.", img: video.thumbnailUrl },
@@ -104,10 +128,10 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
                 muted={isMuted}
                 loop
                 playsInline
-                poster={video.thumbnailUrl || undefined}
+                poster={normalizeUrl(video.thumbnailUrl) || undefined}
               />
             ) : (
-              <img src={video.thumbnailUrl || ''} alt={video.title} className="modal-video" />
+              <img src={normalizeUrl(video.thumbnailUrl) || ''} alt={video.title} className="modal-video" />
             )}
             <div className="modal-gradient"></div>
           </div>
