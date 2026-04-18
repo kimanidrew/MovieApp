@@ -7,6 +7,8 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
+console.log("🚀 GCP YouTube Worker (HLS + Anti-Bot) starting...");
+
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT!,
@@ -31,12 +33,13 @@ new Worker(
   async (job) => {
     const { url } = job.data;
     const jobId = String(job.id);
-    const tempDir = `/tmp/hls-${jobId}`;
     const mp4Path = `/tmp/${jobId}.mp4`;
+    const tempHlsDir = `/tmp/hls-${jobId}`;
     const hlsFolderKey = `videos/hls/${jobId}`;
 
     try {
-      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+      if (!fs.existsSync(tempHlsDir)) fs.mkdirSync(tempHlsDir, { recursive: true });
+
       await updateProgress(jobId, 5, "fetching_metadata");
 
       // --- 1. FETCH METADATA ---
@@ -45,29 +48,26 @@ new Worker(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
+      if (!infoRes.ok) throw new Error("Metadata fetch failed");
       const info = await infoRes.json();
 
-      // --- 2. DOWNLOAD MP4 (Optimized for GCP) ---
+      // --- 2. DOWNLOAD (Anti-Bot Config) ---
       await updateProgress(jobId, 10, "downloading");
       await new Promise((resolve, reject) => {
         const yt = spawn("yt-dlp", [
-          "--js-runtimes", "deno", // 🎯 Using Deno is more stable
-          "--extractor-args", "youtube:player_client=android,web;formats=missing_pot", // 🎯 Bypass cloud blocks
-          "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+          "--js-runtimes", "node",
+          // 🎯 This specific argument bypasses many bot checks on GCP
+          "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
           "--no-playlist",
+          "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
           url,
         ]);
-
-        yt.stdout.on('data', (d) => console.log(`yt-dlp: ${d}`));
-        yt.stderr.on('data', (d) => console.error(`yt-dlp-err: ${d}`));
-
-        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed with code ${code}`)));
+        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed: ${code}`)));
       });
 
       // --- 3. CONVERT TO HLS (FFMPEG) ---
       await updateProgress(jobId, 40, "transcoding_hls");
-      console.log("🎬 Transcoding to HLS...");
       await new Promise((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
@@ -75,18 +75,18 @@ new Worker(
           "-codec:a", "aac",
           "-hls_time", "10",
           "-hls_playlist_type", "vod",
-          "-hls_segment_filename", `${tempDir}/segment%03d.ts`,
-          `${tempDir}/playlist.m3u8`
+          "-hls_segment_filename", `${tempHlsDir}/segment%03d.ts`,
+          `${tempHlsDir}/playlist.m3u8`
         ]);
         ffmpeg.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("ffmpeg failed")));
       });
 
       // --- 4. UPLOAD HLS FOLDER TO R2 ---
       await updateProgress(jobId, 70, "uploading_hls");
-      const files = fs.readdirSync(tempDir);
+      const files = fs.readdirSync(tempHlsDir);
       
       for (const file of files) {
-        const fileStream = fs.createReadStream(path.join(tempDir, file));
+        const filePath = path.join(tempHlsDir, file);
         const contentType = file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T";
         
         const upload = new Upload({
@@ -94,7 +94,7 @@ new Worker(
           params: {
             Bucket: process.env.R2_BUCKET!,
             Key: `${hlsFolderKey}/${file}`,
-            Body: fileStream,
+            Body: fs.createReadStream(filePath),
             ContentType: contentType,
           },
         });
@@ -105,13 +105,13 @@ new Worker(
 
       // --- 5. SAVE TO DB ---
       await updateProgress(jobId, 95, "saving");
-      const res = await fetch(`${process.env.APP_URL}/api/videos`, {
+      await fetch(`${process.env.APP_URL}/api/videos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: info.title,
           description: info.description,
-          videoUrl: hlsUrl,
+          videoUrl: hlsUrl, // 🎯 Saving HLS URL
           thumbnailUrl: info.thumbnail,
           videoKey: hlsFolderKey,
           releaseYear: new Date().getFullYear(),
@@ -120,15 +120,14 @@ new Worker(
 
       // --- CLEANUP ---
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
-      if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+      if (fs.existsSync(tempHlsDir)) fs.rmSync(tempHlsDir, { recursive: true, force: true });
       await updateProgress(jobId, 100, "done");
-      console.log("🎉 SUCCESS: HLS Uploaded");
 
     } catch (err: any) {
-      console.error("❌ FATAL:", err.message);
+      console.error("❌ ERROR:", err.message);
       await updateProgress(jobId, 0, "failed");
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
-      if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
+      if (fs.existsSync(tempHlsDir)) fs.rmSync(tempHlsDir, { recursive: true, force: true });
       throw err;
     }
   },
