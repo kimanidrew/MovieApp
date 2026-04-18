@@ -2,11 +2,10 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { spawn } from "child_process";
 import fs from "fs";
+import path from "path";
 import { redis } from "../src/lib/redis";
-import { S3Client } from "@aws-sdk/client-s3";
-import { Upload, Progress } from "@aws-sdk/lib-storage";
-
-console.log("🚀 GCP YouTube Worker (Full Integration) starting...");
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 
 const s3 = new S3Client({
   region: "auto",
@@ -32,97 +31,98 @@ new Worker(
   async (job) => {
     const { url } = job.data;
     const jobId = String(job.id);
-    const filePath = `/tmp/${jobId}.mp4`;
-    const videoKey = `videos/youtube/${jobId}.mp4`;
+    const tempDir = `/tmp/hls-${jobId}`;
+    const mp4Path = `/tmp/${jobId}.mp4`;
+    const hlsFolderKey = `videos/hls/${jobId}`;
 
     try {
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
       await updateProgress(jobId, 5, "fetching_metadata");
 
-      // --- 1. FETCH METADATA (Title, Description, Thumbnail) ---
-      console.log("🔍 Fetching YouTube metadata...");
+      // --- 1. FETCH METADATA ---
       const infoRes = await fetch(`${process.env.APP_URL}/api/upload/youtube/info`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-
-      if (!infoRes.ok) {
-        throw new Error(`Failed to fetch YouTube info: ${await infoRes.text()}`);
-      }
-
       const info = await infoRes.json();
-      console.log("✅ Metadata fetched:", info.title);
 
-      // --- 2. DOWNLOAD ---
+      // --- 2. DOWNLOAD MP4 ---
       await updateProgress(jobId, 10, "downloading");
-      console.log("⬇️ Downloading video...");
       await new Promise((resolve, reject) => {
         const yt = spawn("yt-dlp", [
           "--js-runtimes", "node",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-          "-o", filePath,
+          "-o", mp4Path,
           url,
         ]);
-        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp code ${code}`)));
+        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("yt-dlp failed")));
       });
 
-      // --- 3. UPLOAD TO R2 ---
-      await updateProgress(jobId, 60, "uploading");
-      const parallelUpload = new Upload({
-        client: s3,
-        params: {
-          Bucket: process.env.R2_BUCKET!,
-          Key: videoKey,
-          Body: fs.createReadStream(filePath),
-          ContentType: "video/mp4",
-        },
-        queueSize: 4,
-        partSize: 10 * 1024 * 1024,
+      // --- 3. CONVERT TO HLS (FFMPEG) ---
+      await updateProgress(jobId, 40, "transcoding_hls");
+      console.log("🎬 Transcoding to HLS...");
+      await new Promise((resolve, reject) => {
+        const ffmpeg = spawn("ffmpeg", [
+          "-i", mp4Path,
+          "-codec:v", "libx264", // Standard H264
+          "-codec:a", "aac",    // Standard AAC
+          "-hls_time", "10",     // 10 second segments
+          "-hls_playlist_type", "vod",
+          "-hls_segment_filename", `${tempDir}/segment%03d.ts`,
+          `${tempDir}/playlist.m3u8`
+        ]);
+        ffmpeg.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("ffmpeg failed")));
       });
 
-      parallelUpload.on("httpUploadProgress", (p: Progress) => {
-        if (p.loaded && p.total) {
-          const percent = Math.round((p.loaded / p.total) * 100);
-          updateProgress(jobId, 60 + Math.floor(percent * 0.3), "uploading");
-        }
-      });
-
-      await parallelUpload.done();
-      const videoUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${videoKey}`;
-
-      // --- 4. SAVE TO DB ---
-      await updateProgress(jobId, 95, "saving");
+      // --- 4. UPLOAD HLS FOLDER TO R2 ---
+      await updateProgress(jobId, 70, "uploading_hls");
+      const files = fs.readdirSync(tempDir);
       
-      const dbPayload = {
-        title: info.title,
-        description: info.description,
-        videoUrl: videoUrl,
-        thumbnailUrl: info.thumbnail, // Matches info response
-        videoKey: videoKey,
-        releaseYear: new Date().getFullYear(),
-      };
+      for (const file of files) {
+        const fileStream = fs.createReadStream(path.join(tempDir, file));
+        const contentType = file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T";
+        
+        const upload = new Upload({
+          client: s3,
+          params: {
+            Bucket: process.env.R2_BUCKET!,
+            Key: `${hlsFolderKey}/${file}`,
+            Body: fileStream,
+            ContentType: contentType,
+          },
+        });
+        await upload.done();
+      }
 
-      console.log("💾 Saving to Database...");
+      const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${hlsFolderKey}/playlist.m3u8`;
+
+      // --- 5. SAVE TO DB ---
+      await updateProgress(jobId, 95, "saving");
       const res = await fetch(`${process.env.APP_URL}/api/videos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dbPayload),
+        body: JSON.stringify({
+          title: info.title,
+          description: info.description,
+          videoUrl: hlsUrl, // 🎯 HLS URL saved here
+          thumbnailUrl: info.thumbnail,
+          videoKey: hlsFolderKey,
+          releaseYear: new Date().getFullYear(),
+        }),
       });
 
-      if (!res.ok) {
-        const errorDetail = await res.text();
-        throw new Error(`API DB Error: ${errorDetail}`);
-      }
-
-      // --- 5. CLEANUP ---
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      // --- CLEANUP ---
+      fs.unlinkSync(mp4Path);
+      fs.rmSync(tempDir, { recursive: true, force: true });
       await updateProgress(jobId, 100, "done");
-      console.log("🎉 SUCCESS: Movie added to database.");
+      console.log("🎉 SUCCESS: HLS Uploaded");
 
     } catch (err: any) {
       console.error("❌ FATAL:", err.message);
       await updateProgress(jobId, 0, "failed");
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
+      if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
       throw err;
     }
   },
