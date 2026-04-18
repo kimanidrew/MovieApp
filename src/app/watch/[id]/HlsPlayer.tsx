@@ -15,7 +15,15 @@ interface HlsPlayerProps {
 
 const HISTORY_KEY = 'movieflix-history';
 
-export default function HlsPlayer({ videoId, src, poster, title = 'Video', isProcessing = false, autoPlay = true }: HlsPlayerProps) {
+export default function HlsPlayer({
+  videoId,
+  src,
+  poster,
+  title = 'Video',
+  isProcessing = false,
+  autoPlay = true
+}: HlsPlayerProps) {
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,41 +37,92 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
+  // ✅ FIXED VIDEO INIT (SYNC SAFE)
   useEffect(() => {
-  const video = videoRef.current;
-  if (!video) return;
+    const video = videoRef.current;
+    if (!video) return;
 
-  let hls: Hls | null = null;
+    let hls: Hls | null = null;
 
-  if (src.endsWith('.m3u8')) {
-    if (Hls.isSupported()) {
-      hls = new Hls({ capLevelToPlayerSize: true });
-      hls.loadSource(src);
-      hls.attachMedia(video);
+    const safePlay = () => {
+      if (autoPlay) {
+        video.play().catch(() => {});
+      }
+    };
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (autoPlay) {
-          video.play().catch(() => {});
-        }
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    const handleCanPlay = () => {
+      safePlay();
+    };
+
+    if (src.endsWith('.m3u8')) {
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          capLevelToPlayerSize: true,
+          maxBufferLength: 30,
+        });
+
+        hls.loadSource(src);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.addEventListener('canplay', handleCanPlay, { once: true });
+        });
+
+        // 🔥 FIX: keep audio/video in sync
+        hls.on(Hls.Events.FRAG_BUFFERED, () => {
+          if (!video) return;
+
+          const diff = Math.abs(video.currentTime - video.played.end(0));
+          if (diff > 0.5) {
+            video.currentTime = video.played.end(0);
+          }
+        });
+
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        video.addEventListener('canplay', handleCanPlay, { once: true });
+      }
+    } else {
+      // ✅ MP4 SYNC FIX
       video.src = src;
+      video.preload = "metadata";
+      video.load();
+
+      video.addEventListener('canplay', handleCanPlay, { once: true });
     }
-  } else {
-    // ✅ THIS WAS MISSING
-    video.src = src;
 
-    if (autoPlay) {
-      video.play().catch(() => {});
-    }
-  }
+    return () => {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+      if (hls) hls.destroy();
+    };
+  }, [src, autoPlay]);
 
-  return () => {
-    if (hls) hls.destroy();
-  };
-}, [src, autoPlay]);
+  // 🔥 EXTRA SYNC GUARD (fix drift)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-  // Handle restoring time on initial load
+    const fixDrift = () => {
+      if (!video || video.paused) return;
+
+      if (video.readyState >= 3) {
+        const buffered = video.buffered;
+        if (buffered.length > 0) {
+          const end = buffered.end(buffered.length - 1);
+          if (video.currentTime > end) {
+            video.currentTime = end - 0.1;
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(fixDrift, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Restore playback
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -71,13 +130,11 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
     const handleRestoreTime = () => {
       try {
         const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-        if (hist[videoId] && hist[videoId].time > 0) {
-          if (video.duration > 0 && video.duration - hist[videoId].time > 5) {
-            video.currentTime = hist[videoId].time;
-            setProgress(hist[videoId].time);
-          }
+        if (hist[videoId]?.time > 0) {
+          video.currentTime = hist[videoId].time;
+          setProgress(hist[videoId].time);
         }
-      } catch (e) { }
+      } catch {}
     };
 
     video.addEventListener('loadedmetadata', handleRestoreTime, { once: true });
@@ -86,34 +143,33 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
 
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (videoRef.current) {
-      if (isPlaying) videoRef.current.pause();
-      else videoRef.current.play();
-      setIsPlaying(!isPlaying);
-    }
+    if (!videoRef.current) return;
+
+    isPlaying ? videoRef.current.pause() : videoRef.current.play();
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      const current = videoRef.current.currentTime;
-      setProgress(current);
+    if (!videoRef.current) return;
 
-      // Sync to LocalStorage every 5 seconds to reduce thrashing
-      if (Math.abs(current - lastSavedTime.current) > 5) {
-        lastSavedTime.current = current;
-        try {
-          const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-          hist[videoId] = { time: current, duration: videoRef.current.duration, updatedAt: Date.now() };
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
-        } catch (e) { }
-      }
+    const current = videoRef.current.currentTime;
+    setProgress(current);
+
+    if (Math.abs(current - lastSavedTime.current) > 5) {
+      lastSavedTime.current = current;
+      try {
+        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+        hist[videoId] = {
+          time: current,
+          duration: videoRef.current.duration,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+      } catch {}
     }
   };
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration);
-    }
+    if (videoRef.current) setDuration(videoRef.current.duration);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,6 +183,7 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = Number(e.target.value);
     setVolume(vol);
+
     if (videoRef.current) {
       videoRef.current.volume = vol;
       videoRef.current.muted = vol === 0;
@@ -135,14 +192,10 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
   };
 
   const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-      if (isMuted && volume === 0) {
-        setVolume(1);
-        videoRef.current.volume = 1;
-      }
-    }
+    if (!videoRef.current) return;
+
+    videoRef.current.muted = !isMuted;
+    setIsMuted(!isMuted);
   };
 
   const skipTime = (amount: number) => {
@@ -153,6 +206,7 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
 
   const toggleFullscreen = async () => {
     if (!wrapperRef.current) return;
+
     if (!document.fullscreenElement) {
       await wrapperRef.current.requestFullscreen();
       setIsFullscreen(true);
@@ -165,6 +219,7 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlaying) setShowControls(false);
     }, 4000);
@@ -192,7 +247,8 @@ export default function HlsPlayer({ videoId, src, poster, title = 'Video', isPro
         ref={videoRef}
         poster={poster}
         playsInline
-        preload="auto"
+        preload="metadata"
+        crossOrigin="anonymous"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
