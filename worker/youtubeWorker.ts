@@ -7,7 +7,7 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-console.log("🚀 GCP YouTube Worker (HLS + Anti-Bot) starting...");
+console.log("🚀 GCP YouTube Worker (HLS + Cookies) starting...");
 
 const s3 = new S3Client({
   region: "auto",
@@ -36,66 +36,67 @@ new Worker(
     const mp4Path = `/tmp/${jobId}.mp4`;
     const tempHlsDir = `/tmp/hls-${jobId}`;
     const hlsFolderKey = `videos/hls/${jobId}`;
+    const cookiePath = path.join(process.cwd(), "cookies.txt");
 
     try {
       if (!fs.existsSync(tempHlsDir)) fs.mkdirSync(tempHlsDir, { recursive: true });
 
       await updateProgress(jobId, 5, "fetching_metadata");
 
-      // --- 1. FETCH METADATA ---
       const infoRes = await fetch(`${process.env.APP_URL}/api/upload/youtube/info`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      if (!infoRes.ok) throw new Error("Metadata fetch failed");
       const info = await infoRes.json();
 
-      // --- 2. DOWNLOAD (Anti-Bot Config) ---
+      // --- 2. DOWNLOAD (Using Cookies) ---
       await updateProgress(jobId, 10, "downloading");
       await new Promise((resolve, reject) => {
-        const yt = spawn("yt-dlp", [
+        const args = [
           "--js-runtimes", "node",
-          // 🎯 This specific argument bypasses many bot checks on GCP
           "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
-          "--no-playlist",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
           url,
-        ]);
+        ];
+
+        // 🎯 Inject cookies if file exists
+        if (fs.existsSync(cookiePath)) {
+          console.log("🍪 Cookies found! Applying to yt-dlp...");
+          args.push("--cookies", cookiePath);
+        } else {
+          console.log("⚠️ No cookies.txt found in root. Download might fail.");
+        }
+
+        const yt = spawn("yt-dlp", args);
         yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed: ${code}`)));
       });
 
-      // --- 3. CONVERT TO HLS (FFMPEG) ---
+      // --- 3. CONVERT TO HLS ---
       await updateProgress(jobId, 40, "transcoding_hls");
       await new Promise((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
-          "-codec:v", "libx264",
-          "-codec:a", "aac",
-          "-hls_time", "10",
-          "-hls_playlist_type", "vod",
+          "-codec:v", "libx264", "-codec:a", "aac",
+          "-hls_time", "10", "-hls_playlist_type", "vod",
           "-hls_segment_filename", `${tempHlsDir}/segment%03d.ts`,
           `${tempHlsDir}/playlist.m3u8`
         ]);
         ffmpeg.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("ffmpeg failed")));
       });
 
-      // --- 4. UPLOAD HLS FOLDER TO R2 ---
+      // --- 4. UPLOAD TO R2 ---
       await updateProgress(jobId, 70, "uploading_hls");
       const files = fs.readdirSync(tempHlsDir);
-      
       for (const file of files) {
-        const filePath = path.join(tempHlsDir, file);
-        const contentType = file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T";
-        
         const upload = new Upload({
           client: s3,
           params: {
             Bucket: process.env.R2_BUCKET!,
             Key: `${hlsFolderKey}/${file}`,
-            Body: fs.createReadStream(filePath),
-            ContentType: contentType,
+            Body: fs.createReadStream(path.join(tempHlsDir, file)),
+            ContentType: file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T",
           },
         });
         await upload.done();
@@ -103,7 +104,7 @@ new Worker(
 
       const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${hlsFolderKey}/playlist.m3u8`;
 
-      // --- 5. SAVE TO DB ---
+      // --- 5. SAVE DB ---
       await updateProgress(jobId, 95, "saving");
       await fetch(`${process.env.APP_URL}/api/videos`, {
         method: "POST",
@@ -111,14 +112,13 @@ new Worker(
         body: JSON.stringify({
           title: info.title,
           description: info.description,
-          videoUrl: hlsUrl, // 🎯 Saving HLS URL
+          videoUrl: hlsUrl,
           thumbnailUrl: info.thumbnail,
           videoKey: hlsFolderKey,
           releaseYear: new Date().getFullYear(),
         }),
       });
 
-      // --- CLEANUP ---
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
       if (fs.existsSync(tempHlsDir)) fs.rmSync(tempHlsDir, { recursive: true, force: true });
       await updateProgress(jobId, 100, "done");
@@ -127,7 +127,6 @@ new Worker(
       console.error("❌ ERROR:", err.message);
       await updateProgress(jobId, 0, "failed");
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
-      if (fs.existsSync(tempHlsDir)) fs.rmSync(tempHlsDir, { recursive: true, force: true });
       throw err;
     }
   },
