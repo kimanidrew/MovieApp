@@ -75,16 +75,40 @@ new Worker(
 
       // --- 3. CONVERT TO HLS ---
       await updateProgress(jobId, 40, "transcoding_hls");
+      console.log("🎬 Transcoding to HLS started...");
+
       await new Promise((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
-          "-codec:v", "libx264", "-codec:a", "aac",
-          "-hls_time", "10", "-hls_playlist_type", "vod",
+          "-codec:v", "libx264",
+          "-preset", "veryfast", // 🎯 Speeds up transcoding significantly
+          "-codec:a", "aac",
+          "-b:a", "128k",
+          "-hls_time", "10",
+          "-hls_playlist_type", "vod",
           "-hls_segment_filename", `${tempHlsDir}/segment%03d.ts`,
-          `${tempHlsDir}/playlist.m3u8`
+          `${tempHlsDir}/playlist.m3u8`,
+          "-y" // Overwrite if exists
         ]);
-        ffmpeg.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("ffmpeg failed")));
+
+        // 🎯 Add these listeners to see live progress in PM2 logs
+        ffmpeg.stderr.on("data", (data) => {
+          const line = data.toString();
+          if (line.includes("frame=")) {
+             console.log(`🎬 FFmpeg Progress: ${line.split('fps=')[0]}`);
+          }
+        });
+
+        ffmpeg.on("close", (code) => {
+          if (code === 0) {
+            console.log("✅ Transcoding finished successfully");
+            resolve(true);
+          } else {
+            reject(new Error(`ffmpeg failed with code ${code}`));
+          }
+        });
       });
+
 
       // --- 4. UPLOAD TO R2 ---
       await updateProgress(jobId, 70, "uploading_hls");
