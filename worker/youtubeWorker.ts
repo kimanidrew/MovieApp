@@ -167,17 +167,33 @@ new Worker(
       // ================= SAVE =================
       await updateProgress(jobId, 95, "saving");
 
-      await fetch(`${process.env.APP_URL}/api/videos`, {
+      const payload = {
+        title: info.title,
+        description: info.description || "",
+        videoUrl: hlsUrl,
+        thumbnailUrl: info.thumbnail,
+        videoKey: `videos/hls/${jobId}`, // 🔥 MUST MATCH UPLOAD PATH
+        releaseYear: new Date().getFullYear(),
+      };
+
+      console.log("📦 DB PAYLOAD:", payload);
+
+      const dbRes = await fetch(`${process.env.APP_URL}/api/videos`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: info.title,
-          description: info.description,
-          videoUrl: hlsUrl,
-          thumbnailUrl: info.thumbnail,
-          releaseYear: new Date().getFullYear(),
-        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
+
+      const dbText = await dbRes.text();
+
+      console.log("📦 DB STATUS:", dbRes.status);
+      console.log("📦 DB RESPONSE:", dbText);
+
+      if (!dbRes.ok) {
+        throw new Error(`DB SAVE FAILED: ${dbRes.status} -> ${dbText}`);
+      }
 
       // ================= CLEAN =================
       fs.rmSync(mp4Path, { force: true });
