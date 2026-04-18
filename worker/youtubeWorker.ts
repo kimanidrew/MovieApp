@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { redis } from "../src/lib/redis";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
 const s3 = new S3Client({
@@ -47,16 +47,22 @@ new Worker(
       });
       const info = await infoRes.json();
 
-      // --- 2. DOWNLOAD MP4 ---
+      // --- 2. DOWNLOAD MP4 (Optimized for GCP) ---
       await updateProgress(jobId, 10, "downloading");
       await new Promise((resolve, reject) => {
         const yt = spawn("yt-dlp", [
-          "--js-runtimes", "node",
+          "--js-runtimes", "deno", // 🎯 Using Deno is more stable
+          "--extractor-args", "youtube:player_client=android,web;formats=missing_pot", // 🎯 Bypass cloud blocks
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+          "--no-playlist",
           "-o", mp4Path,
           url,
         ]);
-        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("yt-dlp failed")));
+
+        yt.stdout.on('data', (d) => console.log(`yt-dlp: ${d}`));
+        yt.stderr.on('data', (d) => console.error(`yt-dlp-err: ${d}`));
+
+        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed with code ${code}`)));
       });
 
       // --- 3. CONVERT TO HLS (FFMPEG) ---
@@ -64,11 +70,10 @@ new Worker(
       console.log("🎬 Transcoding to HLS...");
       await new Promise((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
-          "--js-runtimes", "deno",
           "-i", mp4Path,
-          "-codec:v", "libx264", // Standard H264
-          "-codec:a", "aac",    // Standard AAC
-          "-hls_time", "10",     // 10 second segments
+          "-codec:v", "libx264",
+          "-codec:a", "aac",
+          "-hls_time", "10",
           "-hls_playlist_type", "vod",
           "-hls_segment_filename", `${tempDir}/segment%03d.ts`,
           `${tempDir}/playlist.m3u8`
@@ -106,7 +111,7 @@ new Worker(
         body: JSON.stringify({
           title: info.title,
           description: info.description,
-          videoUrl: hlsUrl, // 🎯 HLS URL saved here
+          videoUrl: hlsUrl,
           thumbnailUrl: info.thumbnail,
           videoKey: hlsFolderKey,
           releaseYear: new Date().getFullYear(),
@@ -114,8 +119,8 @@ new Worker(
       });
 
       // --- CLEANUP ---
-      fs.unlinkSync(mp4Path);
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
+      if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true });
       await updateProgress(jobId, 100, "done");
       console.log("🎉 SUCCESS: HLS Uploaded");
 
