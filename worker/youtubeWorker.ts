@@ -57,15 +57,21 @@ new Worker(
 
       await new Promise((resolve, reject) => {
       
-        const args = [
-          "--js-runtimes", "deno",
-          "--no-playlist",
-          // 🎯 This client is much harder for YouTube to block on GCP
-          "--extractor-args", "youtube:player_client=web_embedded,android;formats=missing_pot",
-          "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-          "-o", mp4Path,
-          url,
-        ];
+      const args = [
+        "--js-runtimes", "deno",
+        "--no-playlist",
+        // 🎯 Force ONLY the Android client (bypass the 403 on Web client)
+        "--extractor-args", "youtube:player_client=android;formats=missing_pot",
+        "--user-agent", "com.google.android.youtube/19.05.36 (Linux; U; Android 11; en_US)",
+        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "-o", mp4Path,
+        url,
+      ];
+
+      // Add cookies if available as a fallback
+      if (fs.existsSync(cookiePath)) {
+        args.push("--cookies", cookiePath);
+      }
 
 
         const yt = spawn("yt-dlp", args);
