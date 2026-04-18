@@ -106,7 +106,10 @@ export default function HomeClient({
               maxWidth: "600px",
             }}
           >
-            <h1 style={{ fontSize: "3rem", fontWeight: 800 }}>
+            <h1 style={{ fontSize: "3rem", fontWeight: 800 ,display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",}}>
               {heroVideo.title}
             </h1>
 
