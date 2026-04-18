@@ -52,27 +52,34 @@ new Worker(
 
       // --- 2. DOWNLOAD (Matching your successful manual test) ---
       await updateProgress(jobId, 10, "downloading");
+
       await new Promise((resolve, reject) => {
         const args = [
-          "--js-runtimes", "deno",
+          "--js-runtimes", "/usr/local/bin/deno", // 🎯 Use absolute path from 'which deno'
           "--cookies", cookiePath,
           "--no-playlist",
+          "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
           url,
         ];
 
-        console.log(`🎬 Running yt-dlp with cookies at: ${cookiePath}`);
+        // 🎯 Use 'shell: true' to ensure environment variables are inherited
+        const yt = spawn("yt-dlp", args, { shell: true });
 
-        const yt = spawn("yt-dlp", args);
-
-        yt.stdout.on("data", (d) => console.log(`yt-dlp: ${d}`));
-        yt.stderr.on("data", (d) => console.error(`yt-dlp err: ${d}`));
+        yt.stdout.on("data", (d) => console.log(`yt-dlp: ${d.toString()}`));
+        
+        // 🎯 Log stderr specifically to see the real error in PM2
+        yt.stderr.on("data", (d) => {
+          const err = d.toString();
+          console.error(`yt-dlp-err: ${err}`);
+        });
 
         yt.on("close", (code) => {
           if (code === 0) resolve(true);
           else reject(new Error(`yt-dlp failed with code ${code}`));
         });
+
       });
 
       // --- 3. CONVERT TO HLS ---
