@@ -54,33 +54,32 @@ new Worker(
 
       // --- 2. DOWNLOAD ---
       await updateProgress(jobId, 10, "downloading");
-      console.log(`🎬 Checking cookies at: ${cookiePath}`);
-      
-      if (!fs.existsSync(cookiePath)) {
-        console.error("❌ ERROR: cookies.txt NOT FOUND at absolute path!");
-      }
 
       await new Promise((resolve, reject) => {
+        // 🎯 Use absolute path to ensure PM2 always finds it
+        const cookiePath = "/home/kimanidan585/MovieApp/cookies.txt";
+
         const args = [
           "--js-runtimes", "deno",
           "--cookies", cookiePath,
           "--no-playlist",
+          // 🎯 Force Android client to prevent cookie invalidation
           "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
+          "--user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
           url,
         ];
 
-        // 🎯 Use absolute path for yt-dlp if possible, usually /usr/local/bin/yt-dlp
         const yt = spawn("yt-dlp", args);
 
-        yt.stdout.on("data", (d) => console.log(`yt-dlp: ${d.toString()}`));
         yt.stderr.on("data", (d) => console.error(`yt-dlp-err: ${d.toString()}`));
 
         yt.on("close", (code) => {
           if (code === 0) resolve(true);
-          else reject(new Error(`yt-dlp failed with code ${code}`));
+          else reject(new Error(`yt-dlp failed: ${code}`));
         });
+
       });
 
       // --- 3. CONVERT TO HLS ---
