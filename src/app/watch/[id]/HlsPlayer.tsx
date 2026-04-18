@@ -28,6 +28,7 @@ export default function HlsPlayer({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedTime = useRef<number>(0);
+  const hasRestored = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -38,12 +39,31 @@ export default function HlsPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  // ✅ VIDEO INIT + PRELOAD BOOST
+  // =========================
+  // 🔥 CONTINUE WATCHING RESTORE
+  // =========================
+  const restoreProgress = (video: HTMLVideoElement) => {
+    try {
+      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+      const saved = hist[videoId];
+
+      if (saved?.time && !hasRestored.current) {
+        video.currentTime = saved.time;
+        setProgress(saved.time);
+        hasRestored.current = true;
+      }
+    } catch {}
+  };
+
+  // =========================
+  // VIDEO INIT + HLS
+  // =========================
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     let hls: Hls | null = null;
+    hasRestored.current = false;
 
     const startPlayback = () => {
       if (autoPlay) video.play().catch(() => {});
@@ -53,28 +73,31 @@ export default function HlsPlayer({
       if (Hls.isSupported()) {
         hls = new Hls({
           capLevelToPlayerSize: true,
-          maxBufferLength: 60, // 🔥 more aggressive buffering
+          maxBufferLength: 60,
         });
 
         hls.loadSource(src);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          restoreProgress(video); // 🔥 resume
           video.addEventListener('canplay', startPlayback, { once: true });
         });
 
       } else {
         video.src = src;
-        video.addEventListener('canplay', startPlayback, { once: true });
+        video.addEventListener('canplay', () => {
+          restoreProgress(video);
+          startPlayback();
+        }, { once: true });
       }
     } else {
-      // ✅ MP4 PRELOAD IMPROVEMENT
       video.src = src;
       video.preload = "metadata";
       video.load();
 
-      // 🔥 Force early buffering
       video.addEventListener('loadeddata', () => {
+        restoreProgress(video); // 🔥 resume
         video.currentTime = 0.01;
       }, { once: true });
 
@@ -87,9 +110,11 @@ export default function HlsPlayer({
       video.load();
       if (hls) hls.destroy();
     };
-  }, [src, autoPlay]);
+  }, [src, autoPlay, videoId]);
 
-  // ✅ TRACK BUFFER PROGRESS
+  // =========================
+  // BUFFER TRACKING
+  // =========================
   const updateBuffered = () => {
     const video = videoRef.current;
     if (!video || !video.duration) return;
@@ -113,6 +138,7 @@ export default function HlsPlayer({
 
     if (Math.abs(current - lastSavedTime.current) > 5) {
       lastSavedTime.current = current;
+
       try {
         const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
         hist[videoId] = {
@@ -154,7 +180,6 @@ export default function HlsPlayer({
 
   const toggleMute = () => {
     if (!videoRef.current) return;
-
     videoRef.current.muted = !isMuted;
     setIsMuted(!isMuted);
   };
@@ -190,10 +215,16 @@ export default function HlsPlayer({
     if (isPlaying) setShowControls(false);
   };
 
+  // =========================
+  // ⏱ FIXED TIME FORMAT (60 min → 1:00)
+  // =========================
   const formatTime = (time: number) => {
     if (!time || isNaN(time)) return "0:00";
-    const min = Math.floor(time / 60);
-    const sec = Math.floor(time % 60);
+
+    const totalSeconds = Math.floor(time);
+    const min = Math.floor(totalSeconds / 60);
+    const sec = totalSeconds % 60;
+
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
@@ -215,10 +246,10 @@ export default function HlsPlayer({
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onProgress={updateBuffered} // 🔥 important
+        onProgress={updateBuffered}
         className="netflix-video"
       />
-
+      
       {/* Top Header Overlay */}
       <div className={`netflix-header ${showControls ? 'visible' : ''}`}>
         <Link href="/" className="back-button">
