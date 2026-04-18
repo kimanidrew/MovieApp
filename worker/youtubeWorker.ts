@@ -56,20 +56,17 @@ new Worker(
       await updateProgress(jobId, 10, "downloading");
 
       await new Promise((resolve, reject) => {
-        // 🎯 Use absolute path to ensure PM2 always finds it
-        const cookiePath = "/home/kimanidan585/MovieApp/cookies.txt";
-
+      
         const args = [
           "--js-runtimes", "deno",
-          "--cookies", cookiePath,
           "--no-playlist",
-          // 🎯 Force Android client to prevent cookie invalidation
-          "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
-          "--user-agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+          // 🎯 This client is much harder for YouTube to block on GCP
+          "--extractor-args", "youtube:player_client=web_embedded,android;formats=missing_pot",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
           url,
         ];
+
 
         const yt = spawn("yt-dlp", args);
 
