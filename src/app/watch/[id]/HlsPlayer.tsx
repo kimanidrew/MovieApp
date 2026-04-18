@@ -15,22 +15,13 @@ interface HlsPlayerProps {
 
 const HISTORY_KEY = 'movieflix-history';
 
-export default function HlsPlayer({
-  videoId,
-  src,
-  poster,
-  title = 'Video',
-  isProcessing = false,
-  autoPlay = true
-}: HlsPlayerProps) {
-
+export default function HlsPlayer({ videoId, src, poster, title = 'Video', isProcessing = false, autoPlay = true }: HlsPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedTime = useRef<number>(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -38,71 +29,41 @@ export default function HlsPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  // ✅ FIXED VIDEO LOADING
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+  const video = videoRef.current;
+  if (!video) return;
 
-    let hls: Hls | null = null;
-    setIsBuffering(true);
+  let hls: Hls | null = null;
 
-    if (src.endsWith('.m3u8')) {
-      if (Hls.isSupported()) {
-        hls = new Hls({
-          capLevelToPlayerSize: true,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          startLevel: -1
-        });
+  if (src.endsWith('.m3u8')) {
+    if (Hls.isSupported()) {
+      hls = new Hls({ capLevelToPlayerSize: true });
+      hls.loadSource(src);
+      hls.attachMedia(video);
 
-        hls.loadSource(src);
-        hls.attachMedia(video);
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setIsBuffering(false);
-          if (autoPlay) video.play().catch(() => {});
-        });
-
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = src;
-      }
-    } else {
-      // ✅ MP4 FIX
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (autoPlay) {
+          video.play().catch(() => {});
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src;
-      video.preload = "metadata";
-      video.load();
-
-      const onCanPlay = () => {
-        setIsBuffering(false);
-        if (autoPlay) video.play().catch(() => {});
-      };
-
-      video.addEventListener('canplay', onCanPlay, { once: true });
     }
+  } else {
+    // ✅ THIS WAS MISSING
+    video.src = src;
 
-    return () => {
-      if (hls) hls.destroy();
-    };
-  }, [src, autoPlay]);
+    if (autoPlay) {
+      video.play().catch(() => {});
+    }
+  }
 
-  // ✅ BUFFER EVENTS
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+  return () => {
+    if (hls) hls.destroy();
+  };
+}, [src, autoPlay]);
 
-    const onWaiting = () => setIsBuffering(true);
-    const onPlaying = () => setIsBuffering(false);
-
-    video.addEventListener('waiting', onWaiting);
-    video.addEventListener('playing', onPlaying);
-
-    return () => {
-      video.removeEventListener('waiting', onWaiting);
-      video.removeEventListener('playing', onPlaying);
-    };
-  }, []);
-
-  // Restore playback time
+  // Handle restoring time on initial load
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -110,13 +71,13 @@ export default function HlsPlayer({
     const handleRestoreTime = () => {
       try {
         const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-        if (hist[videoId]?.time > 0) {
+        if (hist[videoId] && hist[videoId].time > 0) {
           if (video.duration > 0 && video.duration - hist[videoId].time > 5) {
             video.currentTime = hist[videoId].time;
             setProgress(hist[videoId].time);
           }
         }
-      } catch {}
+      } catch (e) { }
     };
 
     video.addEventListener('loadedmetadata', handleRestoreTime, { once: true });
@@ -125,32 +86,34 @@ export default function HlsPlayer({
 
   const togglePlay = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (!videoRef.current) return;
-    isPlaying ? videoRef.current.pause() : videoRef.current.play();
+    if (videoRef.current) {
+      if (isPlaying) videoRef.current.pause();
+      else videoRef.current.play();
+      setIsPlaying(!isPlaying);
+    }
   };
 
   const handleTimeUpdate = () => {
-    if (!videoRef.current) return;
+    if (videoRef.current) {
+      const current = videoRef.current.currentTime;
+      setProgress(current);
 
-    const current = videoRef.current.currentTime;
-    setProgress(current);
-
-    if (Math.abs(current - lastSavedTime.current) > 5) {
-      lastSavedTime.current = current;
-      try {
-        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-        hist[videoId] = {
-          time: current,
-          duration: videoRef.current.duration,
-          updatedAt: Date.now()
-        };
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
-      } catch {}
+      // Sync to LocalStorage every 5 seconds to reduce thrashing
+      if (Math.abs(current - lastSavedTime.current) > 5) {
+        lastSavedTime.current = current;
+        try {
+          const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+          hist[videoId] = { time: current, duration: videoRef.current.duration, updatedAt: Date.now() };
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+        } catch (e) { }
+      }
     }
   };
 
   const handleLoadedMetadata = () => {
-    if (videoRef.current) setDuration(videoRef.current.duration);
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration);
+    }
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,7 +127,6 @@ export default function HlsPlayer({
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const vol = Number(e.target.value);
     setVolume(vol);
-
     if (videoRef.current) {
       videoRef.current.volume = vol;
       videoRef.current.muted = vol === 0;
@@ -173,14 +135,13 @@ export default function HlsPlayer({
   };
 
   const toggleMute = () => {
-    if (!videoRef.current) return;
-
-    videoRef.current.muted = !isMuted;
-    setIsMuted(!isMuted);
-
-    if (isMuted && volume === 0) {
-      setVolume(1);
-      videoRef.current.volume = 1;
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+      if (isMuted && volume === 0) {
+        setVolume(1);
+        videoRef.current.volume = 1;
+      }
     }
   };
 
@@ -192,7 +153,6 @@ export default function HlsPlayer({
 
   const toggleFullscreen = async () => {
     if (!wrapperRef.current) return;
-
     if (!document.fullscreenElement) {
       await wrapperRef.current.requestFullscreen();
       setIsFullscreen(true);
@@ -205,7 +165,6 @@ export default function HlsPlayer({
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlaying) setShowControls(false);
     }, 4000);
@@ -233,8 +192,7 @@ export default function HlsPlayer({
         ref={videoRef}
         poster={poster}
         playsInline
-        preload="metadata" // ✅ FIXED
-        crossOrigin="anonymous" // ✅ IMPORTANT
+        preload="auto"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
@@ -243,30 +201,6 @@ export default function HlsPlayer({
         onDoubleClick={toggleFullscreen}
         className="netflix-video"
       />
-
-      {/* 🔥 Optional buffering indicator */}
-      {isBuffering && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(0,0,0,0.3)',
-          zIndex: 30
-        }}>
-          <div style={{
-            width: 40,
-            height: 40,
-            border: '4px solid rgba(255,255,255,0.3)',
-            borderTop: '4px solid white',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }} />
-        </div>
-      )}
-
-      {/* KEEP ALL YOUR EXISTING UI BELOW EXACTLY SAME */}
 
       {/* Top Header Overlay */}
       <div className={`netflix-header ${showControls ? 'visible' : ''}`}>
