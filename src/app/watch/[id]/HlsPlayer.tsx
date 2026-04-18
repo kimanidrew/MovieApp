@@ -260,11 +260,6 @@ export default function HlsPlayer({
           </svg>
         </button>
         <h2 className="header-title">{title}</h2>
-        {isProcessing && (
-          <div className="processing-badge">
-            Standard Quality (Processing Adaptive HD...)
-          </div>
-        )}
       </div>
 
       {/* Centered Large Play/Pause (Optional UX enhancement) */}
