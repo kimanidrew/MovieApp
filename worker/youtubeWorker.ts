@@ -5,9 +5,7 @@ import fs from "fs";
 import path from "path";
 import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
-import { Upload } from "@aws-sdk/lib-storage";
-
-console.log("🚀 GCP YouTube Worker (HLS + Cookies) starting...");
+import { Upload, Progress } from "@aws-sdk/lib-storage";
 
 const s3 = new S3Client({
   region: "auto",
@@ -36,7 +34,9 @@ new Worker(
     const mp4Path = `/tmp/${jobId}.mp4`;
     const tempHlsDir = `/tmp/hls-${jobId}`;
     const hlsFolderKey = `videos/hls/${jobId}`;
-    const cookiePath = path.join(process.cwd(), "cookies.txt");
+    
+    // 🎯 Use absolute path for cookies to avoid PM2 confusion
+    const cookiePath = path.resolve(process.cwd(), "cookies.txt");
 
     try {
       if (!fs.existsSync(tempHlsDir)) fs.mkdirSync(tempHlsDir, { recursive: true });
@@ -50,65 +50,44 @@ new Worker(
       });
       const info = await infoRes.json();
 
-      // --- 2. DOWNLOAD (Using Cookies) ---
+      // --- 2. DOWNLOAD (Matching your successful manual test) ---
       await updateProgress(jobId, 10, "downloading");
       await new Promise((resolve, reject) => {
         const args = [
           "--js-runtimes", "deno",
-          "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
+          "--cookies", cookiePath,
+          "--no-playlist",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
           url,
         ];
 
-        // 🎯 Inject cookies if file exists
-        if (fs.existsSync(cookiePath)) {
-          console.log("🍪 Cookies found! Applying to yt-dlp...");
-          args.push("--cookies", cookiePath);
-        } else {
-          console.log("⚠️ No cookies.txt found in root. Download might fail.");
-        }
+        console.log(`🎬 Running yt-dlp with cookies at: ${cookiePath}`);
 
         const yt = spawn("yt-dlp", args);
-        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed: ${code}`)));
+
+        yt.stdout.on("data", (d) => console.log(`yt-dlp: ${d}`));
+        yt.stderr.on("data", (d) => console.error(`yt-dlp err: ${d}`));
+
+        yt.on("close", (code) => {
+          if (code === 0) resolve(true);
+          else reject(new Error(`yt-dlp failed with code ${code}`));
+        });
       });
 
       // --- 3. CONVERT TO HLS ---
       await updateProgress(jobId, 40, "transcoding_hls");
-      console.log("🎬 Transcoding to HLS started...");
-
       await new Promise((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
-          "-codec:v", "libx264",
-          "-preset", "veryfast", // 🎯 Speeds up transcoding significantly
-          "-codec:a", "aac",
-          "-b:a", "128k",
-          "-hls_time", "10",
-          "-hls_playlist_type", "vod",
+          "-codec:v", "libx264", "-preset", "veryfast",
+          "-codec:a", "aac", "-b:a", "128k",
+          "-hls_time", "10", "-hls_playlist_type", "vod",
           "-hls_segment_filename", `${tempHlsDir}/segment%03d.ts`,
-          `${tempHlsDir}/playlist.m3u8`,
-          "-y" // Overwrite if exists
+          `${tempHlsDir}/playlist.m3u8`, "-y"
         ]);
-
-        // 🎯 Add these listeners to see live progress in PM2 logs
-        ffmpeg.stderr.on("data", (data) => {
-          const line = data.toString();
-          if (line.includes("frame=")) {
-             console.log(`🎬 FFmpeg Progress: ${line.split('fps=')[0]}`);
-          }
-        });
-
-        ffmpeg.on("close", (code) => {
-          if (code === 0) {
-            console.log("✅ Transcoding finished successfully");
-            resolve(true);
-          } else {
-            reject(new Error(`ffmpeg failed with code ${code}`));
-          }
-        });
+        ffmpeg.on("close", (code) => code === 0 ? resolve(true) : reject(new Error("ffmpeg failed")));
       });
-
 
       // --- 4. UPLOAD TO R2 ---
       await updateProgress(jobId, 70, "uploading_hls");
@@ -130,7 +109,7 @@ new Worker(
 
       // --- 5. SAVE DB ---
       await updateProgress(jobId, 95, "saving");
-      await fetch(`${process.env.APP_URL}/api/videos`, {
+      const dbRes = await fetch(`${process.env.APP_URL}/api/videos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,6 +122,9 @@ new Worker(
         }),
       });
 
+      if (!dbRes.ok) throw new Error(`DB Save failed: ${await dbRes.text()}`);
+
+      // CLEANUP
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
       if (fs.existsSync(tempHlsDir)) fs.rmSync(tempHlsDir, { recursive: true, force: true });
       await updateProgress(jobId, 100, "done");
