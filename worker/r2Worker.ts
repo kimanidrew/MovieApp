@@ -1,11 +1,22 @@
 import fs from "fs";
 import { Upload, Progress } from "@aws-sdk/lib-storage";
 import { redis } from "../src/lib/redis"; 
-import { r2 } from "@/lib/r2"; // Ensure this client uses the correct R2_ENDPOINT
+import { S3Client } from "@aws-sdk/client-s3";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 
-/**
- * Updates progress in Redis with a 1-hour expiration.
- */
+const r2 = new S3Client({
+  region: "auto",
+  endpoint: process.env.R2_ENDPOINT, // e.g., https://<id>.r2.cloudflarestorage.com
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY!,
+    secretAccessKey: process.env.R2_SECRET_KEY!,
+  },
+  requestHandler: new NodeHttpHandler({
+    connectionTimeout: 10000, // 10 seconds
+    socketTimeout: 10000,
+  }),
+});
+
 async function updateProgress(jobId: string, progress: number, status = "uploading") {
   const payload = {
     jobId,
