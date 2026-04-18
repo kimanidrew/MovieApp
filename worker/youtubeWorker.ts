@@ -54,7 +54,7 @@ new Worker(
       await updateProgress(jobId, 10, "downloading");
       await new Promise((resolve, reject) => {
         const args = [
-          "--js-runtimes", "node",
+          "--js-runtimes", "deno",
           "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
           "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
           "-o", mp4Path,
