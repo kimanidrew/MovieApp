@@ -4,6 +4,9 @@ import fs from "fs";
 import { redis } from "../src/lib/redis";
 import { uploadToR2 } from "./r2Worker";
 
+// Ensure environment variables are loaded for the worker
+import "dotenv/config"; 
+
 console.log("🚀 GCP YouTube Worker started...");
 
 new Worker(
@@ -18,9 +21,7 @@ new Worker(
     const filePath = `/tmp/${job.id}.mp4`;
 
     try {
-      // -------------------------
-      // START
-      // -------------------------
+      // 🎯 FIXED: Added await and expiration to prevent hangs
       const updateProgress = async (progress: number, status: string) => {
         const payload = {
           jobId: job.id,
@@ -30,123 +31,77 @@ new Worker(
         };
 
         console.log(`📊 [${job.id}] → ${progress}% (${status})`);
-
-        redis.set(`yt-job:${job.id}`, JSON.stringify(payload));
+        
+        // Use await here so the worker doesn't "get ahead" of the status
+        await redis.set(`yt-job:${job.id}`, JSON.stringify(payload), "EX", 3600);
       };
 
-      updateProgress(5, "starting");
+      await updateProgress(5, "starting");
 
-      // -------------------------
       // DOWNLOAD
-      // -------------------------
       console.log("⬇️ yt-dlp downloading...");
-
       await new Promise((resolve, reject) => {
         const yt = spawn("yt-dlp", [
           "--js-runtimes", "node",
-          "-f",
-          "bestvideo+bestaudio/best",
-          "-o",
-          filePath,
+          "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+          "-o", filePath,
           url,
         ]);
 
-        yt.stdout.on("data", (d) =>
-          console.log("yt-dlp:", d.toString())
-        );
-
-        yt.stderr.on("data", (d) =>
-          console.log("yt-dlp err:", d.toString())
-        );
-
         yt.on("close", (code) => {
-          console.log("📥 yt-dlp exit:", code);
-          code === 0 ? resolve(true) : reject(new Error("yt-dlp failed"));
+          code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed with code ${code}`));
         });
       });
 
       console.log("✅ Download complete");
 
-      if (!fs.existsSync(filePath)) {
-        throw new Error("File missing after download");
-      }
+      if (!fs.existsSync(filePath)) throw new Error("File missing after download");
 
-      updateProgress(60, "uploading");
+      // 🎯 CRITICAL: Await the start of the upload status
+      await updateProgress(60, "uploading");
 
-      // -------------------------
       // UPLOAD
-      // -------------------------
-      console.log("☁️ Uploading to R2...");
-
-      const start = Date.now();
-
+      console.log("☁️ Calling uploadToR2...");
       const videoUrl = await uploadToR2(
         filePath,
         `videos/${job.id}.mp4`,
-        job.id // 🔥 IMPORTANT
+        job.id 
       );
-
-      console.log("⏱ Upload time:", Date.now() - start, "ms");
 
       console.log("✅ Uploaded URL:", videoUrl);
 
-      fs.unlinkSync(filePath);
-      console.log("🧹 Temp file removed");
+      // CLEANUP
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      
+      await updateProgress(95, "saving");
 
-      updateProgress(95, "saving");
-
-      // -------------------------
       // SAVE DB
-      // -------------------------
-      console.log("💾 Saving to API...");
+      const res = await fetch(`${process.env.APP_URL}/api/videos`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          videoUrl,
+          videoKey: `videos/${job.id}.mp4`,
+          thumbnailUrl: "",
+          releaseYear: new Date().getFullYear(),
+        }),
+      });
 
-      const res = await fetch(
-        `${process.env.APP_URL}/api/videos`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            description,
-            videoUrl,
-            videoKey: `videos/${job.id}.mp4`,
-            thumbnailUrl: "",
-            releaseYear: new Date().getFullYear(),
-          }),
-        }
-      );
-
-      const db = await res.json();
-
-      console.log("💾 DB response:", db);
-
-      updateProgress(100, "done");
-
+      await updateProgress(100, "done");
       console.log("🎉 JOB DONE:", job.id);
 
       return { videoUrl };
     } catch (err: any) {
       console.error("❌ JOB FAILED:", err.message);
-
-      redis.set(
-        `yt-job:${job.id}`,
-        JSON.stringify({
-          jobId: job.id,
-          progress: 0,
-          status: "failed",
-          updatedAt: Date.now(),
-        })
-      );
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log("🧹 Cleanup after failure");
-      }
-
+      await redis.set(`yt-job:${job.id}`, JSON.stringify({ status: "failed" }), "EX", 3600);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       throw err;
     }
   },
   {
     connection: redis,
+    concurrency: 1 // Start with 1 to ensure it's not a resource conflict
   }
 );
