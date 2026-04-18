@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface HlsPlayerProps {
   videoId: string;
@@ -23,6 +24,7 @@ export default function HlsPlayer({
   isProcessing = false,
   autoPlay = true
 }: HlsPlayerProps) {
+  const router = useRouter();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -249,12 +251,14 @@ export default function HlsPlayer({
         onProgress={updateBuffered}
         className="netflix-video"
       />
-      
+
       {/* Top Header Overlay */}
       <div className={`netflix-header ${showControls ? 'visible' : ''}`}>
-        <Link href="/" className="back-button">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5m7 7l-7-7 7-7" /></svg>
-        </Link>
+        <button onClick={() => router.back()} className="back-button">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5m7 7l-7-7 7-7" />
+          </svg>
+        </button>
         <h2 className="header-title">{title}</h2>
         {isProcessing && (
           <div className="processing-badge">
