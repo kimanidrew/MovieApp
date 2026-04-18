@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     });
 
     // ✅ IMPORTANT: generate PUBLIC URL
-    const publicUrl = `https://${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${key}`;
+    const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${key}`;
 
     return NextResponse.json({
       uploadUrl, // for PUT
