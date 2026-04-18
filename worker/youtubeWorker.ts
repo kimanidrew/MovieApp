@@ -7,7 +7,7 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-console.log("🚀 GCP YouTube Worker (FIXED + STABLE) starting...");
+console.log("🚀 YouTube Worker (HARD FIX MODE) starting...");
 
 const s3 = new S3Client({
   region: "auto",
@@ -19,13 +19,34 @@ const s3 = new S3Client({
 });
 
 async function updateProgress(jobId: string, progress: number, status = "processing") {
-  const payload = { jobId, progress, status, updatedAt: Date.now() };
-  try {
-    await redis.set(`yt-job:${jobId}`, JSON.stringify(payload), "EX", 3600);
-    console.log(`📊 [${jobId}] → ${progress}% (${status})`);
-  } catch (err) {
-    console.error("❌ Redis Error:", err);
-  }
+  await redis.set(
+    `yt-job:${jobId}`,
+    JSON.stringify({ jobId, progress, status, updatedAt: Date.now() }),
+    "EX",
+    3600
+  );
+
+  console.log(`📊 [${jobId}] ${progress}% (${status})`);
+}
+
+function runYtDlp(args: string[]) {
+  return new Promise<void>((resolve, reject) => {
+    console.log("🎬 yt-dlp args:", args.join(" "));
+
+    const proc = spawn("yt-dlp", args, {
+      stdio: "inherit", // 🔥 CRITICAL: shows real error (you were blind before)
+    });
+
+    proc.on("error", (err) => {
+      console.error("❌ spawn error:", err);
+      reject(err);
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`yt-dlp exited with code ${code}`));
+    });
+  });
 }
 
 new Worker(
@@ -35,14 +56,12 @@ new Worker(
     const jobId = String(job.id);
 
     const mp4Path = `/tmp/${jobId}.mp4`;
-    const tempHlsDir = `/tmp/hls-${jobId}`;
-    const hlsFolderKey = `videos/hls/${jobId}`;
-
+    const hlsDir = `/tmp/hls-${jobId}`;
     const cookiePath = "/home/kimanidan585/MovieApp/cookies.txt";
 
     try {
-      if (!fs.existsSync(tempHlsDir)) {
-        fs.mkdirSync(tempHlsDir, { recursive: true });
+      if (!fs.existsSync(hlsDir)) {
+        fs.mkdirSync(hlsDir, { recursive: true });
       }
 
       await updateProgress(jobId, 5, "fetching_metadata");
@@ -58,108 +77,82 @@ new Worker(
       // ================= DOWNLOAD =================
       await updateProgress(jobId, 10, "downloading");
 
-      await new Promise((resolve, reject) => {
-        const args = [
-          "--no-playlist",
+      const args: string[] = [
+        "--no-playlist",
 
-          // ✅ MULTI CLIENT fallback (VERY IMPORTANT)
-          "--extractor-args",
-          "youtube:player_client=android,web;formats=missing_pot",
+        // 🔥 FORCE AUTH FIRST (IMPORTANT ORDER)
+        ...(fs.existsSync(cookiePath) ? ["--cookies", cookiePath] : []),
 
-          // ✅ Strong headers
-          "--add-header",
-          "referer:youtube.com",
-          "--add-header",
-          "user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "--extractor-args",
+        "youtube:player_client=web",
 
-          // ✅ Better format fallback chain
-          "-f",
-          "bv*+ba/best",
+        "--force-ipv4",
 
-          // ✅ Anti throttling
-          "--concurrent-fragments", "5",
-          "--retries", "10",
-          "--fragment-retries", "10",
-          "--throttled-rate", "100K",
+        "--concurrent-fragments",
+        "2",
 
-          "-o",
-          mp4Path,
+        "--retries",
+        "15",
 
-          url,
-        ];
+        "--fragment-retries",
+        "15",
 
-        // ✅ Cookies fallback
-        if (fs.existsSync(cookiePath)) {
-          args.push("--cookies", cookiePath);
-        }
+        "-f",
+        "bv*+ba/best",
 
-        const yt = spawn("yt-dlp", args);
+        "-o",
+        mp4Path,
 
-        yt.stdout.on("data", (d) => {
-          const msg = d.toString();
-          if (msg.includes("%")) {
-            console.log(`⬇️ ${msg.trim()}`);
-          }
-        });
+        url,
+      ];
 
-        yt.stderr.on("data", (d) => {
-          console.error(`yt-dlp-err: ${d.toString()}`);
-        });
-
-        yt.on("close", (code) => {
-          if (code === 0) resolve(true);
-          else reject(new Error(`yt-dlp failed: ${code}`));
-        });
-      });
+      await runYtDlp(args);
 
       // ================= HLS =================
-      await updateProgress(jobId, 40, "transcoding_hls");
+      await updateProgress(jobId, 40, "transcoding");
 
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
-          "-i", mp4Path,
-
-          // ✅ Better streaming output
-          "-preset", "veryfast",
-          "-crf", "23",
-
-          "-c:v", "libx264",
-          "-c:a", "aac",
-          "-b:a", "128k",
-
-          "-hls_time", "6",
-          "-hls_list_size", "0",
-          "-hls_flags", "independent_segments",
-
+          "-i",
+          mp4Path,
+          "-c:v",
+          "libx264",
+          "-preset",
+          "veryfast",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-hls_time",
+          "6",
+          "-hls_list_size",
+          "0",
           "-hls_segment_filename",
-          `${tempHlsDir}/segment%03d.ts`,
-
-          `${tempHlsDir}/playlist.m3u8`,
+          `${hlsDir}/seg%03d.ts`,
+          `${hlsDir}/playlist.m3u8`,
           "-y",
         ]);
 
-        ffmpeg.stderr.on("data", (d) => {
-          console.log(`ffmpeg: ${d.toString()}`);
-        });
+        ffmpeg.stderr.on("data", (d) => console.log("ffmpeg:", d.toString()));
 
         ffmpeg.on("close", (code) => {
-          if (code === 0) resolve(true);
+          if (code === 0) resolve();
           else reject(new Error("ffmpeg failed"));
         });
       });
 
       // ================= UPLOAD =================
-      await updateProgress(jobId, 70, "uploading_hls");
+      await updateProgress(jobId, 70, "uploading");
 
-      const files = fs.readdirSync(tempHlsDir);
+      const files = fs.readdirSync(hlsDir);
 
       for (const file of files) {
         const upload = new Upload({
           client: s3,
           params: {
             Bucket: process.env.R2_BUCKET!,
-            Key: `${hlsFolderKey}/${file}`,
-            Body: fs.createReadStream(path.join(tempHlsDir, file)),
+            Key: `videos/hls/${jobId}/${file}`,
+            Body: fs.createReadStream(path.join(hlsDir, file)),
             ContentType: file.endsWith(".m3u8")
               ? "application/x-mpegURL"
               : "video/MP2T",
@@ -169,7 +162,7 @@ new Worker(
         await upload.done();
       }
 
-      const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${hlsFolderKey}/playlist.m3u8`;
+      const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/videos/hls/${jobId}/playlist.m3u8`;
 
       // ================= SAVE =================
       await updateProgress(jobId, 95, "saving");
@@ -182,23 +175,22 @@ new Worker(
           description: info.description,
           videoUrl: hlsUrl,
           thumbnailUrl: info.thumbnail,
-          videoKey: hlsFolderKey,
           releaseYear: new Date().getFullYear(),
         }),
       });
 
-      // ================= CLEANUP =================
-      if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
-      if (fs.existsSync(tempHlsDir))
-        fs.rmSync(tempHlsDir, { recursive: true, force: true });
+      // ================= CLEAN =================
+      fs.rmSync(mp4Path, { force: true });
+      fs.rmSync(hlsDir, { recursive: true, force: true });
 
       await updateProgress(jobId, 100, "done");
-
     } catch (err: any) {
-      console.error("❌ ERROR:", err.message);
+      console.error("❌ WORKER ERROR:", err.message);
+
       await updateProgress(jobId, 0, "failed");
 
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
+      if (fs.existsSync(hlsDir)) fs.rmSync(hlsDir, { recursive: true, force: true });
 
       throw err;
     }
