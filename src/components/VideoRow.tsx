@@ -119,22 +119,16 @@ function VideoCard({
   const normalizeUrl = (url?: string | null) => {
     if (!url) return FALLBACK_IMAGE;
 
-    // Fix duplicated https
+    // fix double https bug
     if (url.startsWith("https://https://")) {
       return url.replace("https://https://", "https://");
     }
 
-    // If already valid absolute URL, return as-is
-    if (/^https?:\/\//i.test(url)) {
+    // valid url
+    if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
 
-    // If it's a relative path, return as-is
-    if (url.startsWith("/")) {
-      return url;
-    }
-
-    // Otherwise, prepend https
     return `https://${url}`;
   };
 
