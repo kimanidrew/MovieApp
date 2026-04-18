@@ -7,6 +7,8 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload, Progress } from "@aws-sdk/lib-storage";
 
+console.log("🚀 GCP YouTube Worker (Strict Path Fix) starting...");
+
 const s3 = new S3Client({
   region: "auto",
   endpoint: process.env.R2_ENDPOINT!,
@@ -35,8 +37,8 @@ new Worker(
     const tempHlsDir = `/tmp/hls-${jobId}`;
     const hlsFolderKey = `videos/hls/${jobId}`;
     
-    // 🎯 Use absolute path for cookies to avoid PM2 confusion
-    const cookiePath = path.resolve(process.cwd(), "cookies.txt");
+    // 🎯 FIX: Explicitly target the MovieApp folder for cookies
+    const cookiePath = "/home/kimanidan585/MovieApp/cookies.txt";
 
     try {
       if (!fs.existsSync(tempHlsDir)) fs.mkdirSync(tempHlsDir, { recursive: true });
@@ -50,12 +52,17 @@ new Worker(
       });
       const info = await infoRes.json();
 
-      // --- 2. DOWNLOAD (Matching your successful manual test) ---
+      // --- 2. DOWNLOAD ---
       await updateProgress(jobId, 10, "downloading");
+      console.log(`🎬 Checking cookies at: ${cookiePath}`);
+      
+      if (!fs.existsSync(cookiePath)) {
+        console.error("❌ ERROR: cookies.txt NOT FOUND at absolute path!");
+      }
 
       await new Promise((resolve, reject) => {
         const args = [
-          "--js-runtimes", "/usr/local/bin/deno", // 🎯 Use absolute path from 'which deno'
+          "--js-runtimes", "deno",
           "--cookies", cookiePath,
           "--no-playlist",
           "--extractor-args", "youtube:player_client=android,web;formats=missing_pot",
@@ -64,22 +71,16 @@ new Worker(
           url,
         ];
 
-        // 🎯 Use 'shell: true' to ensure environment variables are inherited
-        const yt = spawn("yt-dlp", args, { shell: true });
+        // 🎯 Use absolute path for yt-dlp if possible, usually /usr/local/bin/yt-dlp
+        const yt = spawn("yt-dlp", args);
 
         yt.stdout.on("data", (d) => console.log(`yt-dlp: ${d.toString()}`));
-        
-        // 🎯 Log stderr specifically to see the real error in PM2
-        yt.stderr.on("data", (d) => {
-          const err = d.toString();
-          console.error(`yt-dlp-err: ${err}`);
-        });
+        yt.stderr.on("data", (d) => console.error(`yt-dlp-err: ${d.toString()}`));
 
         yt.on("close", (code) => {
           if (code === 0) resolve(true);
           else reject(new Error(`yt-dlp failed with code ${code}`));
         });
-
       });
 
       // --- 3. CONVERT TO HLS ---
@@ -116,7 +117,7 @@ new Worker(
 
       // --- 5. SAVE DB ---
       await updateProgress(jobId, 95, "saving");
-      const dbRes = await fetch(`${process.env.APP_URL}/api/videos`, {
+      await fetch(`${process.env.APP_URL}/api/videos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,8 +129,6 @@ new Worker(
           releaseYear: new Date().getFullYear(),
         }),
       });
-
-      if (!dbRes.ok) throw new Error(`DB Save failed: ${await dbRes.text()}`);
 
       // CLEANUP
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
