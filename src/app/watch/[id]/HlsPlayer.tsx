@@ -31,64 +31,54 @@ export default function HlsPlayer({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [buffered, setBuffered] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  // ✅ FIXED VIDEO INIT (SYNC SAFE)
+  // ✅ VIDEO INIT + PRELOAD BOOST
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     let hls: Hls | null = null;
 
-    const safePlay = () => {
-      if (autoPlay) {
-        video.play().catch(() => {});
-      }
-    };
-
-    const handleCanPlay = () => {
-      safePlay();
+    const startPlayback = () => {
+      if (autoPlay) video.play().catch(() => {});
     };
 
     if (src.endsWith('.m3u8')) {
       if (Hls.isSupported()) {
         hls = new Hls({
           capLevelToPlayerSize: true,
-          maxBufferLength: 30,
+          maxBufferLength: 60, // 🔥 more aggressive buffering
         });
 
         hls.loadSource(src);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.addEventListener('canplay', handleCanPlay, { once: true });
+          video.addEventListener('canplay', startPlayback, { once: true });
         });
 
-        // 🔥 FIX: keep audio/video in sync
-        hls.on(Hls.Events.FRAG_BUFFERED, () => {
-          if (!video) return;
-
-          const diff = Math.abs(video.currentTime - video.played.end(0));
-          if (diff > 0.5) {
-            video.currentTime = video.played.end(0);
-          }
-        });
-
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      } else {
         video.src = src;
-        video.addEventListener('canplay', handleCanPlay, { once: true });
+        video.addEventListener('canplay', startPlayback, { once: true });
       }
     } else {
-      // ✅ MP4 SYNC FIX
+      // ✅ MP4 PRELOAD IMPROVEMENT
       video.src = src;
       video.preload = "metadata";
       video.load();
 
-      video.addEventListener('canplay', handleCanPlay, { once: true });
+      // 🔥 Force early buffering
+      video.addEventListener('loadeddata', () => {
+        video.currentTime = 0.01;
+      }, { once: true });
+
+      video.addEventListener('canplay', startPlayback, { once: true });
     }
 
     return () => {
@@ -99,53 +89,18 @@ export default function HlsPlayer({
     };
   }, [src, autoPlay]);
 
-  // 🔥 EXTRA SYNC GUARD (fix drift)
-  useEffect(() => {
+  // ✅ TRACK BUFFER PROGRESS
+  const updateBuffered = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !video.duration) return;
 
-    const fixDrift = () => {
-      if (!video || video.paused) return;
+    try {
+      const bufferedEnd = video.buffered.length
+        ? video.buffered.end(video.buffered.length - 1)
+        : 0;
 
-      if (video.readyState >= 3) {
-        const buffered = video.buffered;
-        if (buffered.length > 0) {
-          const end = buffered.end(buffered.length - 1);
-          if (video.currentTime > end) {
-            video.currentTime = end - 0.1;
-          }
-        }
-      }
-    };
-
-    const interval = setInterval(fixDrift, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Restore playback
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handleRestoreTime = () => {
-      try {
-        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-        if (hist[videoId]?.time > 0) {
-          video.currentTime = hist[videoId].time;
-          setProgress(hist[videoId].time);
-        }
-      } catch {}
-    };
-
-    video.addEventListener('loadedmetadata', handleRestoreTime, { once: true });
-    return () => video.removeEventListener('loadedmetadata', handleRestoreTime);
-  }, [videoId]);
-
-  const togglePlay = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (!videoRef.current) return;
-
-    isPlaying ? videoRef.current.pause() : videoRef.current.play();
+      setBuffered((bufferedEnd / video.duration) * 100);
+    } catch {}
   };
 
   const handleTimeUpdate = () => {
@@ -154,6 +109,8 @@ export default function HlsPlayer({
     const current = videoRef.current.currentTime;
     setProgress(current);
 
+    updateBuffered();
+
     if (Math.abs(current - lastSavedTime.current) > 5) {
       lastSavedTime.current = current;
       try {
@@ -161,7 +118,6 @@ export default function HlsPlayer({
         hist[videoId] = {
           time: current,
           duration: videoRef.current.duration,
-          updatedAt: Date.now()
         };
         localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
       } catch {}
@@ -170,6 +126,11 @@ export default function HlsPlayer({
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) setDuration(videoRef.current.duration);
+  };
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    isPlaying ? videoRef.current.pause() : videoRef.current.play();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -254,7 +215,7 @@ export default function HlsPlayer({
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onDoubleClick={toggleFullscreen}
+        onProgress={updateBuffered} // 🔥 important
         className="netflix-video"
       />
 
@@ -281,6 +242,13 @@ export default function HlsPlayer({
       {/* Bottom Controls Overlay */}
       <div className={`netflix-controls ${showControls ? 'visible' : ''}`}>
         <div className="progress-container">
+
+          {/* 🔥 BUFFER BAR (WHITE) */}
+          <div
+            className="buffer-bar"
+            style={{ width: `${buffered}%` }}
+          />
+
           <input
             type="range"
             min="0"
@@ -289,7 +257,12 @@ export default function HlsPlayer({
             onChange={handleSeek}
             className="progress-slider"
           />
-          <div className="progress-fill" style={{ width: `${(progress / (duration || 1)) * 100}%` }} />
+
+          {/* 🔴 PLAYED PROGRESS */}
+          <div
+            className="progress-fill"
+            style={{ width: `${(progress / (duration || 1)) * 100}%` }}
+          />
         </div>
 
         <div className="controls-row">
@@ -547,7 +520,13 @@ export default function HlsPlayer({
         .progress-container:hover .progress-fill::after {
           transform: translateY(-50%) scale(1);
         }
-
+        .buffer-bar {
+          position: absolute;
+          height: 100%;
+          background: rgba(255,255,255,0.35); /* 🔥 white preload */
+          border-radius: 2px;
+          pointer-events: none;
+        }  
         .controls-row {
           display: flex;
           justify-content: space-between;
