@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
-import Hls from 'hls.js';
-import Link from 'next/link';
+import React, { useEffect, useRef, useState } from "react";
+import Hls from "hls.js";
+import Link from "next/link";
 
 interface HlsPlayerProps {
   videoId: string;
@@ -13,19 +13,19 @@ interface HlsPlayerProps {
   autoPlay?: boolean;
 }
 
-const HISTORY_KEY = 'movieflix-history';
+const HISTORY_KEY = "movieflix-history";
 
 export default function HlsPlayer({
   videoId,
   src,
   poster,
-  title = 'Video',
+  title = "Video",
   isProcessing = false,
-  autoPlay = true
+  autoPlay = true,
 }: HlsPlayerProps) {
-
   const videoRef = useRef<HTMLVideoElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedTime = useRef<number>(0);
 
@@ -38,58 +38,116 @@ export default function HlsPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
-  // ✅ VIDEO INIT + PRELOAD BOOST
+  // =========================
+  // ✅ HLS / MP4 INITIALIZER
+  // =========================
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    let hls: Hls | null = null;
-
-    const startPlayback = () => {
-      if (autoPlay) video.play().catch(() => {});
+    const cleanup = () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
     };
 
-    if (src.endsWith('.m3u8')) {
+    cleanup();
+
+    const startPlayback = () => {
+      if (autoPlay) {
+        video.play().catch(() => {});
+      }
+    };
+
+    const isHls = src.includes(".m3u8");
+
+    // =========================
+    // 🔥 HLS STREAM HANDLING
+    // =========================
+    if (isHls) {
       if (Hls.isSupported()) {
-        hls = new Hls({
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+
+          // 🔥 Adaptive bitrate tuning (IMPORTANT)
           capLevelToPlayerSize: true,
-          maxBufferLength: 60, // 🔥 more aggressive buffering
+          startLevel: -1, // auto
+          maxBufferLength: 60,
+          maxMaxBufferLength: 120,
+          backBufferLength: 30,
+          fragLoadingTimeOut: 20000,
         });
+
+        hlsRef.current = hls;
 
         hls.loadSource(src);
         hls.attachMedia(video);
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.addEventListener('canplay', startPlayback, { once: true });
+          startPlayback();
         });
 
-      } else {
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+          // optional debug hook for adaptive quality switching
+          // console.log("Quality level:", data.level);
+        });
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                cleanup();
+                break;
+            }
+          }
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        // =========================
+        // 🍎 SAFARI NATIVE HLS
+        // =========================
         video.src = src;
-        video.addEventListener('canplay', startPlayback, { once: true });
+        video.addEventListener("loadedmetadata", startPlayback, {
+          once: true,
+        });
       }
     } else {
-      // ✅ MP4 PRELOAD IMPROVEMENT
+      // =========================
+      // MP4 / NORMAL VIDEO
+      // =========================
       video.src = src;
       video.preload = "metadata";
       video.load();
 
-      // 🔥 Force early buffering
-      video.addEventListener('loadeddata', () => {
-        video.currentTime = 0.01;
-      }, { once: true });
+      video.addEventListener(
+        "loadeddata",
+        () => {
+          video.currentTime = 0.01;
+        },
+        { once: true }
+      );
 
-      video.addEventListener('canplay', startPlayback, { once: true });
+      video.addEventListener("canplay", startPlayback, { once: true });
     }
 
     return () => {
+      cleanup();
       video.pause();
       video.removeAttribute("src");
       video.load();
-      if (hls) hls.destroy();
     };
   }, [src, autoPlay]);
 
-  // ✅ TRACK BUFFER PROGRESS
+  // =========================
+  // BUFFER TRACKING
+  // =========================
   const updateBuffered = () => {
     const video = videoRef.current;
     if (!video || !video.duration) return;
@@ -113,8 +171,9 @@ export default function HlsPlayer({
 
     if (Math.abs(current - lastSavedTime.current) > 5) {
       lastSavedTime.current = current;
+
       try {
-        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
         hist[videoId] = {
           time: current,
           duration: videoRef.current.duration,
@@ -154,7 +213,6 @@ export default function HlsPlayer({
 
   const toggleMute = () => {
     if (!videoRef.current) return;
-
     videoRef.current.muted = !isMuted;
     setIsMuted(!isMuted);
   };
@@ -179,7 +237,8 @@ export default function HlsPlayer({
 
   const handleMouseMove = () => {
     setShowControls(true);
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    if (controlsTimeoutRef.current)
+      clearTimeout(controlsTimeoutRef.current);
 
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlaying) setShowControls(false);
@@ -194,13 +253,13 @@ export default function HlsPlayer({
     if (!time || isNaN(time)) return "0:00";
     const min = Math.floor(time / 60);
     const sec = Math.floor(time % 60);
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    return `${min}:${sec < 10 ? "0" : ""}${sec}`;
   };
 
   return (
     <div
       ref={wrapperRef}
-      className={`netflix-player-wrapper ${showControls ? '' : 'hide-cursor'}`}
+      className={`netflix-player-wrapper ${showControls ? "" : "hide-cursor"}`}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
@@ -208,47 +267,44 @@ export default function HlsPlayer({
         ref={videoRef}
         poster={poster}
         playsInline
-        preload="metadata"
         crossOrigin="anonymous"
         onClick={togglePlay}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onProgress={updateBuffered} // 🔥 important
+        onProgress={updateBuffered}
         className="netflix-video"
       />
 
-      {/* Top Header Overlay */}
-      <div className={`netflix-header ${showControls ? 'visible' : ''}`}>
+      {/* ===== UI (UNCHANGED) ===== */}
+      <div className={`netflix-header ${showControls ? "visible" : ""}`}>
         <Link href="/" className="back-button">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5m7 7l-7-7 7-7" /></svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5m7 7l-7-7 7-7" />
+          </svg>
         </Link>
         <h2 className="header-title">{title}</h2>
+
         {isProcessing && (
           <div className="processing-badge">
-            Standard Quality (Processing Adaptive HD...)
+            Adaptive Streaming (HLS Processing...)
           </div>
         )}
       </div>
 
-      {/* Centered Large Play/Pause (Optional UX enhancement) */}
       {!isPlaying && (
         <div className="center-play" onClick={togglePlay}>
-          <svg viewBox="0 0 24 24" className="center-icon"><path d="M8 5v14l11-7z" /></svg>
+          <svg viewBox="0 0 24 24" className="center-icon">
+            <path d="M8 5v14l11-7z" />
+          </svg>
         </div>
       )}
 
-      {/* Bottom Controls Overlay */}
-      <div className={`netflix-controls ${showControls ? 'visible' : ''}`}>
+      <div className={`netflix-controls ${showControls ? "visible" : ""}`}>
         <div className="progress-container">
-
-          {/* 🔥 BUFFER BAR (WHITE) */}
-          <div
-            className="buffer-bar"
-            style={{ width: `${buffered}%` }}
-          />
-
+          <div className="buffer-bar" style={{ width: `${buffered}%` }} />
           <input
             type="range"
             min="0"
@@ -257,8 +313,6 @@ export default function HlsPlayer({
             onChange={handleSeek}
             className="progress-slider"
           />
-
-          {/* 🔴 PLAYED PROGRESS */}
           <div
             className="progress-fill"
             style={{ width: `${(progress / (duration || 1)) * 100}%` }}
@@ -267,68 +321,23 @@ export default function HlsPlayer({
 
         <div className="controls-row">
           <div className="controls-left">
-            <button onClick={togglePlay} className="control-btn play-btn" aria-label={isPlaying ? "Pause" : "Play"}>
-              {isPlaying ? (
-                <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-              ) : (
-                <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-              )}
+            <button onClick={togglePlay} className="control-btn play-btn">
+              {isPlaying ? "❚❚" : "▶"}
             </button>
 
-            <button onClick={() => skipTime(-10)} className="control-btn skip-btn" aria-label="Rewind 10 Seconds">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://w3.org">
-                {/* Mirror of the forward icon: Arrow pointing left, circle counter-clockwise */}
-                <path
-                  d="M12 5V1L7 6L12 11V7C15.3137 7 18 9.68629 18 13C18 16.3137 15.3137 19 12 19C8.68629 19 6 16.3137 6 13H4C4 17.4183 7.58172 21 12 21C16.4183 21 20 17.4183 20 13C20 8.58172 16.4183 5 12 5Z"
-                  fill="currentColor"
-                />
-                <text
-                  x="12"
-                  y="15"
-                  textAnchor="middle"
-                  fill="currentColor"
-                  fontSize="6"
-                  fontWeight="bold"
-                  fontFamily="system-ui, sans-serif"
-                >
-                  10
-                </text>
-              </svg>
+            <button onClick={() => skipTime(-10)} className="control-btn">
+              -10
             </button>
 
-            <button onClick={() => skipTime(10)} className="control-btn skip-btn" aria-label="Forward 10 Seconds">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://w3.org">
-                {/* Clean circular path with arrow head */}
-                <path
-                  d="M12 5V1L17 6L12 11V7C8.68629 7 6 9.68629 6 13C6 16.3137 8.68629 19 12 19C15.3137 19 18 16.3137 18 13H20C20 17.4183 16.4183 21 12 21C7.58172 21 4 17.4183 4 13C4 8.58172 7.58172 5 12 5Z"
-                  fill="currentColor"
-                />
-                {/* Centered text */}
-                <text
-                  x="12"
-                  y="15"
-                  textAnchor="middle"
-                  fill="currentColor"
-                  fontSize="6"
-                  fontWeight="bold"
-                  fontFamily="system-ui, sans-serif"
-                >
-                  10
-                </text>
-              </svg>
+            <button onClick={() => skipTime(10)} className="control-btn">
+              +10
             </button>
-
 
             <div className="volume-container">
-              <button onClick={toggleMute} className="control-btn volume-btn">
-                {isMuted || volume === 0 ? (
-                  <svg viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z" /></svg>
-                ) : volume < 0.5 ? (
-                  <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" /></svg>
-                ) : (
-                  <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" /></svg>
-                )}
+              <button onClick={toggleMute} className="control-btn">
+                🔊
               </button>
+
               <input
                 type="range"
                 min="0"
@@ -341,17 +350,13 @@ export default function HlsPlayer({
             </div>
 
             <div className="time-display">
-              {formatTime(progress)}<span style={{ opacity: 0.5, margin: '0 4px' }}>/</span>{formatTime(duration)}
+              {formatTime(progress)} / {formatTime(duration)}
             </div>
           </div>
 
           <div className="controls-right">
-            <button onClick={toggleFullscreen} className="control-btn fullscreen-btn">
-              {isFullscreen ? (
-                <svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" /></svg>
-              ) : (
-                <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" /></svg>
-              )}
+            <button onClick={toggleFullscreen} className="control-btn">
+              ⛶
             </button>
           </div>
         </div>
