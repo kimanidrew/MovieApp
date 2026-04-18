@@ -124,7 +124,15 @@ export default function HomeClient({
               <span>AI Enhanced</span>
             </div>
 
-            <p style={{ color: "#ddd", lineHeight: 1.5 }}>
+            <p 
+            style={{
+              color: "#ddd",
+              lineHeight: 1.5,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}>
               {heroVideo.description ||
                 "AI-enhanced cinematic streaming experience."}
             </p>
