@@ -1,6 +1,10 @@
 import { redis } from "../src/lib/redis";
 
-export function updateProgress(
+/**
+ * Updates job progress in Redis.
+ * Now using async/await and expiration for stability.
+ */
+export async function updateProgress(
   jobId: string,
   progress: number,
   status = "processing"
@@ -12,16 +16,15 @@ export function updateProgress(
     updatedAt: Date.now(),
   };
 
-  console.log(`📊 [${jobId}] → ${progress}% (${status})`);
-
-  redis
-    .set(`yt-job:${jobId}`, JSON.stringify(payload))
-    .then((res) => {
-      console.log(`✅ [${jobId}] Redis OK → ${res}`);
-    })
-    .catch((err) => {
-      console.error(`❌ [${jobId}] Redis error`, err);
-    });
+  try {
+    // 🎯 Await the set operation so the worker stays in sync
+    // 🎯 Set an expiration (e.g., 3600 seconds / 1 hour) to auto-clean Redis
+    await redis.set(`yt-job:${jobId}`, JSON.stringify(payload), "EX", 3600);
+    
+    console.log(`📊 [${jobId}] → ${progress}% (${status})`);
+  } catch (err) {
+    console.error(`❌ [${jobId}] Redis error:`, err);
+  }
 
   return payload;
 }

@@ -8,32 +8,43 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload, Progress } from "@aws-sdk/lib-storage";
 
-console.log("🚀 GCP YouTube Worker (Single-File Mode) starting...");
+console.log("🚀 GCP YouTube Worker (Strict Types) starting...");
 
-// 2. Initialize S3 Client with timeouts to prevent hanging
+// 2. Initialize S3 Client with non-null assertions (!) 
+// This tells TS "I guarantee these exist in my .env"
 const s3 = new S3Client({
   region: "auto",
-  endpoint: process.env.R2_ENDPOINT,
+  endpoint: process.env.R2_ENDPOINT!, 
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY || "",
-    secretAccessKey: process.env.R2_SECRET_KEY || "",
+    accessKeyId: process.env.R2_ACCESS_KEY!,
+    secretAccessKey: process.env.R2_SECRET_KEY!,
   },
 });
+
+/**
+ * Updates progress in Redis. 
+ * Awaited to ensure synchronization.
+ */
+async function updateProgress(jobId: string, progress: number, status = "processing") {
+  const payload = { jobId, progress, status, updatedAt: Date.now() };
+  console.log(`📊 [${jobId}] → ${progress}% (${status})`);
+  try {
+    // Expiration set to 3600s (1 hour)
+    await redis.set(`yt-job:${jobId}`, JSON.stringify(payload), "EX", 3600);
+  } catch (err) {
+    console.error("❌ Redis Error:", err);
+  }
+}
 
 new Worker(
   "youtube-download",
   async (job) => {
     const { url, title, description } = job.data;
-    const filePath = `/tmp/${job.id}.mp4`;
-
-    const updateProgress = async (progress: number, status: string) => {
-      const payload = { jobId: job.id, progress, status, updatedAt: Date.now() };
-      console.log(`📊 [${job.id}] → ${progress}% (${status})`);
-      await redis.set(`yt-job:${job.id}`, JSON.stringify(payload), "EX", 3600);
-    };
+    const jobId = String(job.id); // Ensure jobId is a string
+    const filePath = `/tmp/${jobId}.mp4`;
 
     try {
-      await updateProgress(5, "starting");
+      await updateProgress(jobId, 5, "starting");
 
       // --- DOWNLOAD ---
       console.log("⬇️ yt-dlp downloading...");
@@ -44,67 +55,73 @@ new Worker(
           "-o", filePath,
           url,
         ]);
-        yt.on("close", (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp failed: ${code}`)));
+        
+        yt.on("close", (code) => {
+          if (code === 0) resolve(true);
+          else reject(new Error(`yt-dlp failed with code ${code}`));
+        });
       });
 
       if (!fs.existsSync(filePath)) throw new Error("File missing after download");
-      console.log("✅ Download complete. Size:", (fs.statSync(filePath).size / 1024 / 1024).toFixed(2), "MB");
+      console.log("✅ Download complete.");
 
       // --- UPLOAD ---
-      await updateProgress(60, "uploading");
-      console.log("☁️ Starting R2 Upload...");
+      await updateProgress(jobId, 60, "uploading");
+      console.log("☁️ Starting R2 Parallel Upload...");
 
       const parallelUpload = new Upload({
         client: s3,
         params: {
           Bucket: process.env.R2_BUCKET!,
-          Key: `videos/${job.id}.mp4`,
+          Key: `videos/${jobId}.mp4`,
           Body: fs.createReadStream(filePath),
           ContentType: "video/mp4",
         },
         queueSize: 4,
-        partSize: 10 * 1024 * 1024, // 10MB chunks
+        partSize: 10 * 1024 * 1024,
       });
 
       parallelUpload.on("httpUploadProgress", (progress: Progress) => {
         if (progress.loaded && progress.total) {
           const percent = Math.round((progress.loaded / progress.total) * 100);
-          // Scale upload progress (60% to 90%)
-          const scaledProgress = 60 + Math.floor(percent * 0.3);
-          updateProgress(scaledProgress, "uploading");
+          const scaled = 60 + Math.floor(percent * 0.3); // Scale progress 60-90%
+          updateProgress(jobId, scaled, "uploading");
         }
       });
 
       await parallelUpload.done();
-      const videoUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/videos/${job.id}.mp4`;
+      
+      const baseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || "";
+      const videoUrl = `${baseUrl.replace(/\/$/, "")}/videos/${jobId}.mp4`;
       console.log("✅ Uploaded to R2:", videoUrl);
 
-      // --- CLEANUP & DB ---
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      await updateProgress(95, "saving");
-
-      const res = await fetch(`${process.env.APP_URL}/api/videos`, {
+      // --- DB SAVE ---
+      await updateProgress(jobId, 91, "saving");
+      
+      const appUrl = process.env.APP_URL || "http://localhost:3000";
+      const res = await fetch(`${appUrl}/api/videos`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
           description,
           videoUrl,
-          videoKey: `videos/${job.id}.mp4`,
+          videoKey: `videos/${jobId}.mp4`,
           thumbnailUrl: "",
           releaseYear: new Date().getFullYear(),
         }),
       });
 
-      if (!res.ok) throw new Error("API Save Failed");
+      if (!res.ok) throw new Error(`API Save failed: ${res.statusText}`);
 
-      await updateProgress(100, "done");
-      console.log("🎉 JOB SUCCESSFUL");
-      return { videoUrl };
+      // --- FINISH ---
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      await updateProgress(jobId, 100, "done");
+      console.log("🎉 Job Completed!");
 
     } catch (err: any) {
-      console.error("❌ JOB FAILED:", err.message);
-      await redis.set(`yt-job:${job.id}`, JSON.stringify({ status: "failed", error: err.message }), "EX", 3600);
+      console.error("❌ Worker Error:", err.message);
+      await updateProgress(jobId, 0, "failed");
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       throw err;
     }
