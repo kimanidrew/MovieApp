@@ -64,6 +64,7 @@ new Worker(
       console.log("🎬 Transcoding to HLS...");
       await new Promise((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
+          "--js-runtimes", "deno",
           "-i", mp4Path,
           "-codec:v", "libx264", // Standard H264
           "-codec:a", "aac",    // Standard AAC
