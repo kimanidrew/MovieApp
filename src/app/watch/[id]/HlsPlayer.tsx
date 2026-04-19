@@ -230,6 +230,37 @@ export default function HlsPlayer({
     return `${min}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
+  useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Prevent triggering when typing in inputs
+    const active = document.activeElement;
+    if (active && ["INPUT", "TEXTAREA"].includes(active.tagName)) return;
+
+    switch (e.code) {
+      case "Space":
+        e.preventDefault(); // stop page scroll
+        togglePlay();
+        break;
+
+      case "ArrowLeft":
+        e.preventDefault();
+        skipTime(-10); // rewind 10s
+        break;
+
+      case "ArrowRight":
+        e.preventDefault();
+        skipTime(10); // forward 10s
+        break;
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+  };
+}, [isPlaying]); // dependency ensures latest state
+
   return (
     <div
       ref={wrapperRef}
