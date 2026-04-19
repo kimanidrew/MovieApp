@@ -220,15 +220,21 @@ export default function HlsPlayer({
   // =========================
   // ⏱ FIXED TIME FORMAT (60 min → 1:00)
   // =========================
-  const formatTime = (time: number) => {
-    if (!time || isNaN(time)) return "0:00";
+const formatTime = (time: number) => {
+  if (!time || isNaN(time)) return "0:00";
 
-    const totalSeconds = Math.floor(time);
-    const min = Math.floor(totalSeconds / 60);
-    const sec = totalSeconds % 60;
+  const totalSeconds = Math.floor(time);
 
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
-  };
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  }
+
+  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+};
 
   useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
