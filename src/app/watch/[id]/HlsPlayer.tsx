@@ -433,6 +433,8 @@ export default function HlsPlayer({
           align-items: center;
           margin-right: 2rem;
           transition: transform 0.2s ease;
+          background-color:transparent;
+          cursor: pointer;
         }
         .back-button:hover {
           transform: scale(1.1);
