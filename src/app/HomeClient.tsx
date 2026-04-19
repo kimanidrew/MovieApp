@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import Image from "next/image"; // ✅ Import Next Image
 import VideoRow from "@/components/VideoRow";
 import Link from "next/link";
 
@@ -55,20 +54,14 @@ export default function HomeClient({
 
   const heroVideo = initialVideos?.[0];
 
-  // ✅ FIX: normalize broken / invalid URLs
   const normalizeUrl = (url?: string | null) => {
     if (!url) return FALLBACK_IMAGE;
-
-    // fix double https bug
     if (url.startsWith("https://https://")) {
       return url.replace("https://https://", "https://");
     }
-
-    // valid url
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
-
     return `https://${url}`;
   };
 
@@ -78,15 +71,18 @@ export default function HomeClient({
     <main style={{ background: "#141414", color: "#fff", minHeight: "100vh" }}>
       {/* 🎬 HERO SECTION */}
       {heroVideo && (
-        <section
-          style={{
-            position: "relative",
-            height: "90vh",
-            backgroundImage: `url(${heroImage})`, // ✅ FIXED HERE
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
+        <section style={{ position: "relative", height: "90vh", width: "100%" }}>
+          {/* ✅ NEXT.JS OPTIMIZED IMAGE */}
+          <Image
+            src={heroImage}
+            alt={heroVideo.title}
+            fill
+            priority // Loads immediately
+            quality={90} // High quality
+            style={{ objectFit: "cover" }}
+            sizes="100vw"
+          />
+
           {/* DARK OVERLAY */}
           <div
             style={{
@@ -94,6 +90,7 @@ export default function HomeClient({
               inset: 0,
               background:
                 "linear-gradient(to top, #141414 10%, transparent 60%), linear-gradient(to right, #000 20%, transparent 80%)",
+              zIndex: 1,
             }}
           />
 
@@ -104,12 +101,21 @@ export default function HomeClient({
               bottom: "20%",
               left: "4%",
               maxWidth: "600px",
+              zIndex: 2, // Ensure text is above image and overlay
             }}
           >
-            <h1 style={{ fontSize: "3rem", fontWeight: 800 ,display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",}}>
+            <h1
+              style={{
+                fontSize: "3.5rem",
+                fontWeight: 800,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                margin: 0,
+                textShadow: "2px 2px 4px rgba(0,0,0,0.45)",
+              }}
+            >
               {heroVideo.title}
             </h1>
 
@@ -119,32 +125,34 @@ export default function HomeClient({
                 gap: "1rem",
                 margin: "1rem 0",
                 color: "#ccc",
+                fontSize: "1.1rem",
               }}
             >
-              <span style={{ color: "#46d369" }}>98% Match</span>
+              <span style={{ color: "#46d369", fontWeight: "bold" }}>98% Match</span>
               <span>{heroVideo.releaseYear || "2024"}</span>
-              <span>HD</span>
+              <span style={{ border: "1px solid #666", padding: "0 0.4rem", fontSize: "0.8rem", borderRadius: "3px" }}>HD</span>
               <span>AI Enhanced</span>
             </div>
 
-            <p 
-            style={{
-              color: "#ddd",
-              lineHeight: 1.5,
-              display: "-webkit-box",
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}>
+            <p
+              style={{
+                color: "#fff",
+                fontSize: "1.2rem",
+                lineHeight: 1.4,
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                textShadow: "1px 1px 2px rgba(0,0,0,0.5)",
+              }}
+            >
               {heroVideo.description ||
                 "AI-enhanced cinematic streaming experience."}
             </p>
 
             <div style={{ display: "flex", gap: "1rem", marginTop: "1.5rem" }}>
               <Link href={`/watch/${heroVideo.id}`} style={btnPlay}>
-                {isContinueWatching(heroVideo.id)
-                  ? "▶ Resume"
-                  : "▶ Play"}
+                {isContinueWatching(heroVideo.id) ? "▶ Resume" : "▶ Play"}
               </Link>
 
               <Link href="/about" style={btnInfo}>
@@ -158,10 +166,7 @@ export default function HomeClient({
       {/* 🎞️ CONTENT ROWS */}
       <div style={{ marginTop: "-6rem", position: "relative", zIndex: 5 }}>
         {continueWatching.length > 0 && (
-          <VideoRow
-            title="Continue Watching"
-            videos={continueWatching}
-          />
+          <VideoRow title="Continue Watching" videos={continueWatching} />
         )}
 
         <VideoRow title="Trending Now" videos={initialVideos} />
@@ -175,20 +180,24 @@ export default function HomeClient({
 const btnPlay: React.CSSProperties = {
   background: "#fff",
   color: "#000",
-  padding: "0.8rem 2rem",
+  padding: "0.8rem 2.4rem",
   borderRadius: "4px",
   fontWeight: "bold",
   textDecoration: "none",
-  display: "inline-block",
-  transition: "opacity 0.2s",
+  display: "inline-flex",
+  alignItems: "center",
+  fontSize: "1.1rem",
+  transition: "background 0.2s",
 };
 
 const btnInfo: React.CSSProperties = {
   background: "rgba(109,109,110,0.7)",
   color: "#fff",
-  padding: "0.8rem 2rem",
+  padding: "0.8rem 2.4rem",
   borderRadius: "4px",
   fontWeight: "bold",
   textDecoration: "none",
-  display: "inline-block",
+  display: "inline-flex",
+  alignItems: "center",
+  fontSize: "1.1rem",
 };
