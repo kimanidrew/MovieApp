@@ -44,18 +44,29 @@ export default function HlsPlayer({
   // =========================
   // 🔥 CONTINUE WATCHING RESTORE
   // =========================
-  const restoreProgress = (video: HTMLVideoElement) => {
-    try {
-      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-      const saved = hist[videoId];
+const restoreProgress = (video: HTMLVideoElement) => {
+  try {
+    const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+    const saved = hist[videoId];
 
-      if (saved?.time && !hasRestored.current) {
-        video.currentTime = saved.time;
-        setProgress(saved.time);
-        hasRestored.current = true;
-      }
-    } catch {}
-  };
+    if (!saved?.time || hasRestored.current) return;
+
+    const applyTime = () => {
+      const safeTime = Math.min(saved.time, video.duration - 1 || saved.time);
+      video.currentTime = safeTime;
+      setProgress(safeTime);
+      hasRestored.current = true;
+    };
+
+    // 🔥 If metadata already loaded
+    if (video.readyState >= 1) {
+      applyTime();
+    } else {
+      video.addEventListener("loadedmetadata", applyTime, { once: true });
+    }
+
+  } catch {}
+};
 
   // =========================
   // VIDEO INIT + HLS
