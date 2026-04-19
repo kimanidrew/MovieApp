@@ -472,6 +472,7 @@ const formatTime = (time: number) => {
           transition: transform 0.2s ease;
           background-color:transparent;
           cursor: pointer;
+          border: none;
         }
         .back-button:hover {
           transform: scale(1.1);
