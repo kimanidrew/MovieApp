@@ -6,6 +6,9 @@ import Link from 'next/link';
 import Hls from 'hls.js';
 
 const FALLBACK_IMAGE = "/fallback.jpg";
+const PREVIEW_START = 120; // 2 minutes
+const PREVIEW_DURATION = 150; // 2.5 minutes
+const FADE_DURATION = 800; // ms
 
 interface Video {
   id: string;
@@ -28,6 +31,7 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
   const [inMyList, setInMyList] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
+  const [isFading, setIsFading] = useState(false);
 
   useEffect(() => {
     if (!video) return;
@@ -41,28 +45,93 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
   }, [video]);
 
   useEffect(() => {
-    if (!video || !videoRef.current) return;
-    const vid = videoRef.current;
-    let hls: Hls;
+  if (!video || !videoRef.current) return;
 
-    const src = video.hlsManifestUrl || video.videoUrl || '';
-    if (!src) return;
+  const vid = videoRef.current;
+  let hls: Hls | null = null;
 
-    if (src.endsWith('.m3u8') && Hls.isSupported()) {
-      hls = new Hls({ startPosition: history.time > 5 ? history.time : -1 });
-      hls.loadSource(src);
-      hls.attachMedia(vid);
-    } else {
-      vid.src = src;
-      vid.currentTime = history.time > 5 ? history.time : 0;
+  const src = video.hlsManifestUrl || video.videoUrl || '';
+  if (!src) return;
+
+  const startTime = history.time > 5 ? history.time : PREVIEW_START;
+
+  const applyStartTime = () => {
+    const safeStart = Math.min(
+      startTime,
+      vid.duration ? vid.duration - 5 : startTime
+    );
+
+    vid.currentTime = safeStart;
+
+    // 🔥 fade in on start
+    vid.style.opacity = "0";
+    requestAnimationFrame(() => {
+      vid.style.transition = `opacity ${FADE_DURATION}ms ease`;
+      vid.style.opacity = "1";
+    });
+  };
+
+  if (src.endsWith('.m3u8') && Hls.isSupported()) {
+    hls = new Hls({ startPosition: startTime });
+    hls.loadSource(src);
+    hls.attachMedia(vid);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      applyStartTime();
+      vid.play().catch(() => {});
+    });
+  } else {
+    vid.src = src;
+
+    vid.addEventListener('loadedmetadata', () => {
+      applyStartTime();
+      vid.play().catch(() => {});
+    }, { once: true });
+  }
+
+  // 🔁 LOOP WITH FADE
+  const handleTimeUpdate = () => {
+    if (!vid.duration) return;
+
+    const endTime = startTime + PREVIEW_DURATION;
+
+    // 🔥 start fade-out slightly before end
+    if (
+      vid.currentTime >= endTime - (FADE_DURATION / 1000) &&
+      !isFading
+    ) {
+      setIsFading(true);
+
+      vid.style.transition = `opacity ${FADE_DURATION}ms ease`;
+      vid.style.opacity = "0";
     }
 
-    vid.play().catch(() => { });
+    // 🔁 loop
+    if (vid.currentTime >= endTime) {
+      const safeStart = Math.min(
+        startTime,
+        vid.duration ? vid.duration - 5 : startTime
+      );
 
-    return () => {
-      if (hls) hls.destroy();
-    };
-  }, [video, history]);
+      vid.currentTime = safeStart + 0.05;
+
+      // 🔥 fade back in
+      requestAnimationFrame(() => {
+        vid.style.transition = `opacity ${FADE_DURATION}ms ease`;
+        vid.style.opacity = "1";
+      });
+
+      setIsFading(false);
+    }
+  };
+
+  vid.addEventListener('timeupdate', handleTimeUpdate);
+
+  return () => {
+    if (hls) hls.destroy();
+    vid.removeEventListener('timeupdate', handleTimeUpdate);
+  };
+}, [video, history, isFading]);
 
   if (!video) return null;
 
@@ -126,9 +195,10 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
                 ref={videoRef}
                 className="modal-video"
                 muted={isMuted}
-                loop
+                loop={false} // 🔥 IMPORTANT (we control looping manually)
                 playsInline
                 poster={normalizeUrl(video.thumbnailUrl) || undefined}
+                style={{ opacity: 0 }} // 🔥 start hidden for fade-in
               />
             ) : (
               <img src={normalizeUrl(video.thumbnailUrl) || ''} alt={video.title} className="modal-video" />
@@ -273,8 +343,10 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
           overflow: hidden;
         }
         .modal-video {
-          width: 100%; height: 100%;
+          width: 100%;
+          height: 100%;
           object-fit: cover;
+          transition: opacity 0.8s ease;
         }
         .modal-gradient {
           position: absolute;
