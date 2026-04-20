@@ -115,62 +115,52 @@ new Worker(
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
 
-          // ================= FILTER GRAPH =================
+          // ================= FILTER =================
           "-filter_complex",
           `
           [0:v]split=4[v1][v2][v3][v4];
 
-          [v1]scale=w=640:h=360:force_original_aspect_ratio=decrease,
+          [v1]scale=640:360:force_original_aspect_ratio=decrease,
               pad=ceil(iw/2)*2:ceil(ih/2)*2[v1out];
 
-          [v2]scale=w=854:h=480:force_original_aspect_ratio=decrease,
+          [v2]scale=854:480:force_original_aspect_ratio=decrease,
               pad=ceil(iw/2)*2:ceil(ih/2)*2[v2out];
 
-          [v3]scale=w=1280:h=720:force_original_aspect_ratio=decrease,
+          [v3]scale=1280:720:force_original_aspect_ratio=decrease,
               pad=ceil(iw/2)*2:ceil(ih/2)*2[v3out];
 
-          [v4]scale=w=1920:h=1080:force_original_aspect_ratio=decrease,
+          [v4]scale=1920:1080:force_original_aspect_ratio=decrease,
               pad=ceil(iw/2)*2:ceil(ih/2)*2[v4out]
           `,
 
-          // ================= MAP STREAMS =================
+          // ================= MAP VIDEO =================
           "-map", "[v1out]",
           "-map", "[v2out]",
           "-map", "[v3out]",
           "-map", "[v4out]",
+
+          // 🔥 DUPLICATE AUDIO (IMPORTANT FIX)
+          "-map", "a:0",
+          "-map", "a:0",
+          "-map", "a:0",
           "-map", "a:0",
 
           // ================= VIDEO =================
           "-c:v", "libx264",
           "-preset", "slow",
           "-crf", "20",
-          "-profile:v", "high",
-          "-level", "4.0",
-          "-sc_threshold", "0",
-          "-g", "48",
-          "-keyint_min", "48",
 
-          // 🔥 BITRATE LADDER (IMPORTANT)
           "-b:v:0", "800k",
-          "-maxrate:v:0", "856k",
-          "-bufsize:v:0", "1200k",
-
           "-b:v:1", "1400k",
-          "-maxrate:v:1", "1498k",
-          "-bufsize:v:1", "2100k",
-
           "-b:v:2", "2800k",
-          "-maxrate:v:2", "2996k",
-          "-bufsize:v:2", "4200k",
-
           "-b:v:3", "5000k",
-          "-maxrate:v:3", "5350k",
-          "-bufsize:v:3", "7500k",
 
           // ================= AUDIO =================
           "-c:a", "aac",
-          "-b:a", "128k",
-          "-ac", "2",
+          "-b:a:0", "96k",
+          "-b:a:1", "128k",
+          "-b:a:2", "128k",
+          "-b:a:3", "192k",
 
           // ================= HLS =================
           "-f", "hls",
@@ -178,19 +168,21 @@ new Worker(
           "-hls_playlist_type", "vod",
           "-hls_list_size", "0",
 
-          // 🔥 ADAPTIVE STREAMING MAP
+          // 🔥 CORRECT STREAM MAP
           "-var_stream_map",
-          "v:0,a:0 v:1,a:0 v:2,a:0 v:3,a:0",
+          "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3",
 
-          // 🔥 MASTER PLAYLIST
           "-master_pl_name", "master.m3u8",
 
-          // 🔥 SEGMENTS
           "-hls_segment_filename",
           `${hlsDir}/v%v/seg_%03d.ts`,
 
           `${hlsDir}/v%v/index.m3u8`,
           "-y",
+
+          "-g", "48",
+          "-keyint_min", "48",
+          "-sc_threshold", "0",
         ]);
 
         ffmpeg.stderr.on("data", (d) =>
