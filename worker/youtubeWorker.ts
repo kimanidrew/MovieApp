@@ -108,35 +108,71 @@ new Worker(
 
       await runYtDlp(args);
 
-      // ================= HLS =================
+      // ================= HLS (ADAPTIVE STREAMING) =================
       await updateProgress(jobId, 40, "transcoding");
 
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
 
-          // 🔥 SCALE TO HD (1080p)
-          "-vf", "scale=-2:1080",
+          // 🔥 SPLIT VIDEO INTO MULTIPLE STREAMS
+          "-filter_complex",
+          `
+          [0:v]split=4[v1][v2][v3][v4];
+          [v1]scale=w=640:h=360:force_original_aspect_ratio=decrease[v1out];
+          [v2]scale=w=854:h=480:force_original_aspect_ratio=decrease[v2out];
+          [v3]scale=w=1280:h=720:force_original_aspect_ratio=decrease[v3out];
+          [v4]scale=w=1920:h=1080:force_original_aspect_ratio=decrease[v4out]
+          `,
 
-          // 🔥 VIDEO QUALITY CONTROL
+          // 🔥 MAP VIDEO STREAMS
+          "-map", "[v1out]",
+          "-map", "[v2out]",
+          "-map", "[v3out]",
+          "-map", "[v4out]",
+
+          // 🔥 MAP AUDIO (ONCE, SHARED)
+          "-map", "a:0",
+
+          // ================= VIDEO SETTINGS =================
           "-c:v", "libx264",
-          "-preset", "slow",          // better quality than veryfast
-          "-crf", "20",               // 🔥 lower = better (18–23 ideal)
+          "-preset", "slow",
+          "-crf", "20",
 
-          // 🔥 AUDIO
+          // 🔥 BITRATES PER QUALITY
+          "-b:v:0", "800k",
+          "-b:v:1", "1400k",
+          "-b:v:2", "2800k",
+          "-b:v:3", "5000k",
+
+          // ================= AUDIO =================
           "-c:a", "aac",
           "-b:a", "192k",
 
-          // 🔥 HLS SETTINGS
+          // ================= HLS OUTPUT =================
+          "-f", "hls",
           "-hls_time", "6",
+          "-hls_playlist_type", "vod",
           "-hls_list_size", "0",
-          "-hls_segment_filename", `${hlsDir}/seg%03d.ts`,
 
-          `${hlsDir}/playlist.m3u8`,
+          // 🔥 IMPORTANT: variant streams
+          "-var_stream_map",
+          "v:0,a:0 v:1,a:0 v:2,a:0 v:3,a:0",
+
+          // 🔥 MASTER PLAYLIST
+          "-master_pl_name", "master.m3u8",
+
+          // 🔥 OUTPUT FILE PATTERN
+          "-hls_segment_filename",
+          `${hlsDir}/v%v/seg_%03d.ts`,
+
+          `${hlsDir}/v%v/index.m3u8`,
           "-y",
         ]);
 
-        ffmpeg.stderr.on("data", (d) => console.log("ffmpeg:", d.toString()));
+        ffmpeg.stderr.on("data", (d) =>
+          console.log("ffmpeg:", d.toString())
+        );
 
         ffmpeg.on("close", (code) => {
           if (code === 0) resolve();
@@ -147,7 +183,18 @@ new Worker(
       // ================= UPLOAD =================
       await updateProgress(jobId, 70, "uploading");
 
-      const files = fs.readdirSync(hlsDir);
+      function getAllFiles(dir: string): string[] {
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+          return entries.flatMap((entry) => {
+            const fullPath = path.join(dir, entry.name);
+            return entry.isDirectory()
+              ? getAllFiles(fullPath)
+              : [fullPath];
+          });
+        }
+
+      const files = getAllFiles(hlsDir);
 
       for (const file of files) {
         const upload = new Upload({
@@ -165,8 +212,8 @@ new Worker(
         await upload.done();
       }
 
-      const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/videos/hls/${jobId}/playlist.m3u8`;
-
+      const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/videos/hls/${jobId}/master.m3u8`;
+      
       // ================= SAVE =================
       await updateProgress(jobId, 95, "saving");
 
