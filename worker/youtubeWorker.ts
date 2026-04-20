@@ -113,22 +113,25 @@ new Worker(
 
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
-          "-i",
-          mp4Path,
-          "-c:v",
-          "libx264",
-          "-preset",
-          "veryfast",
-          "-c:a",
-          "aac",
-          "-b:a",
-          "128k",
-          "-hls_time",
-          "6",
-          "-hls_list_size",
-          "0",
-          "-hls_segment_filename",
-          `${hlsDir}/seg%03d.ts`,
+          "-i", mp4Path,
+
+          // 🔥 SCALE TO HD (1080p)
+          "-vf", "scale=-2:1080",
+
+          // 🔥 VIDEO QUALITY CONTROL
+          "-c:v", "libx264",
+          "-preset", "slow",          // better quality than veryfast
+          "-crf", "20",               // 🔥 lower = better (18–23 ideal)
+
+          // 🔥 AUDIO
+          "-c:a", "aac",
+          "-b:a", "192k",
+
+          // 🔥 HLS SETTINGS
+          "-hls_time", "6",
+          "-hls_list_size", "0",
+          "-hls_segment_filename", `${hlsDir}/seg%03d.ts`,
+
           `${hlsDir}/playlist.m3u8`,
           "-y",
         ]);
