@@ -367,7 +367,7 @@ export default function HlsPlayer({
         .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem; opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
         .netflix-header.visible { opacity: 1; pointer-events: auto; }
         .back-button { color: white; background: transparent; border: none; cursor: pointer; }
-        .header-title { color: white; font-size: 1.5rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .header-title { color: white; font-size: 2.5rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); padding-left: 10px; }
 
         .resume-toast { position: absolute; bottom: 120px; left: 30px; background: rgba(20,20,20,0.95); color: white; padding: 12px 20px; border-radius: 8px; z-index: 40; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); animation: slideUpFade 0.5s ease forwards; }
         @keyframes slideUpFade { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -377,7 +377,7 @@ export default function HlsPlayer({
         .netflix-controls { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 2rem 1.5rem 1.5rem; opacity: 0; transition: opacity 0.4s ease; pointer-events: none; z-index: 20; }
         .netflix-controls.visible { opacity: 1; pointer-events: auto; }
         
-        .progress-container { position: relative; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; transition: height 0.2s; margin-bottom: 0.5rem; }
+        .progress-container { position: relative; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; transition: height 0.2s; margin-bottom: 1rem; }
         .progress-container:hover { height: 8px; }
         .progress-slider { position: absolute; width: 100%; top: -8px; opacity: 0; z-index: 10; cursor: pointer; }
         .progress-fill { position: absolute; height: 100%; background: #e50914; border-radius: 2px; display: flex; align-items: center; justify-content: flex-end; }
@@ -395,7 +395,7 @@ export default function HlsPlayer({
         .volume-container:hover .volume-slider { width: 100px; opacity: 1; }
 
         .custom-quality-container { position: relative; display: flex; align-items: center; }
-        .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 0px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
         .chevron { width: 20px; transition: transform 0.3s; }
         .chevron.open { transform: rotate(180deg); }
         .quality-menu { position: absolute; bottom: 100%; left: 0; margin-bottom: 10px; background: rgba(20,20,20,0.95); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; width: 140px; border: 1px solid rgba(255,255,255,0.1); }
