@@ -344,10 +344,12 @@ export default function HlsPlayer({
       </div>
 
       <div className={`netflix-controls ${showControls ? 'visible' : ''}`}>
+        <div className="progress-wrapper">
         <div className="progress-container">
           <div className="buffer-bar" style={{ width: `${buffered}%` }} />
           <input type="range" min="0" max={duration || 100} value={progress} onInput={(e) => setProgress(Number(e.currentTarget.value))} onChange={(e) => { if(videoRef.current) videoRef.current.currentTime = Number(e.target.value); }} className="progress-slider" />
           <div className="progress-fill" style={{ width: `${(progress / (duration || 1)) * 100}%` }}><div className="scrub-circle" /></div>
+        </div>
         </div>
 
         <div className="controls-row">
@@ -405,10 +407,10 @@ export default function HlsPlayer({
         .active .arrow-three { animation: ghosting 0.6s infinite 0.2s; }
         @keyframes ghosting { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
 
-        .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem; opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
+        .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem var(--player-padding-x); opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
         .netflix-header.visible { opacity: 1; pointer-events: auto; }
         .back-button { color: white; background: transparent; border: none; }
-        .header-title { padding-left: 1rem; color: white; font-size: 1.6rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .header-title { padding-left: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; color: white; font-size: 1.6rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         .resume-toast { position: absolute; bottom: 120px; left: 30px; background: rgba(20,20,20,0.95); color: white; padding: 12px 20px; border-radius: 8px; z-index: 40; border: 1px solid rgba(255,255,255,0.1); animation: slideUpFade 0.5s ease forwards; backdrop-filter: blur(10px); }
         @keyframes slideUpFade { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .resume-yes { background: #e50914; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 10px; }
@@ -421,17 +423,18 @@ export default function HlsPlayer({
         .gesture-hud-icon { font-size: 2rem; margin-bottom: 8px; }
         .gesture-hud-bar { width: 100px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
         .gesture-hud-bar div { height: 100%; background: #e50914; transition: width 0.1s linear; }
-        .netflix-controls { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 2rem 1.5rem 1.5rem; opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 20; }
+        .netflix-controls { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 2rem var(--player-padding-x) 1.5rem; box-sizing: border-box; opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 20; }
         .netflix-controls.visible { opacity: 1; pointer-events: auto; }
+        .progress-wrapper { width: 100%; overflow: hidden; }
         .progress-container { position: relative; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; transition: height 0.2s; margin-bottom: 1rem; }
         .progress-container:hover { height: 8px; }
-        .progress-slider { position: absolute; width: 100%; top: -8px; opacity: 0; z-index: 10; cursor: pointer; }
+        .progress-slider { position: absolute; left: 0; right: 0; width: 100%; opacity: 0; z-index: 10; cursor: pointer; }
         .progress-fill { position: absolute; height: 100%; background: #e50914; border-radius: 2px; display: flex; align-items: center; justify-content: flex-end; }
         .buffer-bar { position: absolute; height: 100%; background: rgba(255,255,255,0.35); border-radius: 2px; }
         .scrub-circle { width: 16px; height: 16px; background: #e50914; border-radius: 50%; transform: translateX(50%) scale(0); transition: transform 0.2s ease; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .progress-container:hover .scrub-circle { transform: translateX(50%) scale(1); }
-        .controls-row { display: flex; justify-content: space-between; align-items: center; }
-        .controls-left, .controls-right { display: flex; align-items: center; gap: 1.5rem; }
+        .controls-row { display: flex; justify-content: space-between; align-items: center; min-width: 0; }
+        .controls-left, .controls-right { display: flex; align-items: center; gap: 1.5rem; min-width: 0; }
         .control-btn { background: none; border: none; color: white; cursor: pointer; transition: transform 0.2s; }
         .control-btn svg { width: 38px; height: 38px; }
         .volume-container { display: flex; align-items: center; gap: 0.8rem; }

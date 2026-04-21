@@ -6,6 +6,7 @@
   --text-muted: #808080;
   --glass-bg: rgba(20, 20, 20, 0.6);
   --font-montserrat: 'Montserrat', sans-serif;
+  --player-padding-x: 1.5rem;
 }
 
 * {
