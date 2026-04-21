@@ -93,7 +93,7 @@ export default function HlsPlayer({
 
       if (saved.time > 10) {
         setResumeTime(saved.time);
-        setTimeout(() => setResumeTime(null), 8000);
+        setTimeout(() => setResumeTime(null), 15000);
       }
     } catch {}
   };
