@@ -327,7 +327,7 @@ export default function HlsPlayer({
       )}
 
       <div className={`netflix-header ${showControls ? 'visible' : ''}`}>
-        <button onClick={() => router.back()} className="back-button control-btn">
+        <button onClick={() => router.back()} className="back-button">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M19 12H5m7 7l-7-7 7-7" />
           </svg>
@@ -397,7 +397,17 @@ export default function HlsPlayer({
         
         .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%); display: flex; align-items: flex-start; padding: 2rem; opacity: 0; transition: opacity 0.4s ease; pointer-events: none; z-index: 20; }
         .netflix-header.visible { opacity: 1; pointer-events: auto; }
-        .back-button { color: white; background: transparent; cursor: pointer; border: none; display: flex; margin-right: 2rem; }
+        .back-button {
+          color: white;
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          margin-right: 2rem;
+          transition: transform 0.2s ease;
+          background-color:transparent;
+          cursor: pointer;
+          border: none;
+        }
         .header-title { color: white; font-size: 1.5rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
 
         .resume-toast { position: absolute; bottom: 120px; left: 30px; background: rgba(20,20,20,0.95); color: white; padding: 12px 20px; border-radius: 8px; display: flex; align-items: center; gap: 15px; z-index: 40; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
