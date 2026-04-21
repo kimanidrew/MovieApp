@@ -400,7 +400,7 @@ export default function HlsPlayer({
         .resume-yes { background: #e50914; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 10px; }
         .resume-no { background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; }
         .center-action-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 15; pointer-events: none; }
-        .center-icon-bg { background: rgba(0,0,0,0.5); border-radius: 50%; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .center-icon-bg { background: rgba(0,0,0,0.5); border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
         .animate-pop { animation: popFade 0.5s ease-out forwards; }
         @keyframes popFade { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
         .gesture-hud { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 20px; border-radius: 12px; z-index: 50; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
