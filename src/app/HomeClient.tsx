@@ -159,7 +159,7 @@ export default function HomeClient({
                 onClick={() => setSelectedVideo(heroVideo)} 
                 style={btnInfo}
               >
-                <span style={{ marginRight: '0.5rem', fontSize: '1.4rem' }}>ⓘ</span> More Info
+                More Info
               </button>
             </div>
           </div>
@@ -204,7 +204,7 @@ const btnPlay: React.CSSProperties = {
 };
 
 const btnInfo: React.CSSProperties = {
-  background: "rgba(109,109,110,0.7)",
+  background: "rgba(0,0,0,1)",
   color: "#fff",
   padding: "0.8rem 2.4rem",
   borderRadius: "4px",
