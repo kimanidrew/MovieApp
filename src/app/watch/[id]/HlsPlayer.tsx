@@ -223,9 +223,13 @@ export default function HlsPlayer({
 
   const handleMouseMove = () => {
     setShowControls(true);
+
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && !isQualityOpen && !gestureUI.type) setShowControls(false);
+      if (isPlaying && !isQualityOpen && !gestureUI.type) {
+        setShowControls(false);
+      }
     }, 4000);
   };
 
@@ -234,6 +238,9 @@ export default function HlsPlayer({
       ref={wrapperRef}
       className={`netflix-player-wrapper ${showControls ? '' : 'hide-cursor'}`}
       onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
+        if (isPlaying) setShowControls(false);
+      }}
       style={{ filter: `brightness(${brightness})` }}
     >
       <video
@@ -268,16 +275,20 @@ export default function HlsPlayer({
           const now = Date.now();
           const rect = e.currentTarget.getBoundingClientRect();
           const x = e.clientX - rect.left;
-          const side = x < rect.width / 2 ? 'left' : 'right';
 
           if (now - lastTapRef.current.time < 300) {
-            // 🔥 Double tap logic (Fullscreen + Skip Animation)
+            // 🔥 DOUBLE CLICK → FULLSCREEN
             toggleFullscreen();
             lastTapRef.current = { time: 0, x: 0, y: 0 };
           } else {
-            // Single tap logic
             lastTapRef.current = { time: now, x: e.clientX, y: e.clientY };
-            setTimeout(() => { if (lastTapRef.current.time === now) togglePlay(); }, 300);
+
+            setTimeout(() => {
+              if (lastTapRef.current.time === now) {
+                // 🔥 SINGLE CLICK → JUST TOGGLE CONTROLS
+                setShowControls((prev) => !prev);
+              }
+            }, 300);
           }
         }}
       >
@@ -374,6 +385,9 @@ export default function HlsPlayer({
 
       <style>{`
         .netflix-player-wrapper { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Inter', sans-serif; }
+        .netflix-player-wrapper.hide-cursor {
+          cursor: none;
+        }
         .netflix-video { width: 100%; height: 100%; object-fit: contain; }
         .hover-scale { transition: transform 0.2s; cursor: pointer; }
         .hover-scale:hover { transform: scale(1.15); }
