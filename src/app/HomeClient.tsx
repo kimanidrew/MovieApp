@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Image from "next/image"; // ✅ Import Next Image
+import Image from "next/image";
 import VideoRow from "@/components/VideoRow";
 import Link from "next/link";
+import VideoModal from "@/components/VideoModal"; // ✅ Import your VideoModal
 
 interface Video {
   id: string;
@@ -24,6 +25,7 @@ export default function HomeClient({
   initialVideos: Video[];
 }) {
   const [history, setHistory] = useState<any>({});
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null); // ✅ Modal State
 
   useEffect(() => {
     try {
@@ -72,18 +74,16 @@ export default function HomeClient({
       {/* 🎬 HERO SECTION */}
       {heroVideo && (
         <section style={{ position: "relative", height: "90vh", width: "100%" }}>
-          {/* ✅ NEXT.JS OPTIMIZED IMAGE */}
           <Image
             src={heroImage}
             alt={heroVideo.title}
             fill
-            priority // Loads immediately
-            quality={90} // High quality
+            priority
+            quality={90}
             style={{ objectFit: "cover" }}
             sizes="100vw"
           />
 
-          {/* DARK OVERLAY */}
           <div
             style={{
               position: "absolute",
@@ -94,14 +94,13 @@ export default function HomeClient({
             }}
           />
 
-          {/* CONTENT */}
           <div
             style={{
               position: "absolute",
               bottom: "20%",
               left: "4%",
               maxWidth: "600px",
-              zIndex: 2, // Ensure text is above image and overlay
+              zIndex: 2,
             }}
           >
             <h1
@@ -155,9 +154,13 @@ export default function HomeClient({
                 {isContinueWatching(heroVideo.id) ? "▶ Resume" : "▶ Play"}
               </Link>
 
-              <Link href="/about" style={btnInfo}>
-                ℹ More Info
-              </Link>
+              {/* ✅ UPDATED TO BUTTON FOR MODAL */}
+              <button 
+                onClick={() => setSelectedVideo(heroVideo)} 
+                style={btnInfo}
+              >
+                <span style={{ marginRight: '0.5rem', fontSize: '1.4rem' }}>ⓘ</span> More Info
+              </button>
             </div>
           </div>
         </section>
@@ -173,6 +176,14 @@ export default function HomeClient({
 
         <VideoRow title="Recently Uploaded" videos={initialVideos} />
       </div>
+
+      {/* ✅ MODAL INTEGRATION */}
+      {selectedVideo && (
+        <VideoModal 
+          video={selectedVideo} 
+          onClose={() => setSelectedVideo(null)} 
+        />
+      )}
     </main>
   );
 }
@@ -188,6 +199,8 @@ const btnPlay: React.CSSProperties = {
   alignItems: "center",
   fontSize: "1.1rem",
   transition: "background 0.2s",
+  cursor: "pointer",
+  border: "none",
 };
 
 const btnInfo: React.CSSProperties = {
@@ -200,4 +213,7 @@ const btnInfo: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   fontSize: "1.1rem",
+  cursor: "pointer",
+  border: "none",
+  transition: "background 0.2s",
 };
