@@ -439,10 +439,10 @@ export default function HlsPlayer({
         .time-display { color: white; font-size: 1.05rem; }
 
         .quality-select { 
-          background: rgba(40, 40, 40, 0.8); 
+          background: transparent; 
           color: white; 
-          border: 1px solid rgba(255,255,255,0.2); 
-          border-radius: 4px; 
+          border: none; 
+          border-radius: 0px; 
           padding: 6px 12px; 
           font-size: 0.85rem; 
           cursor: pointer;
