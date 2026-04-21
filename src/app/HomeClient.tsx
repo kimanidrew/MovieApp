@@ -137,7 +137,7 @@ export default function HomeClient({
             <p
               style={{
                 color: "#fff",
-                fontSize: "1.2rem",
+                fontSize: "1rem",
                 lineHeight: 1.4,
                 display: "-webkit-box",
                 WebkitLineClamp: 3,
