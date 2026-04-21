@@ -138,7 +138,7 @@ export default function HomeClient({
               style={{
                 color: "#fff",
                 fontSize: "1rem",
-                lineHeight: 1.4,
+                lineHeight: 1.6,
                 display: "-webkit-box",
                 WebkitLineClamp: 3,
                 WebkitBoxOrient: "vertical",
