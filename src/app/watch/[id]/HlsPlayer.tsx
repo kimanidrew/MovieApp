@@ -316,7 +316,7 @@ export default function HlsPlayer({
         .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem; opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
         .netflix-header.visible { opacity: 1; pointer-events: auto; }
         .back-button { color: white; background: transparent; border: none; }
-        .header-title { color: white; font-size: 1.5rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .header-title { padding-left: 10px; color: white; font-size: 1.7rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         .resume-toast { position: absolute; bottom: 120px; left: 30px; background: rgba(20,20,20,0.95); color: white; padding: 12px 20px; border-radius: 8px; z-index: 40; border: 1px solid rgba(255,255,255,0.1); animation: slideUpFade 0.5s ease forwards; }
         @keyframes slideUpFade { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .resume-yes { background: #e50914; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 10px; }
@@ -340,7 +340,7 @@ export default function HlsPlayer({
         .control-btn svg { width: 38px; height: 38px; }
         .time-display { color: white; font-size: 1.05rem; }
         .custom-quality-container { position: relative; display: flex; align-items: center; }
-        .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+        .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 12px; border-radius: 4px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
         .chevron { width: 20px; transition: transform 0.3s; }
         .chevron.open { transform: rotate(180deg); }
         .quality-menu { position: absolute; bottom: 100%; left: 0; margin-bottom: 10px; background: rgba(20,20,20,0.95); border-radius: 8px; display: flex; flex-direction: column; width: 140px; border: 1px solid rgba(255,255,255,0.1); }
