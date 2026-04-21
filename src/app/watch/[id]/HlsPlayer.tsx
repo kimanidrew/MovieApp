@@ -332,7 +332,7 @@ export default function HlsPlayer({
       {resumeTime && (
         <div className="resume-toast">
           <div className="resume-btns">
-            <button onClick={() => { if(videoRef.current) videoRef.current.currentTime = resumeTime; setResumeTime(null); setIsPlaying(true); }} className="resume-yes">Resume from {formatTime(resumeTime)}</button>
+            <button onClick={() => { if(videoRef.current) videoRef.current.currentTime = resumeTime; setResumeTime(null); }} className="resume-yes">Resume from {formatTime(resumeTime)}</button>
             <button onClick={() => setResumeTime(null)} className="resume-no">✕</button>
           </div>
         </div>
