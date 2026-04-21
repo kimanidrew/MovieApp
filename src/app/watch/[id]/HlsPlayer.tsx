@@ -384,7 +384,7 @@ export default function HlsPlayer({
       </div>
 
       <style>{`
-        .netflix-player-wrapper { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Inter', sans-serif; }
+        .netflix-player-wrapper { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
         .netflix-player-wrapper.hide-cursor {
           cursor: none;
         }
