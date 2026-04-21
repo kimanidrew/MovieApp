@@ -435,7 +435,7 @@ export default function HlsPlayer({
         .control-btn { background: none; border: none; color: white; cursor: pointer; transition: transform 0.2s; }
         .control-btn svg { width: 38px; height: 38px; }
         .volume-container { display: flex; align-items: center; gap: 0.8rem; }
-        .volume-slider { width: 0; opacity: 0; transition: width 0.3s, opacity 0.3s; height: 4px; accent-color: #e50914; cursor: pointer; }
+        .volume-slider { width: 0; opacity: 0; transition: width 0.3s, opacity 0.3s; height: 4px; accent-color: #e50914; cursor: pointer; border: none;}
         .volume-container:hover .volume-slider { width: 100px; opacity: 1; }
         .custom-quality-container { position: relative; display: flex; align-items: center; }
         .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
