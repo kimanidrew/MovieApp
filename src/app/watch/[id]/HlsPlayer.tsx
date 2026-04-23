@@ -124,13 +124,21 @@ export default function HlsPlayer({
     }
   };
 
-  const handleQualityChange = (id: number) => {
-    if (hlsRef.current) {
-      hlsRef.current.currentLevel = id;
-      setCurrentQuality(id);
-      setIsQualityOpen(false);
-    }
-  };
+const handleQualityChange = (id: number) => {
+  const hls = hlsRef.current;
+  if (!hls) return;
+
+  if (id === -1) {
+    hls.currentLevel = -1; // auto
+  } else {
+    hls.nextLevel = id;
+    hls.loadLevel = id;
+    hls.currentLevel = id;
+  }
+
+  setCurrentQuality(id);
+  setIsQualityOpen(false);
+};
 
   // =========================
   // SWIPE GESTURES (VOLUME / BRIGHTNESS)
@@ -171,55 +179,80 @@ export default function HlsPlayer({
   // =========================
   // VIDEO INIT + HLS
   // =========================
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+ useEffect(() => {
+  const video = videoRef.current;
+  if (!video) return;
 
-    let hlsInstance: Hls | null = null;
-    hasRestored.current = false;
+  let hls: Hls;
 
-    if (src.endsWith('.m3u8')) {
-      if (Hls.isSupported()) {
-        hlsInstance = new Hls({
-          capLevelToPlayerSize: false,
-          maxBufferLength: 30, 
-          startLevel: -1,
-          abrBandWidthFactor: 0.8,
-          abrBandWidthUpFactor: 0.6,
-        });
+  if (src.endsWith(".m3u8") && Hls.isSupported()) {
+    hls = new Hls({
+      capLevelToPlayerSize: true,
+      startLevel: -1,
+      maxBufferLength: 60,
 
-        hlsRef.current = hlsInstance;
-        hlsInstance.loadSource(src);
-        hlsInstance.attachMedia(video);
+      // 🔥 HD bias settings
+      abrEwmaDefaultEstimate: 5_000_000,
+      abrBandWidthFactor: 1.0,
+      abrBandWidthUpFactor: 0.9,
+      minAutoBitrate: 2_000_000,
+    });
 
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-          setQualities(data.levels.map((l, i) => ({ id: i, height: l.height })));
-          const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-          if (hist[videoId]?.time > 10) {
-            setResumeTime(hist[videoId].time);
-            setTimeout(() => setResumeTime(null), 15000);
-          }
-          if (autoPlay) video.play().catch(() => {});
-        });
+    hlsRef.current = hls;
 
-        hlsInstance.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
-          if (hlsRef.current?.autoLevelEnabled) setAutoHeight(hlsRef.current.levels[data.level].height);
-        });
+    hls.loadSource(src);
+    hls.attachMedia(video);
 
-        hlsInstance.on(Hls.Events.ERROR, (_, data) => {
-          if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) setIsBuffering(true);
-        });
-        hlsInstance.on(Hls.Events.STALL_RESOLVED, () => setIsBuffering(false));
-      } else {
-        video.src = src;
+    hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+      const levels = data.levels;
+
+      // 🔥 Sort levels by resolution (height)
+      const sorted = levels
+        .map((l, i) => ({ id: i, height: l.height }))
+        .sort((a, b) => b.height - a.height);
+
+      setQualities(sorted);
+
+      // 🔥 Pick BEST quality properly
+      const bestLevelIndex = levels.reduce((best, level, index, arr) => {
+        return level.height > arr[best].height ? index : best;
+      }, 0);
+
+      // 🔥 FORCE highest quality at start
+      hls.currentLevel = bestLevelIndex;
+      setCurrentQuality(bestLevelIndex);
+
+      // resume logic
+      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
+      if (hist[videoId]?.time > 10) {
+        setResumeTime(hist[videoId].time);
+        setTimeout(() => setResumeTime(null), 15000);
       }
-    } else {
-      video.src = src;
-      video.load();
-    }
 
-    return () => { if (hlsRef.current) hlsRef.current.destroy(); };
-  }, [src, videoId, autoPlay]);
+      if (autoPlay) video.play().catch(() => {});
+    });
+
+    // 🔥 Track current auto quality
+    hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+      const level = hls.levels[data.level];
+      if (level) setAutoHeight(level.height);
+    });
+
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal) {
+        console.error("HLS fatal error:", data);
+      }
+    });
+
+  } else {
+    video.src = src;
+  }
+
+  return () => {
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+  };
+}, [src, videoId, autoPlay]);
 
   const handleMouseMove = () => {
     setShowControls(true);
