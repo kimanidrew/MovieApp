@@ -181,7 +181,7 @@ export default function HlsPlayer({
     if (src.endsWith('.m3u8')) {
       if (Hls.isSupported()) {
         hlsInstance = new Hls({
-          capLevelToPlayerSize: true,
+          capLevelToPlayerSize: false,
           maxBufferLength: 30, 
           startLevel: -1,
           abrBandWidthFactor: 0.8,
