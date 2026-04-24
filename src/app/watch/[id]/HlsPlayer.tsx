@@ -176,6 +176,25 @@ const handleQualityChange = (id: number) => {
     setTimeout(() => setGestureUI({ type: null, value: 0 }), 1000);
   };
 
+
+  // ✅ Reset player state when video changes
+useEffect(() => {
+  setProgress(0);
+  setBuffered(0);
+  setDuration(0);
+  setResumeTime(null);
+  setIsPlaying(false);
+  setIsBuffering(false);
+  setCurrentQuality(-1);
+  setAutoHeight(0);
+  hasRestored.current = false;
+
+  if (videoRef.current) {
+    videoRef.current.pause();
+    videoRef.current.currentTime = 0;
+  }
+}, [videoId]);
+
   // =========================
   // VIDEO INIT + HLS
   // =========================
@@ -224,13 +243,20 @@ const handleQualityChange = (id: number) => {
 
       // resume logic
       const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
-      if (hist[videoId]?.time > 10) {
-        setResumeTime(hist[videoId].time);
-        setTimeout(() => setResumeTime(null), 15000);
+      const saved = hist[videoId];
+
+      if (!hasRestored.current && saved?.time > 10) {
+        hasRestored.current = true;
+
+        setResumeTime(saved.time);
+
+        // Auto-hide resume UI
+        setTimeout(() => {
+          setResumeTime((prev) => (prev === saved.time ? null : prev));
+        }, 15000);
       }
 
-      if (autoPlay) video.play().catch(() => {});
-    });
+ });
 
     // 🔥 Track current auto quality
     hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
@@ -365,7 +391,13 @@ const handleQualityChange = (id: number) => {
       {resumeTime && (
         <div className="resume-toast">
           <div className="resume-btns">
-            <button onClick={() => { if(videoRef.current) videoRef.current.currentTime = resumeTime; setResumeTime(null); }} className="resume-yes">Resume from {formatTime(resumeTime)}</button>
+            <button   onClick={() => {
+                  if (videoRef.current && resumeTime) {
+                    videoRef.current.currentTime = resumeTime;
+                    videoRef.current.play().catch(() => {});
+                  }
+                  setResumeTime(null); 
+                  }}className="resume-yes">Resume from {formatTime(resumeTime)}</button>
             <button onClick={() => setResumeTime(null)} className="resume-no">✕</button>
           </div>
         </div>
