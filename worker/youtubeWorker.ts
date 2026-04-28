@@ -7,7 +7,7 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-console.log("🚀 YouTube Worker (STABLE MODE) starting...");
+console.log("🚀 YouTube Worker (4K ULTRA-HQ MODE) starting...");
 
 const s3 = new S3Client({
   region: "auto",
@@ -50,10 +50,10 @@ new Worker(
     const cookiePath = "/home/kimanidan585/MovieApp/cookies.txt";
 
     try {
-      // 1. Setup Directories (Crucial: FFmpeg won't create v0, v1, etc.)
+      // 1. Setup Directories (Crucial: 5 levels now for 4K)
       if (fs.existsSync(hlsDir)) fs.rmSync(hlsDir, { recursive: true, force: true });
       fs.mkdirSync(hlsDir, { recursive: true });
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         fs.mkdirSync(path.join(hlsDir, `v${i}`), { recursive: true });
       }
 
@@ -66,43 +66,47 @@ new Worker(
       });
       const info = await infoRes.json();
 
-      // 2. Download
+      // 2. Download - Request best quality possible
       await updateProgress(jobId, 10, "downloading");
       const dlArgs: string[] = [
         "--no-playlist",
         ...(fs.existsSync(cookiePath) ? ["--cookies", cookiePath] : []),
         "--extractor-args", "youtube:player_client=web",
         "--force-ipv4",
-        "-f", "bv*+ba/best",
+        "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/best",
         "-o", mp4Path,
         url,
       ];
       await runYtDlp(dlArgs);
 
-      // 3. Transcode
+      // 3. Transcode - 4K High Quality Settings
       await updateProgress(jobId, 40, "transcoding");
       await new Promise<void>((resolve, reject) => {
         const ffmpeg = spawn("ffmpeg", [
           "-i", mp4Path,
 
           "-filter_complex",
-          // Split video into 4 AND split audio into 4
-          "[0:v]split=4[v1][v2][v3][v4]; \
-          [0:a]asplit=4[a1][a2][a3][a4]; \
-          [v1]scale=640:360:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2[v1out]; \
-          [v2]scale=854:480:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2[v2out]; \
-          [v3]scale=1280:720:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2[v3out]; \
-          [v4]scale=1920:1080:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2[v4out]",
+          // Split into 5 tiers (360p, 480p, 720p, 1080p, 4K)
+          "[0:v]split=5[v1][v2][v3][v4][v5]; \
+          [0:a]asplit=5[a1][a2][a3][a4][a5]; \
+          [v1]scale=640:360:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v1out]; \
+          [v2]scale=854:480:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v2out]; \
+          [v3]scale=1280:720:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v3out]; \
+          [v4]scale=1920:1080:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v4out]; \
+          [v5]scale=3840:2160:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v5out]",
 
-          // Map each video to its corresponding audio split
           "-map", "[v1out]", "-map", "[a1]",
           "-map", "[v2out]", "-map", "[a2]",
           "-map", "[v3out]", "-map", "[a3]",
           "-map", "[v4out]", "-map", "[a4]",
+          "-map", "[v5out]", "-map", "[a5]",
 
           "-c:v", "libx264",
-          "-preset", "veryfast",
-          "-crf", "18", // Slightly better quality than 20
+          "-preset", "slow",        // Best compression efficiency
+          "-crf", "16",             // Professional level sharpness
+          "-profile:v", "high",     // Advanced H.264 features
+          "-level", "5.2",          // Required for 4K stability
+          "-pix_fmt", "yuv420p",    // Max browser compatibility
           "-g", "48",
           "-keyint_min", "48",
           "-sc_threshold", "0",
@@ -110,17 +114,19 @@ new Worker(
           "-c:a", "aac",
           "-ar", "48000",
 
-          // Video Bitrates
+          // Video Bitrates (Max thresholds for each tier)
           "-b:v:0", "800k",
           "-b:v:1", "1400k",
           "-b:v:2", "2800k",
           "-b:v:3", "5000k",
+          "-b:v:4", "22000k",       // 22Mbps for high-quality 4K
 
-          // Audio Bitrates (matching your previous high-quality setup)
+          // Audio Bitrates
           "-b:a:0", "96k",
           "-b:a:1", "128k",
           "-b:a:2", "128k",
           "-b:a:3", "192k",
+          "-b:a:4", "320k",         // Audiophile quality for 4K tier
 
           "-f", "hls",
           "-hls_time", "6",
@@ -128,8 +134,8 @@ new Worker(
           "-hls_list_size", "0",
           "-hls_flags", "independent_segments",
 
-          // Map variant 0 to v:0 and a:0, variant 1 to v:1 and a:1, etc.
-          "-var_stream_map", "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3",
+          // Mapping: v:index, a:index
+          "-var_stream_map", "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3 v:4,a:4",
 
           "-master_pl_name", "master.m3u8",
           "-hls_segment_filename", `${hlsDir}/v%v/seg_%03d.ts`,
@@ -138,13 +144,11 @@ new Worker(
           "-y"
         ]);
 
-
-
         ffmpeg.stderr.on("data", (d) => console.log("ffmpeg:", d.toString()));
         ffmpeg.on("close", (code) => (code === 0 ? resolve() : reject(new Error("ffmpeg failed"))));
       });
 
-      // 4. Upload
+      // 4. Upload to Cloudflare R2
       await updateProgress(jobId, 70, "uploading");
       const getAllFiles = (dir: string): string[] => {
         const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -156,7 +160,7 @@ new Worker(
 
       const files = getAllFiles(hlsDir);
       for (const file of files) {
-        const relativePath = path.relative(hlsDir, file); // Fixes the R2 path
+        const relativePath = path.relative(hlsDir, file);
         const upload = new Upload({
           client: s3,
           params: {
@@ -203,7 +207,6 @@ new Worker(
   { 
     connection: redis, 
     concurrency: 1,
-    // 🔥 Increased lock duration to 1 hour so BullMQ doesn't timeout during transcode
-    lockDuration: 3600000 
+    lockDuration: 7200000 // 🔥 Increased to 2 hours for heavy 4K encoding
   }
 );

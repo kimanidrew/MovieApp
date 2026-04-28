@@ -218,12 +218,18 @@ export default function HlsPlayer({
     let hls: Hls;
     if (src.endsWith(".m3u8") && Hls.isSupported()) {
       hls = new Hls({ 
-        capLevelToPlayerSize: true, 
-        startLevel: -1, 
-        // Force Cleaner Video: High bandwidth estimate for immediate HD
-        abrEwmaDefaultEstimate: 10000000, 
-        abrBandWidthFactor: 1.0,
-        abrBandWidthUpFactor: 0.7,
+          capLevelToPlayerSize: true,
+          startLevel: -1,
+
+          abrEwmaDefaultEstimate: 20000000, // higher = better quality guess
+          abrBandWidthFactor: 1.0,
+          abrBandWidthUpFactor: 0.9,
+
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+
+          enableWorker: true,
+          lowLatencyMode: false,
       });
       hlsRef.current = hls;
       hls.loadSource(src);
@@ -431,7 +437,10 @@ export default function HlsPlayer({
       <style>{`
         .netflix-player-wrapper { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
         .netflix-player-wrapper.hide-cursor { cursor: none; }
-        .netflix-video { width: 100%; height: 100%; object-fit: contain; }
+        .netflix-video { width: 100%; height: 100%; object-fit: contain;filter: contrast(1.15) brightness(1.05) saturate(1.1);
+          image-rendering: auto;
+          backface-visibility: hidden;
+          transform: translateZ(0); }
         .hover-scale { transition: transform 0.2s; cursor: pointer; }
         .hover-scale:hover { transform: scale(1.15); }
         .skip-anim-container { position: absolute; top: 0; bottom: 0; width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); transition: opacity 0.3s; pointer-events: none; color: white; z-index: 12; }
