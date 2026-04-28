@@ -481,10 +481,9 @@ export default function HlsPlayer({
         .volume-slider { width: 0; opacity: 0; transition: width 0.3s, opacity 0.3s; height: 4px; accent-color: #e50914; cursor: pointer; border: none;}
         .volume-container:hover .volume-slider { width: 100px; opacity: 1; }
         
+        .custom-quality-container { position: relative; display: flex; align-items: center; }
         .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-        .chevron { width: 20px; transition: transform 0.3s; }
-        .chevron.open { transform: rotate(180deg); }
-        .quality-menu { position: absolute; bottom: 100%; left: 0; margin-bottom: 10px
+        .quality-menu { position: absolute; bottom: 100%; left: 0; margin-bottom: 10px; background: rgba(20,20,20,0.95); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; width: 140px; border: 1px solid rgba(255,255,255,0.1); }
         .quality-menu button { background: none; border: none; color: rgba(255,255,255,0.7); padding: 10px; text-align: left; cursor: pointer; }
         .quality-menu button.active { color: #e50914; font-weight: bold; }
         .animate-spin { animation: spin 1s linear infinite; }
