@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { useRouter } from 'next/navigation';
 
@@ -14,7 +14,6 @@ interface HlsPlayerProps {
 }
 
 const HISTORY_KEY = 'movieflix-history';
-const QUALITY_KEY = 'movieflix-preferred-quality';
 
 export default function HlsPlayer({
   videoId,
@@ -55,43 +54,25 @@ export default function HlsPlayer({
   const [isQualityOpen, setIsQualityOpen] = useState(false);
   const [showCenterIcon, setShowCenterIcon] = useState(false);
   const [gestureUI, setGestureUI] = useState<{ type: 'volume' | 'brightness' | null, value: number }>({ type: null, value: 0 });
-  
-  // 🔥 New state for Skip Animations
   const [skipAnim, setSkipAnim] = useState<{ side: 'left' | 'right' | null }>({ side: null });
-
-  // =========================
-  // KEYBOARD SHORTCUTS
-  // =========================
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) return;
-      switch (e.code) {
-        case "Space": e.preventDefault(); togglePlay(); break;
-        case "ArrowRight": skipTime(10); break;
-        case "ArrowLeft": skipTime(-10); break;
-        case "KeyF": toggleFullscreen(); break;
-        case "KeyM": toggleMute(); break;
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, isMuted]);
 
   // =========================
   // HANDLERS
   // =========================
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
-    isPlaying ? videoRef.current.pause() : videoRef.current.play();
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+    } else {
+      videoRef.current.pause();
+    }
     setShowCenterIcon(true);
     setTimeout(() => setShowCenterIcon(false), 500);
-  };
+  }, []);
 
   const skipTime = (amount: number) => {
     if (!videoRef.current) return;
     videoRef.current.currentTime += amount;
-    
-    // 🔥 Trigger Skip Animation
     const side = amount > 0 ? 'right' : 'left';
     setSkipAnim({ side });
     setTimeout(() => setSkipAnim({ side: null }), 600);
@@ -99,9 +80,8 @@ export default function HlsPlayer({
 
   const toggleMute = () => {
     if (!videoRef.current) return;
-    const nextMuted = !isMuted;
-    videoRef.current.muted = nextMuted;
-    setIsMuted(nextMuted);
+    videoRef.current.muted = !videoRef.current.muted;
+    setIsMuted(videoRef.current.muted);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,24 +104,24 @@ export default function HlsPlayer({
     }
   };
 
-const handleQualityChange = (id: number) => {
-  const hls = hlsRef.current;
-  if (!hls) return;
-
-  if (id === -1) {
-    hls.currentLevel = -1; // auto
-  } else {
-    hls.nextLevel = id;
-    hls.loadLevel = id;
+  const handleQualityChange = (id: number) => {
+    const hls = hlsRef.current;
+    if (!hls) return;
     hls.currentLevel = id;
-  }
+    setCurrentQuality(id);
+    setIsQualityOpen(false);
+  };
 
-  setCurrentQuality(id);
-  setIsQualityOpen(false);
-};
+  const handleMouseMove = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+    controlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying && !isQualityOpen && !gestureUI.type) setShowControls(false);
+    }, 4000);
+  };
 
   // =========================
-  // SWIPE GESTURES (VOLUME / BRIGHTNESS)
+  // GESTURE HANDLERS
   // =========================
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -151,9 +131,7 @@ const handleQualityChange = (id: number) => {
     if (!touchStartRef.current || !videoRef.current) return;
     const touchY = e.touches[0].clientY;
     const deltaY = touchStartRef.current.y - touchY;
-    const sensitivity = 200; 
-    const change = deltaY / sensitivity;
-
+    const change = deltaY / 200;
     const rect = e.currentTarget.getBoundingClientRect();
     const isLeftSide = touchStartRef.current.x < rect.width / 2;
 
@@ -168,7 +146,6 @@ const handleQualityChange = (id: number) => {
       setGestureUI({ type: 'volume', value: Math.round(newVolume * 100) });
     }
     touchStartRef.current.y = touchY;
-    handleMouseMove();
   };
 
   const handleTouchEnd = () => {
@@ -176,143 +153,108 @@ const handleQualityChange = (id: number) => {
     setTimeout(() => setGestureUI({ type: null, value: 0 }), 1000);
   };
 
-
-  // ✅ Reset player state when video changes
-useEffect(() => {
-  setProgress(0);
-  setBuffered(0);
-  setDuration(0);
-  setResumeTime(null);
-  setIsPlaying(false);
-  setIsBuffering(false);
-  setCurrentQuality(-1);
-  setAutoHeight(0);
-  hasRestored.current = false;
-
-  if (videoRef.current) {
-    videoRef.current.pause();
-    videoRef.current.currentTime = 0;
-  }
-}, [videoId]);
+  // =========================
+  // KEYBOARD SHORTCUTS
+  // =========================
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) return;
+      switch (e.code) {
+        case "Space": e.preventDefault(); togglePlay(); break;
+        case "ArrowRight": skipTime(10); break;
+        case "ArrowLeft": skipTime(-10); break;
+        case "KeyF": toggleFullscreen(); break;
+        case "KeyM": toggleMute(); break;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [togglePlay, isMuted]);
 
   // =========================
-  // VIDEO INIT + HLS
+  // VIDEO LIFECYCLE (HISTORY & HLS)
   // =========================
- useEffect(() => {
-  const video = videoRef.current;
-  if (!video) return;
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-  let hls: Hls;
+    // Fix: Clear state for new Video ID
+    setProgress(0);
+    setBuffered(0);
+    setDuration(0);
+    hasRestored.current = false;
+    lastSavedTime.current = 0;
+    setResumeTime(null);
 
-  if (src.endsWith(".m3u8") && Hls.isSupported()) {
-    hls = new Hls({
-      capLevelToPlayerSize: true,
-      startLevel: -1,
-      maxBufferLength: 60,
+    let hls: Hls;
 
-      // 🔥 HD bias settings
-      abrEwmaDefaultEstimate: 5_000_000,
-      abrBandWidthFactor: 1.0,
-      abrBandWidthUpFactor: 0.9,
-      minAutoBitrate: 2_000_000,
-    });
+    if (src.endsWith(".m3u8") && Hls.isSupported()) {
+      hls = new Hls({
+        capLevelToPlayerSize: true,
+        startLevel: -1, 
+        abrEwmaDefaultEstimate: 10000000, // HD Bias
+        enableWorker: true,
+      });
+      hlsRef.current = hls;
+      hls.loadSource(src);
+      hls.attachMedia(video);
 
-    hlsRef.current = hls;
+      hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+        const sorted = data.levels
+          .map((l, i) => ({ id: i, height: l.height }))
+          .sort((a, b) => b.height - a.height);
+        setQualities(sorted);
 
-    hls.loadSource(src);
-    hls.attachMedia(video);
+        // Fix: Force highest quality immediately
+        hls.currentLevel = sorted[0].id;
+        setCurrentQuality(sorted[0].id);
 
-    hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-      const levels = data.levels;
+        // Fix: Unique History Load
+        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
+        const saved = hist[videoId];
+        if (saved?.time > 10) setResumeTime(saved.time);
 
-      // 🔥 Sort levels by resolution (height)
-      const sorted = levels
-        .map((l, i) => ({ id: i, height: l.height }))
-        .sort((a, b) => b.height - a.height);
+        // Fix: Autoplay logic (Muted to bypass browser blocks)
+        if (autoPlay) {
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch(() => {});
+        }
+      });
 
-      setQualities(sorted);
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+        const level = hls.levels[data.level];
+        if (level) setAutoHeight(level.height);
+      });
+    } else {
+      video.src = src;
+      if (autoPlay) { video.muted = true; setIsMuted(true); video.play().catch(() => {}); }
+    }
 
-      // 🔥 Pick BEST quality properly
-      const bestLevelIndex = levels.reduce((best, level, index, arr) => {
-        return level.height > arr[best].height ? index : best;
-      }, 0);
-
-      // 🔥 FORCE highest quality at start
-      hls.currentLevel = bestLevelIndex;
-      setCurrentQuality(bestLevelIndex);
-
-      // resume logic
-      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
-      const saved = hist[videoId];
-
-      if (!hasRestored.current && saved?.time > 10) {
-        hasRestored.current = true;
-
-        setResumeTime(saved.time);
-
-        // Auto-hide resume UI
-        setTimeout(() => {
-          setResumeTime((prev) => (prev === saved.time ? null : prev));
-        }, 15000);
-      }
-
- });
-
-    // 🔥 Track current auto quality
-    hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
-      const level = hls.levels[data.level];
-      if (level) setAutoHeight(level.height);
-    });
-
-    hls.on(Hls.Events.ERROR, (_, data) => {
-      if (data.fatal) {
-        console.error("HLS fatal error:", data);
-      }
-    });
-
-  } else {
-    video.src = src;
-  }
-
-  return () => {
-    hlsRef.current?.destroy();
-    hlsRef.current = null;
-  };
-}, [src, videoId, autoPlay]);
-
-  const handleMouseMove = () => {
-    setShowControls(true);
-
-    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
-
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && !isQualityOpen && !gestureUI.type) {
-        setShowControls(false);
-      }
-    }, 4000);
-  };
+    return () => { hls?.destroy(); hlsRef.current = null; };
+  }, [src, videoId, autoPlay]);
 
   return (
     <div
       ref={wrapperRef}
       className={`netflix-player-wrapper ${showControls ? '' : 'hide-cursor'}`}
       onMouseMove={handleMouseMove}
-      onMouseLeave={() => {
-        if (isPlaying) setShowControls(false);
-      }}
+      onMouseLeave={() => isPlaying && setShowControls(false)}
       style={{ filter: `brightness(${brightness})` }}
     >
       <video
         ref={videoRef} poster={poster} playsInline crossOrigin="anonymous"
         onTimeUpdate={() => {
           if (!videoRef.current) return;
-          setProgress(videoRef.current.currentTime);
-          const b = videoRef.current.buffered;
-          if (b.length) setBuffered((b.end(b.length - 1) / videoRef.current.duration) * 100);
-          if (Math.abs(videoRef.current.currentTime - lastSavedTime.current) > 5) {
-            lastSavedTime.current = videoRef.current.currentTime;
+          const curr = videoRef.current.currentTime;
+          setProgress(curr);
+          if (videoRef.current.buffered.length) setBuffered((videoRef.current.buffered.end(videoRef.current.buffered.length - 1) / videoRef.current.duration) * 100);
+          
+          // Save history for THIS videoId specifically
+          if (Math.abs(curr - lastSavedTime.current) > 5) {
+            lastSavedTime.current = curr;
             const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-            hist[videoId] = { time: lastSavedTime.current, duration: videoRef.current.duration };
+            hist[videoId] = { time: curr, duration: videoRef.current.duration };
             localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
           }
         }}
@@ -332,26 +274,15 @@ useEffect(() => {
         onTouchEnd={handleTouchEnd}
         onClick={(e) => {
           const now = Date.now();
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-
           if (now - lastTapRef.current.time < 300) {
-            // 🔥 DOUBLE CLICK → FULLSCREEN
             toggleFullscreen();
-            lastTapRef.current = { time: 0, x: 0, y: 0 };
           } else {
             lastTapRef.current = { time: now, x: e.clientX, y: e.clientY };
-
-            setTimeout(() => {
-              if (lastTapRef.current.time === now) {
-                // 🔥 SINGLE CLICK → JUST TOGGLE CONTROLS
-                setShowControls((prev) => !prev);
-              }
-            }, 300);
+            togglePlay(); // Fix: Play/Pause on Tap
+            setShowControls(true);
           }
         }}
       >
-        {/* 🔥 SKIP ANIMATIONS (Forward/Rewind) */}
         <div className={`skip-anim-container left ${skipAnim.side === 'left' ? 'active' : ''}`}>
            <div className="skip-icon-wrapper">
              <span className="arrow-one">◀</span><span className="arrow-two">◀</span><span className="arrow-three">◀</span>
@@ -366,7 +297,6 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Gesture HUD */}
       {gestureUI.type && (
         <div className="gesture-hud">
           <div className="gesture-hud-icon">{gestureUI.type === 'volume' ? '🔊' : '☀️'}</div>
@@ -388,17 +318,18 @@ useEffect(() => {
         </div>
       )}
 
-      {resumeTime && (
+      {resumeTime && !hasRestored.current && (
         <div className="resume-toast">
           <div className="resume-btns">
-            <button   onClick={() => {
-                  if (videoRef.current && resumeTime) {
-                    videoRef.current.currentTime = resumeTime;
-                    videoRef.current.play().catch(() => {});
-                  }
-                  setResumeTime(null); 
-                  }}className="resume-yes">Resume from {formatTime(resumeTime)}</button>
-            <button onClick={() => setResumeTime(null)} className="resume-no">✕</button>
+            <button onClick={() => {
+              if (videoRef.current) {
+                videoRef.current.currentTime = resumeTime;
+                videoRef.current.play();
+              }
+              hasRestored.current = true;
+              setResumeTime(null); 
+            }} className="resume-yes">Resume from {formatTime(resumeTime)}</button>
+            <button onClick={() => { hasRestored.current = true; setResumeTime(null); }} className="resume-no">✕</button>
           </div>
         </div>
       )}
@@ -452,30 +383,24 @@ useEffect(() => {
 
       <style>{`
         .netflix-player-wrapper { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
-        .netflix-player-wrapper.hide-cursor {
-          cursor: none;
-        }
+        .netflix-player-wrapper.hide-cursor { cursor: none; }
         .netflix-video { width: 100%; height: 100%; object-fit: contain; }
         .hover-scale { transition: transform 0.2s; cursor: pointer; }
         .hover-scale:hover { transform: scale(1.15); }
-
-        /* 🔥 SKIP ANIMATIONS */
         .skip-anim-container { position: absolute; top: 0; bottom: 0; width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); transition: opacity 0.3s; pointer-events: none; color: white; z-index: 12; }
         .skip-anim-container.active { opacity: 1; }
         .skip-anim-container.left { left: 0; border-top-right-radius: 50% 100%; border-bottom-right-radius: 50% 100%; }
         .skip-anim-container.right { right: 0; border-top-left-radius: 50% 100%; border-bottom-left-radius: 50% 100%; }
         .skip-icon-wrapper { display: flex; gap: 2px; font-size: 2.5rem; margin-bottom: 5px; }
         .skip-text { font-size: 0.9rem; font-weight: bold; }
-        
         .active .arrow-one { animation: ghosting 0.6s infinite; }
         .active .arrow-two { animation: ghosting 0.6s infinite 0.1s; }
         .active .arrow-three { animation: ghosting 0.6s infinite 0.2s; }
         @keyframes ghosting { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
-
-        .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem var(--player-padding-x); opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
+        .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem 4%; opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
         .netflix-header.visible { opacity: 1; pointer-events: auto; }
         .back-button { color: white; background: transparent; border: none; }
-        .header-title { padding-left: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; color: white; font-size: 1.6rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .header-title { padding-left: 1rem; color: white; font-size: 1.6rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         .resume-toast { position: absolute; bottom: 120px; left: 30px; background: rgba(20,20,20,0.95); color: white; padding: 12px 20px; border-radius: 8px; z-index: 40; border: 1px solid rgba(255,255,255,0.1); animation: slideUpFade 0.5s ease forwards; backdrop-filter: blur(10px); }
         @keyframes slideUpFade { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .resume-yes { background: #e50914; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 10px; }
@@ -488,9 +413,8 @@ useEffect(() => {
         .gesture-hud-icon { font-size: 2rem; margin-bottom: 8px; }
         .gesture-hud-bar { width: 100px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
         .gesture-hud-bar div { height: 100%; background: #e50914; transition: width 0.1s linear; }
-        .netflix-controls { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 2rem var(--player-padding-x) 1.5rem; box-sizing: border-box; opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 20; }
+        .netflix-controls { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 2rem 4% 1.5rem; box-sizing: border-box; opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 20; }
         .netflix-controls.visible { opacity: 1; pointer-events: auto; }
-        .progress-wrapper { width: 100%; overflow: hidden; }
         .progress-container { position: relative; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; transition: height 0.2s; margin-bottom: 1rem; }
         .progress-container:hover { height: 8px; }
         .progress-slider { position: absolute; left: 0; right: 0; width: 100%; opacity: 0; z-index: 10; cursor: pointer; }
@@ -505,7 +429,6 @@ useEffect(() => {
         .volume-container { display: flex; align-items: center; gap: 0.8rem; }
         .volume-slider { width: 0; opacity: 0; transition: width 0.3s, opacity 0.3s; height: 4px; accent-color: #e50914; cursor: pointer; border: none;}
         .volume-container:hover .volume-slider { width: 100px; opacity: 1; }
-        .custom-quality-container { position: relative; display: flex; align-items: center; }
         .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
         .chevron { width: 20px; transition: transform 0.3s; }
         .chevron.open { transform: rotate(180deg); }
