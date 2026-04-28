@@ -86,14 +86,14 @@ new Worker(
           "-i", mp4Path,
 
           "-filter_complex",
-          // Split into 5 tiers (360p, 480p, 720p, 1080p, 4K)
+          // Split into 5 tiers
           "[0:v]split=5[v1][v2][v3][v4][v5]; \
           [0:a]asplit=5[a1][a2][a3][a4][a5]; \
-          [v1]scale=640:360:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v1out]; \
-          [v2]scale=854:480:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v2out]; \
-          [v3]scale=1280:720:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v3out]; \
-          [v4]scale=1920:1080:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v4out]; \
-          [v5]scale=3840:2160:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2:flags=lanczos[v5out]",
+          [v1]scale=640:360:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v1out]; \
+          [v2]scale=854:480:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v2out]; \
+          [v3]scale=1280:720:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v3out]; \
+          [v4]scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v4out]; \
+          [v5]scale=3840:2160:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v5out]",
 
           "-map", "[v1out]", "-map", "[a1]",
           "-map", "[v2out]", "-map", "[a2]",
