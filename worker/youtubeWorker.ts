@@ -92,48 +92,47 @@ new Worker(
         [v3]scale=1280:720:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2[v3out]; \
         [v4]scale=1920:1080:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2[v4out]",
 
-        // video + audio mapping (FIXED)
-        "-map", "[v1out]", "-map", "a:0",
-        "-map", "[v2out]", "-map", "a:0",
-        "-map", "[v3out]", "-map", "a:0",
-        "-map", "[v4out]", "-map", "a:0",
+        // Map each video quality
+        "-map", "[v1out]", 
+        "-map", "[v2out]", 
+        "-map", "[v3out]", 
+        "-map", "[v4out]", 
+        // Map the audio ONLY ONCE
+        "-map", "a:0",
 
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-crf", "20",
-
         "-g", "48",
         "-keyint_min", "48",
         "-sc_threshold", "0",
-
         "-c:a", "aac",
 
+        // Set bitrates for the 4 video streams
         "-b:v:0", "800k",
         "-b:v:1", "1400k",
         "-b:v:2", "2800k",
         "-b:v:3", "5000k",
-
-        "-b:a:0", "96k",
-        "-b:a:1", "128k",
-        "-b:a:2", "128k",
-        "-b:a:3", "192k",
+        
+        // Set bitrate for the 1 audio stream
+        "-b:a:0", "128k", 
 
         "-f", "hls",
         "-hls_time", "6",
         "-hls_playlist_type", "vod",
         "-hls_list_size", "0",
-
-        // 🔥 CRITICAL
         "-hls_flags", "independent_segments",
 
-        "-var_stream_map", "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3",
+        // 🔥 THE FIX: Map all 4 video streams (v:0-3) to the SAME audio stream (a:0)
+        "-var_stream_map", "v:0,a:0 v:1,a:0 v:2,a:0 v:3,a:0",
+        
         "-master_pl_name", "master.m3u8",
-
         "-hls_segment_filename", `${hlsDir}/v%v/seg_%03d.ts`,
         `${hlsDir}/v%v/index.m3u8`,
 
         "-y"
       ]);
+
 
         ffmpeg.stderr.on("data", (d) => console.log("ffmpeg:", d.toString()));
         ffmpeg.on("close", (code) => (code === 0 ? resolve() : reject(new Error("ffmpeg failed"))));
