@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 interface HlsPlayerProps {
   videoId: string;
-  profileId: string;
+  profileId?: string | null; // 🔥 Fixed: Now allows null or undefined
   src: string;
   poster?: string;
   title?: string;
@@ -21,7 +21,7 @@ const SETTINGS_KEY = 'movieflix-settings';
 
 export default function HlsPlayer({
   videoId,
-  profileId,
+  profileId = null,
   src,
   poster,
   title = 'Video',
@@ -39,7 +39,6 @@ export default function HlsPlayer({
   const lastSavedTime = useRef<number>(0);
   const hasRestored = useRef(false);
 
-  // Interaction Refs
   const lastTapRef = useRef<{ time: number; x: number; y: number }>({ time: 0, x: 0, y: 0 });
   const touchStartRef = useRef<{ x: number, y: number } | null>(null);
 
@@ -61,9 +60,10 @@ export default function HlsPlayer({
   const [isQualityOpen, setIsQualityOpen] = useState(false);
   const [showCenterIcon, setShowCenterIcon] = useState(false);
   const [gestureUI, setGestureUI] = useState<{ type: 'volume' | 'brightness' | null, value: number }>({ type: null, value: 0 });
+  
+  // 🔥 Skip Animations State
   const [skipAnim, setSkipAnim] = useState<{ side: 'left' | 'right' | null }>({ side: null });
 
-  // Feature State: Skip Intro & Auto-Skip
   const [showSkipButton, setShowSkipButton] = useState(false);
   const [autoSkipEnabled, setAutoSkipEnabled] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -73,11 +73,8 @@ export default function HlsPlayer({
     return false;
   });
 
-  // =========================
-  // SYNC TO DATABASE
-  // =========================
   const syncToDatabase = useCallback(async (time: number) => {
-    if (!profileId || !videoId) return;
+    if (!profileId || !videoId) return; // Skip if no profileId
     try {
       await fetch('/api/history', {
         method: 'POST',
@@ -89,14 +86,11 @@ export default function HlsPlayer({
           isFinished: duration > 0 && time > (duration * 0.95)
         })
       });
-    } catch (err) {
-      console.error("Watch history sync failed", err);
+    } catch (error) {
+      console.error("DB Sync Error:", error);
     }
   }, [videoId, profileId, duration]);
 
-  // =========================
-  // HANDLERS
-  // =========================
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
@@ -112,6 +106,8 @@ export default function HlsPlayer({
   const skipTime = (amount: number) => {
     if (!videoRef.current) return;
     videoRef.current.currentTime += amount;
+    
+    // 🔥 Trigger Skip Animation
     const side = amount > 0 ? 'right' : 'left';
     setSkipAnim({ side });
     setTimeout(() => setSkipAnim({ side: null }), 600);
@@ -165,9 +161,6 @@ export default function HlsPlayer({
     return h > 0 ? `${h}:${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}` : `${m}:${sec < 10 ? '0' : ''}${sec}`;
   };
 
-  // =========================
-  // GESTURE HANDLERS
-  // =========================
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   };
@@ -198,9 +191,6 @@ export default function HlsPlayer({
     setTimeout(() => setGestureUI({ type: null, value: 0 }), 1000);
   };
 
-  // =========================
-  // KEYBOARD SHORTCUTS
-  // =========================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) return;
@@ -216,9 +206,6 @@ export default function HlsPlayer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [togglePlay, isMuted]);
 
-  // =========================
-  // LIFECYCLE (HLS & SYNC)
-  // =========================
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -242,15 +229,12 @@ export default function HlsPlayer({
       hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
         const sorted = data.levels.map((l, i) => ({ id: i, height: l.height })).sort((a, b) => b.height - a.height);
         setQualities(sorted);
-        
-        // Quality Optimization: Force highest available level
-        hls.currentLevel = sorted[0].id;
+        hls.currentLevel = sorted[0].id; // Force highest quality
         setCurrentQuality(sorted[0].id);
 
         const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
         if (hist[videoId]?.time > 10) setResumeTime(hist[videoId].time);
 
-        // Autoplay Logic: Attempt unmuted start if user has interacted
         if (autoPlay) {
           video.play().catch(() => {
             video.muted = true;
@@ -316,7 +300,6 @@ export default function HlsPlayer({
         onPlaying={() => setIsBuffering(false)}
       />
 
-      {/* Main Interaction Layer */}
       <div className="absolute inset-0 z-10 cursor-pointer overflow-hidden" 
         onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
         onClick={(e) => {
@@ -324,17 +307,22 @@ export default function HlsPlayer({
           if (now - lastTapRef.current.time < 300) toggleFullscreen();
           else {
             lastTapRef.current = { time: now, x: e.clientX, y: e.clientY };
-            togglePlay(); 
+            togglePlay();
             setShowControls(true);
           }
         }}
       >
+        {/* 🔥 SKIP ANIMATIONS (Forward/Rewind) */}
         <div className={`skip-anim-container left ${skipAnim.side === 'left' ? 'active' : ''}`}>
-           <div className="skip-icon-wrapper"><span className="arrow-one">◀</span><span className="arrow-two">◀</span><span className="arrow-three">◀</span></div>
+           <div className="skip-icon-wrapper">
+             <span className="arrow-one">◀</span><span className="arrow-two">◀</span><span className="arrow-three">◀</span>
+           </div>
            <span className="skip-text">10 seconds</span>
         </div>
         <div className={`skip-anim-container right ${skipAnim.side === 'right' ? 'active' : ''}`}>
-           <div className="skip-icon-wrapper"><span className="arrow-one">▶</span><span className="arrow-two">▶</span><span className="arrow-three">▶</span></div>
+           <div className="skip-icon-wrapper">
+             <span className="arrow-one">▶</span><span className="arrow-two">▶</span><span className="arrow-three">▶</span>
+           </div>
            <span className="skip-text">10 seconds</span>
         </div>
       </div>
@@ -352,7 +340,14 @@ export default function HlsPlayer({
         </div>
       )}
 
-      {/* Animated Resume Toast */}
+      {showCenterIcon && (
+        <div className="center-action-overlay">
+          <div className="center-icon-bg animate-pop">
+            {!isPlaying ? <svg viewBox="0 0 24 24" className="center-icon-svg"><path d="M8 5v14l11-7z" fill="white"/></svg> : <svg viewBox="0 0 24 24" className="center-icon-svg"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="white"/></svg>}
+          </div>
+        </div>
+      )}
+
       {resumeTime && !hasRestored.current && (
         <div className="resume-toast">
           <div className="resume-btns">
@@ -367,7 +362,6 @@ export default function HlsPlayer({
         </div>
       )}
 
-      {/* Animated Skip Intro */}
       {showSkipButton && (
         <div className="skip-intro-container">
           <button className="skip-btn" onClick={handleSkipIntro}>Skip Intro</button>
@@ -397,6 +391,9 @@ export default function HlsPlayer({
         <div className="controls-row">
           <div className="controls-left">
             <button onClick={togglePlay} className="control-btn hover-scale">{isPlaying ? <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="white"/></svg> : <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="white"/></svg>}</button>
+            <button onClick={() => skipTime(-10)} className="control-btn hover-scale"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/><text x="12" y="15" fontSize="6" fontWeight="bold" textAnchor="middle" fill="white">10</text></svg></button>
+            <button onClick={() => skipTime(10)} className="control-btn hover-scale"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s-2.69 6-6 6-6-2.69-6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/><text x="12" y="15" fontSize="6" fontWeight="bold" textAnchor="middle" fill="white">10</text></svg></button>
+            
             <div className="volume-container">
               <button onClick={toggleMute} className="control-btn hover-scale">{isMuted || volume === 0 ? "🔇" : "🔊"}</button>
               <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={handleVolumeChange} className="volume-slider" />
@@ -415,6 +412,7 @@ export default function HlsPlayer({
                 )}
                 <button className="quality-trigger control-btn" onClick={(e) => { e.stopPropagation(); setIsQualityOpen(!isQualityOpen); }}>
                   {currentQuality === -1 ? 'Auto' : `${qualities.find(q => q.id === currentQuality)?.height}p`}
+                  <svg className={`chevron ${isQualityOpen ? 'open' : ''}`} viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" fill="white"/></svg>
                 </button>
               </div>
             )}
@@ -424,33 +422,50 @@ export default function HlsPlayer({
       </div>
 
       <style>{`
-        .netflix-player-wrapper { position: relative; width: 100%; height: 100vh; background: #000; overflow: hidden; }
+        .netflix-player-wrapper { position: relative; width: 100%; height: 100%; background: #000; overflow: hidden; }
         .netflix-player-wrapper.hide-cursor { cursor: none; }
         .netflix-video { width: 100%; height: 100%; object-fit: contain; }
         .hover-scale { transition: transform 0.2s; cursor: pointer; }
         .hover-scale:hover { transform: scale(1.15); }
+
+        /* 🔥 SKIP ANIMATIONS */
         .skip-anim-container { position: absolute; top: 0; bottom: 0; width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); transition: opacity 0.3s; pointer-events: none; color: white; z-index: 12; }
         .skip-anim-container.active { opacity: 1; }
         .skip-anim-container.left { left: 0; border-top-right-radius: 50% 100%; border-bottom-right-radius: 50% 100%; }
         .skip-anim-container.right { right: 0; border-top-left-radius: 50% 100%; border-bottom-left-radius: 50% 100%; }
         .skip-icon-wrapper { display: flex; gap: 2px; font-size: 2.5rem; margin-bottom: 5px; }
         .skip-text { font-size: 0.9rem; font-weight: bold; }
+        .active .arrow-one { animation: ghosting 0.6s infinite; }
+        .active .arrow-two { animation: ghosting 0.6s infinite 0.1s; }
+        .active .arrow-three { animation: ghosting 0.6s infinite 0.2s; }
+        @keyframes ghosting { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+
         .netflix-header { position: absolute; top: 0; left: 0; right: 0; height: 120px; background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent); display: flex; align-items: flex-start; padding: 2rem 4%; opacity: 0; transition: opacity 0.4s; z-index: 20; pointer-events: none; }
         .netflix-header.visible { opacity: 1; pointer-events: auto; }
+        .back-button { color: white; background: transparent; border: none; }
         .header-title { padding-left: 1rem; color: white; font-size: 1.6rem; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        
         .resume-toast { position: absolute; bottom: 120px; left: 30px; background: rgba(20,20,20,0.95); color: white; padding: 12px 20px; border-radius: 8px; z-index: 40; border: 1px solid rgba(255,255,255,0.1); animation: slideUpFade 0.5s ease forwards; backdrop-filter: blur(10px); }
         @keyframes slideUpFade { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .resume-yes { background: #e50914; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-right: 10px; }
         .resume-no { background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem; }
+
         .skip-intro-container { position: absolute; bottom: 140px; right: 0; z-index: 50; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; animation: slideInRight 0.5s ease-out forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(-40px); opacity: 1; } }
         .skip-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.4); color: white; padding: 10px 30px; font-size: 1rem; font-weight: bold; text-transform: uppercase; cursor: pointer; backdrop-filter: blur(5px); transition: 0.2s; }
         .skip-btn:hover { background: rgba(255, 255, 255, 0.2); }
         .auto-skip-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: rgba(255,255,255,0.6); cursor: pointer; }
+
+        .center-action-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 15; pointer-events: none; }
+        .center-icon-bg { background: rgba(0,0,0,0.5); border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .animate-pop { animation: popFade 0.5s ease-out forwards; }
+        @keyframes popFade { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+
         .gesture-hud { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.7); padding: 20px; border-radius: 12px; z-index: 50; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
         .gesture-hud-icon { font-size: 2rem; margin-bottom: 8px; }
         .gesture-hud-bar { width: 100px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden; }
         .gesture-hud-bar div { height: 100%; background: #e50914; transition: width 0.1s linear; }
+
         .netflix-controls { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 2rem 4% 1.5rem; box-sizing: border-box; opacity: 0; transition: opacity 0.4s; pointer-events: none; z-index: 20; }
         .netflix-controls.visible { opacity: 1; pointer-events: auto; }
         .progress-container { position: relative; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; cursor: pointer; transition: height 0.2s; margin-bottom: 1rem; }
@@ -460,16 +475,20 @@ export default function HlsPlayer({
         .buffer-bar { position: absolute; height: 100%; background: rgba(255,255,255,0.35); border-radius: 2px; }
         .scrub-circle { width: 16px; height: 16px; background: #e50914; border-radius: 50%; transform: translateX(50%) scale(0); transition: transform 0.2s ease; box-shadow: 0 0 5px rgba(0,0,0,0.5); }
         .progress-container:hover .scrub-circle { transform: translateX(50%) scale(1); }
+        
         .controls-row { display: flex; justify-content: space-between; align-items: center; min-width: 0; }
         .controls-left, .controls-right { display: flex; align-items: center; gap: 1.5rem; min-width: 0; }
         .control-btn { background: none; border: none; color: white; cursor: pointer; transition: transform 0.2s; }
         .control-btn svg { width: 38px; height: 38px; }
+        
         .volume-container { display: flex; align-items: center; gap: 0.8rem; }
         .volume-slider { width: 0; opacity: 0; transition: width 0.3s, opacity 0.3s; height: 4px; accent-color: #e50914; cursor: pointer; border: none;}
         .volume-container:hover .volume-slider { width: 100px; opacity: 1; }
-        .custom-quality-container { position: relative; display: flex; align-items: center; }
+        
         .quality-trigger { background: rgba(20,20,20,0.8); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 3px 10px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-        .quality-menu { position: absolute; bottom: 100%; left: 0; margin-bottom: 10px; background: rgba(20,20,20,0.95); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; width: 140px; border: 1px solid rgba(255,255,255,0.1); }
+        .chevron { width: 20px; transition: transform 0.3s; }
+        .chevron.open { transform: rotate(180deg); }
+        .quality-menu { position: absolute; bottom: 100%; left: 0; margin-bottom: 10px
         .quality-menu button { background: none; border: none; color: rgba(255,255,255,0.7); padding: 10px; text-align: left; cursor: pointer; }
         .quality-menu button.active { color: #e50914; font-weight: bold; }
         .animate-spin { animation: spin 1s linear infinite; }
