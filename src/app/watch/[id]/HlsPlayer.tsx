@@ -388,12 +388,9 @@ export default function HlsPlayer({
           </div>
         </div>
 
-        <div className="controls-row">
+          <div className="controls-row">
           <div className="controls-left">
             <button onClick={togglePlay} className="control-btn hover-scale">{isPlaying ? <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" fill="white"/></svg> : <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="white"/></svg>}</button>
-            <button onClick={() => skipTime(-10)} className="control-btn hover-scale"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/><text x="12" y="15" fontSize="6" fontWeight="bold" textAnchor="middle" fill="white">10</text></svg></button>
-            <button onClick={() => skipTime(10)} className="control-btn hover-scale"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s-2.69 6-6 6-6-2.69-6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/><text x="12" y="15" fontSize="6" fontWeight="bold" textAnchor="middle" fill="white">10</text></svg></button>
-            
             <div className="volume-container">
               <button onClick={toggleMute} className="control-btn hover-scale">{isMuted || volume === 0 ? "🔇" : "🔊"}</button>
               <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={handleVolumeChange} className="volume-slider" />
@@ -412,7 +409,6 @@ export default function HlsPlayer({
                 )}
                 <button className="quality-trigger control-btn" onClick={(e) => { e.stopPropagation(); setIsQualityOpen(!isQualityOpen); }}>
                   {currentQuality === -1 ? 'Auto' : `${qualities.find(q => q.id === currentQuality)?.height}p`}
-                  <svg className={`chevron ${isQualityOpen ? 'open' : ''}`} viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z" fill="white"/></svg>
                 </button>
               </div>
             )}
