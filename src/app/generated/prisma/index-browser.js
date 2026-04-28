@@ -128,14 +128,6 @@ exports.Prisma.UserScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
-exports.Prisma.ProfileScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  name: 'name',
-  avatarUrl: 'avatarUrl',
-  maturityRating: 'maturityRating'
-};
-
 exports.Prisma.VideoScalarFieldEnum = {
   id: 'id',
   title: 'title',
@@ -146,7 +138,28 @@ exports.Prisma.VideoScalarFieldEnum = {
   videoUrl: 'videoUrl',
   thumbnailUrl: 'thumbnailUrl',
   videoKey: 'videoKey',
+  introStart: 'introStart',
+  introEnd: 'introEnd',
+  category: 'category',
+  isMovie: 'isMovie',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.WatchHistoryScalarFieldEnum = {
+  id: 'id',
+  profileId: 'profileId',
+  videoId: 'videoId',
+  lastTime: 'lastTime',
+  isFinished: 'isFinished',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProfileScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  avatarUrl: 'avatarUrl',
+  maturityRating: 'maturityRating'
 };
 
 exports.Prisma.SortOrder = {
@@ -167,8 +180,9 @@ exports.Prisma.NullsOrder = {
 
 exports.Prisma.ModelName = {
   User: 'User',
-  Profile: 'Profile',
-  Video: 'Video'
+  Video: 'Video',
+  WatchHistory: 'WatchHistory',
+  Profile: 'Profile'
 };
 
 /**

@@ -17,17 +17,8 @@ model User {
   profiles         Profile[]
 }
 
-model Profile {
-  id             String  @id @default(uuid())
-  userId         String
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  avatarUrl      String?
-  maturityRating String  @default("R")
-}
-
 model Video {
-  id              String   @id @default(uuid())
+  id              String  @id @default(uuid())
   title           String
   description     String?
   releaseYear     Int?
@@ -36,5 +27,44 @@ model Video {
   videoUrl        String?
   thumbnailUrl    String?
   videoKey        String
-  createdAt       DateTime @default(now())
+
+  // 🔥 Relevant Netflix-like fields
+  introStart Int?    @default(0) // Seconds when intro starts
+  introEnd   Int?    @default(0) // Seconds when intro ends
+  category   String? // e.g. "Action", "Drama"
+  isMovie    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  watchHistory WatchHistory[]
+}
+
+model WatchHistory {
+  id        String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  videoId   String
+  video     Video   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  // 🔥 Progress Tracking
+  lastTime   Int     @default(0) // Last watched second (for Resume feature)
+  isFinished Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, videoId]) // One history record per video per profile
+}
+
+// Update your Profile model to include the relation
+model Profile {
+  id             String  @id @default(uuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  avatarUrl      String?
+  maturityRating String  @default("R")
+
+  // 🔥 Relation to history
+  watchHistory WatchHistory[]
 }

@@ -20,6 +20,9 @@ export async function POST(req: Request) {
         videoUrl: body.videoUrl,
         thumbnailUrl: body.thumbnailUrl,
         videoKey: body.videoKey,
+        introStart: 0, 
+        introEnd: 0,
+        durationSeconds: Math.floor(body.duration || 0)
       },
     });
 
