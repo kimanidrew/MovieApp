@@ -7,7 +7,7 @@ import { redis } from "../src/lib/redis";
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-console.log("🚀 YouTube Worker (4K ULTRA-HQ MODE) starting...");
+console.log("🚀 YouTube Ultra Streaming Worker Starting...");
 
 const s3 = new S3Client({
   region: "auto",
@@ -18,25 +18,65 @@ const s3 = new S3Client({
   },
 });
 
-async function updateProgress(jobId: string, progress: number, status = "processing") {
+async function updateProgress(
+  jobId: string,
+  progress: number,
+  status = "processing"
+) {
   await redis.set(
     `yt-job:${jobId}`,
-    JSON.stringify({ jobId, progress, status, updatedAt: Date.now() }),
+    JSON.stringify({
+      jobId,
+      progress,
+      status,
+      updatedAt: Date.now(),
+    }),
     "EX",
     3600
   );
+
   console.log(`📊 [${jobId}] ${progress}% (${status})`);
 }
 
-function runYtDlp(args: string[]) {
+function run(command: string, args: string[]) {
   return new Promise<void>((resolve, reject) => {
-    console.log("🎬 yt-dlp args:", args.join(" "));
-    const proc = spawn("yt-dlp", args, { stdio: "inherit" });
+    console.log(`🚀 ${command} ${args.join(" ")}`);
+
+    const proc = spawn(command, args, {
+      stdio: "inherit",
+    });
+
     proc.on("error", reject);
+
     proc.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`yt-dlp exited with code ${code}`));
+      else reject(new Error(`${command} exited with ${code}`));
     });
+  });
+}
+
+async function getVideoInfo(file: string) {
+  return new Promise<any>((resolve, reject) => {
+    let output = "";
+
+    const ffprobe = spawn("ffprobe", [
+      "-v",
+      "quiet",
+      "-print_format",
+      "json",
+      "-show_streams",
+      file,
+    ]);
+
+    ffprobe.stdout.on("data", (d) => {
+      output += d.toString();
+    });
+
+    ffprobe.on("close", () => {
+      resolve(JSON.parse(output));
+    });
+
+    ffprobe.on("error", reject);
   });
 }
 
@@ -44,169 +84,377 @@ new Worker(
   "youtube-download",
   async (job) => {
     const { url } = job.data;
+
     const jobId = String(job.id);
-    const mp4Path = `/tmp/${jobId}.mp4`;
-    const hlsDir = `/tmp/hls-${jobId}`;
-    const cookiePath = "/home/kimanidan585/MovieApp/cookies.txt";
+
+    const tempDir = `/tmp/${jobId}`;
+    const mp4Path = `${tempDir}/source.mp4`;
+    const hlsDir = `${tempDir}/hls`;
+
+    const cookiePath =
+      "/home/kimanidan585/MovieApp/cookies.txt";
 
     try {
-      // 1. Setup Directories (Crucial: 5 levels now for 4K)
-      if (fs.existsSync(hlsDir)) fs.rmSync(hlsDir, { recursive: true, force: true });
+      fs.mkdirSync(tempDir, { recursive: true });
       fs.mkdirSync(hlsDir, { recursive: true });
-      for (let i = 0; i < 5; i++) {
-        fs.mkdirSync(path.join(hlsDir, `v${i}`), { recursive: true });
-      }
 
       await updateProgress(jobId, 5, "fetching_metadata");
 
-      const infoRes = await fetch(`${process.env.APP_URL}/api/upload/youtube/info`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
+      const infoRes = await fetch(
+        `${process.env.APP_URL}/api/upload/youtube/info`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url }),
+        }
+      );
+
       const info = await infoRes.json();
 
-      // 2. Download - Request best quality possible
+      // ============================================
+      // DOWNLOAD BEST SOURCE
+      // ============================================
+
       await updateProgress(jobId, 10, "downloading");
-      const dlArgs: string[] = [
+
+      await run("yt-dlp", [
         "--no-playlist",
-        ...(fs.existsSync(cookiePath) ? ["--cookies", cookiePath] : []),
-        "--extractor-args", "youtube:player_client=web",
-        "--force-ipv4",
-        "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4] / bv*+ba/best",
-        "-o", mp4Path,
+
+        ...(fs.existsSync(cookiePath)
+          ? ["--cookies", cookiePath]
+          : []),
+
+        "--merge-output-format",
+        "mp4",
+
+        "--remux-video",
+        "mp4",
+
+        "--format",
+        "bv*+ba/best",
+
+        "--concurrent-fragments",
+        "8",
+
+        "--downloader",
+        "aria2c",
+
+        "--downloader-args",
+        "aria2c:-x 16 -k 1M",
+
+        "-o",
+        mp4Path,
+
         url,
-      ];
-      await runYtDlp(dlArgs);
+      ]);
 
-      // 3. Transcode - 4K High Quality Settings
-      await updateProgress(jobId, 40, "transcoding");
-      await new Promise<void>((resolve, reject) => {
-        const ffmpeg = spawn("ffmpeg", [
-          "-i", mp4Path,
+      // ============================================
+      // DETECT SOURCE RESOLUTION
+      // ============================================
 
-          "-filter_complex",
-          // Split into 5 tiers
-          "[0:v]split=5[v1][v2][v3][v4][v5]; \
-          [0:a]asplit=5[a1][a2][a3][a4][a5]; \
-          [v1]scale=640:360:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v1out]; \
-          [v2]scale=854:480:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v2out]; \
-          [v3]scale=1280:720:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v3out]; \
-          [v4]scale=1920:1080:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v4out]; \
-          [v5]scale=3840:2160:force_original_aspect_ratio=decrease:flags=lanczos,pad=ceil(iw/2)*2:ceil(ih/2)*2[v5out]",
+      const probe = await getVideoInfo(mp4Path);
 
-          "-map", "[v1out]", "-map", "[a1]",
-          "-map", "[v2out]", "-map", "[a2]",
-          "-map", "[v3out]", "-map", "[a3]",
-          "-map", "[v4out]", "-map", "[a4]",
-          "-map", "[v5out]", "-map", "[a5]",
+      const videoStream = probe.streams.find(
+        (s: any) => s.codec_type === "video"
+      );
 
-          "-c:v", "libx264",
-          "-preset", "slow",        // Best compression efficiency
-          "-crf", "16",             // Professional level sharpness
-          "-profile:v", "high",     // Advanced H.264 features
-          "-level", "5.2",          // Required for 4K stability
-          "-pix_fmt", "yuv420p",    // Max browser compatibility
-          "-g", "48",
-          "-keyint_min", "48",
-          "-sc_threshold", "0",
-          
-          "-c:a", "aac",
-          "-ar", "48000",
+      const sourceWidth = videoStream.width;
+      const sourceHeight = videoStream.height;
 
-          // Video Bitrates (Max thresholds for each tier)
-          "-b:v:0", "800k",
-          "-b:v:1", "1400k",
-          "-b:v:2", "2800k",
-          "-b:v:3", "5000k",
-          "-b:v:4", "22000k",       // 22Mbps for high-quality 4K
+      console.log("SOURCE:", sourceWidth, sourceHeight);
 
-          // Audio Bitrates
-          "-b:a:0", "96k",
-          "-b:a:1", "128k",
-          "-b:a:2", "128k",
-          "-b:a:3", "192k",
-          "-b:a:4", "320k",         // Audiophile quality for 4K tier
+      // ============================================
+      // BUILD QUALITY LADDER
+      // ============================================
 
-          "-f", "hls",
-          "-hls_time", "6",
-          "-hls_playlist_type", "vod",
-          "-hls_list_size", "0",
-          "-hls_flags", "independent_segments",
+      const renditions = [
+        {
+          name: "360p",
+          width: 640,
+          height: 360,
+          bitrate: "800k",
+          maxrate: "856k",
+          bufsize: "1200k",
+          audio: "96k",
+        },
+        {
+          name: "480p",
+          width: 854,
+          height: 480,
+          bitrate: "1400k",
+          maxrate: "1498k",
+          bufsize: "2100k",
+          audio: "128k",
+        },
+        {
+          name: "720p",
+          width: 1280,
+          height: 720,
+          bitrate: "2800k",
+          maxrate: "2996k",
+          bufsize: "4200k",
+          audio: "128k",
+        },
+        {
+          name: "1080p",
+          width: 1920,
+          height: 1080,
+          bitrate: "5000k",
+          maxrate: "5350k",
+          bufsize: "7500k",
+          audio: "192k",
+        },
+        {
+          name: "2160p",
+          width: 3840,
+          height: 2160,
+          bitrate: "18000k",
+          maxrate: "19260k",
+          bufsize: "27000k",
+          audio: "320k",
+        },
+      ].filter(
+        (r) =>
+          r.width <= sourceWidth &&
+          r.height <= sourceHeight
+      );
 
-          // Mapping: v:index, a:index
-          "-var_stream_map", "v:0,a:0 v:1,a:1 v:2,a:2 v:3,a:3 v:4,a:4",
-
-          "-master_pl_name", "master.m3u8",
-          "-hls_segment_filename", `${hlsDir}/v%v/seg_%03d.ts`,
-          `${hlsDir}/v%v/index.m3u8`,
-
-          "-y"
-        ]);
-
-        ffmpeg.stderr.on("data", (d) => console.log("ffmpeg:", d.toString()));
-        ffmpeg.on("close", (code) => (code === 0 ? resolve() : reject(new Error("ffmpeg failed"))));
+      renditions.forEach((_, i) => {
+        fs.mkdirSync(`${hlsDir}/v${i}`, {
+          recursive: true,
+        });
       });
 
-      // 4. Upload to Cloudflare R2
-      await updateProgress(jobId, 70, "uploading");
-      const getAllFiles = (dir: string): string[] => {
-        const entries = fs.readdirSync(dir, { withFileTypes: true });
-        return entries.flatMap((e) => {
-          const res = path.join(dir, e.name);
-          return e.isDirectory() ? getAllFiles(res) : [res];
+      // ============================================
+      // BUILD FILTER GRAPH
+      // ============================================
+
+      let filterComplex = "";
+
+      renditions.forEach((r, i) => {
+        filterComplex +=
+          `[0:v]scale=w=${r.width}:h=${r.height}:` +
+          `force_original_aspect_ratio=decrease:` +
+          `flags=lanczos,` +
+          `pad=${r.width}:${r.height}:(ow-iw)/2:(oh-ih)/2[v${i}];`;
+      });
+
+      // ============================================
+      // FFMPEG
+      // ============================================
+
+      await updateProgress(jobId, 40, "transcoding");
+
+      const ffmpegArgs = [
+        "-i",
+        mp4Path,
+
+        "-filter_complex",
+        filterComplex,
+
+        // VIDEO MAPS
+        ...renditions.flatMap((_, i) => [
+          "-map",
+          `[v${i}]`,
+        ]),
+
+        // AUDIO MAPS
+        ...renditions.flatMap(() => [
+          "-map",
+          "0:a:0",
+        ]),
+
+        // GLOBAL VIDEO SETTINGS
+        "-c:v",
+        "libx264",
+
+        "-preset",
+        "slow",
+
+        "-profile:v",
+        "high",
+
+        "-pix_fmt",
+        "yuv420p",
+
+        "-sc_threshold",
+        "0",
+
+        "-g",
+        "48",
+
+        "-keyint_min",
+        "48",
+
+        "-r",
+        "30",
+
+        // BETTER STREAMING
+        "-movflags",
+        "+faststart",
+
+        // AUDIO
+        "-c:a",
+        "aac",
+
+        "-ar",
+        "48000",
+
+        "-ac",
+        "2",
+
+        // QUALITY SETTINGS PER STREAM
+        ...renditions.flatMap((r, i) => [
+          `-b:v:${i}`,
+          r.bitrate,
+
+          `-maxrate:v:${i}`,
+          r.maxrate,
+
+          `-bufsize:v:${i}`,
+          r.bufsize,
+
+          `-b:a:${i}`,
+          r.audio,
+        ]),
+
+        // HLS
+        "-f",
+        "hls",
+
+        "-hls_time",
+        "4",
+
+        "-hls_playlist_type",
+        "vod",
+
+        "-hls_flags",
+        "independent_segments+append_list",
+
+        // MODERN HLS
+        "-hls_segment_type",
+        "fmp4",
+
+        "-hls_fmp4_init_filename",
+        "init.mp4",
+
+        "-master_pl_name",
+        "master.m3u8",
+
+        "-var_stream_map",
+        renditions
+          .map((_, i) => `v:${i},a:${i}`)
+          .join(" "),
+
+        "-hls_segment_filename",
+        `${hlsDir}/v%v/seg_%03d.m4s`,
+
+        `${hlsDir}/v%v/index.m3u8`,
+
+        "-y",
+      ];
+
+      await run("ffmpeg", ffmpegArgs);
+
+      // ============================================
+      // UPLOAD
+      // ============================================
+
+      await updateProgress(jobId, 75, "uploading");
+
+      const getFiles = (dir: string): string[] => {
+        return fs.readdirSync(dir, {
+          withFileTypes: true,
+        }).flatMap((entry) => {
+          const full = path.join(dir, entry.name);
+
+          return entry.isDirectory()
+            ? getFiles(full)
+            : [full];
         });
       };
 
-      const files = getAllFiles(hlsDir);
+      const files = getFiles(hlsDir);
+
       for (const file of files) {
-        const relativePath = path.relative(hlsDir, file);
+        const relative = path.relative(hlsDir, file);
+
+        const contentType = file.endsWith(".m3u8")
+          ? "application/vnd.apple.mpegurl"
+          : file.endsWith(".m4s")
+          ? "video/iso.segment"
+          : "video/mp4";
+
         const upload = new Upload({
           client: s3,
           params: {
             Bucket: process.env.R2_BUCKET!,
-            Key: `videos/hls/${jobId}/${relativePath}`,
+            Key: `videos/hls/${jobId}/${relative}`,
             Body: fs.createReadStream(file),
-            ContentType: file.endsWith(".m3u8") ? "application/x-mpegURL" : "video/MP2T",
+            ContentType: contentType,
           },
         });
+
         await upload.done();
       }
 
-      // 5. Save to DB
+      // ============================================
+      // SAVE DATABASE
+      // ============================================
+
       await updateProgress(jobId, 95, "saving");
-      const hlsUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/videos/hls/${jobId}/master.m3u8`;
-      const dbRes = await fetch(`${process.env.APP_URL}/api/videos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: info.title,
-          description: info.description || "",
-          videoUrl: hlsUrl,
-          thumbnailUrl: info.thumbnail,
-          videoKey: `videos/hls/${jobId}`,
-          releaseYear: new Date().getFullYear(),
-        }),
+
+      const hlsUrl =
+        `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}` +
+        `/videos/hls/${jobId}/master.m3u8`;
+
+      const dbRes = await fetch(
+        `${process.env.APP_URL}/api/videos`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: info.title,
+            description: info.description || "",
+            videoUrl: hlsUrl,
+            thumbnailUrl: info.thumbnail,
+            videoKey: `videos/hls/${jobId}`,
+            releaseYear: new Date().getFullYear(),
+          }),
+        }
+      );
+
+      if (!dbRes.ok) {
+        throw new Error(await dbRes.text());
+      }
+
+      // ============================================
+      // CLEANUP
+      // ============================================
+
+      fs.rmSync(tempDir, {
+        recursive: true,
+        force: true,
       });
 
-      if (!dbRes.ok) throw new Error(`DB Save Failed: ${await dbRes.text()}`);
-
-      // Cleanup
-      fs.rmSync(mp4Path, { force: true });
-      fs.rmSync(hlsDir, { recursive: true, force: true });
       await updateProgress(jobId, 100, "done");
-
     } catch (err: any) {
       console.error("❌ WORKER ERROR:", err);
+
       await updateProgress(jobId, 0, "failed");
-      if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
-      if (fs.existsSync(hlsDir)) fs.rmSync(hlsDir, { recursive: true, force: true });
+
       throw err;
     }
   },
-  { 
-    connection: redis, 
+  {
+    connection: redis,
+
     concurrency: 1,
-    lockDuration: 7200000 // 🔥 Increased to 2 hours for heavy 4K encoding
+
+    lockDuration: 7200000,
   }
 );
