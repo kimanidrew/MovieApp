@@ -111,19 +111,13 @@ export default function UploadForm() {
     }
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setError("");
 
     const file = fileInputRef.current?.files?.[0];
-
     if (!file) {
-      setError(
-        "Drop area empty. Please select or drag a video container file."
-      );
+      setError("Drop area empty. Please select or drag a video container file.");
       return;
     }
 
@@ -132,70 +126,56 @@ export default function UploadForm() {
       setProgress(0);
       setUploadStage("uploading");
 
-      // CREATE VIDEO PLACEHOLDER
-      const { bunnyVideoId } =
-        await createBunnyVideoPlaceholder(formData.title);
+      // 1. Create a placeholder entry inside Bunny.net
+      const { bunnyVideoId } = await createBunnyVideoPlaceholder(formData.title);
 
-      // SERVER SIDE UPLOAD
-      const uploadFormData = new FormData();
-
-      uploadFormData.append("file", file);
-      uploadFormData.append("videoId", bunnyVideoId);
-
+      // 2. Transmit file straight to Bunny CDN nodes (bypassing Vercel limits)
       const uploadRequest = new XMLHttpRequest();
+      // Bunny uses the exact same endpoint syntax, but targets their CDN clusters directly
+      uploadRequest.open(
+        "PUT", 
+        `https://bunnycdn.com/${process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, 
+        true
+      );
 
-      uploadRequest.open("POST", "/api/upload", true);
+      // Supply the secure public authentication key directly to the headers
+      uploadRequest.setRequestHeader("AccessKey", process.env.NEXT_PUBLIC_BUNNY_API_KEY!);
+      uploadRequest.setRequestHeader("Content-Type", "application/octet-stream");
 
+      // Track progress natively on the client browser
       uploadRequest.upload.onprogress = (event) => {
         if (event.lengthComputable) {
-          const uploadProgress = Math.round(
-            (event.loaded / event.total) * 70
-          );
-
+          // Map client upload to represent 70% of total workflow duration
+          const uploadProgress = Math.round((event.loaded / event.total) * 70);
           setProgress(uploadProgress);
         }
       };
 
       await new Promise<void>((resolve, reject) => {
         uploadRequest.onload = () => {
-          if (
-            uploadRequest.status >= 200 &&
-            uploadRequest.status < 300
-          ) {
+          if (uploadRequest.status >= 200 && uploadRequest.status < 300) {
             resolve();
           } else {
-            reject(
-              new Error(
-                uploadRequest.responseText ||
-                  "Upload transport failed."
-              )
-            );
+            reject(new Error(`Direct storage pipe rejected with status: ${uploadRequest.status}`));
           }
         };
 
         uploadRequest.onerror = () => {
-          reject(
-            new Error(
-              "Network transport failed while sending media packets."
-            )
-          );
+          reject(new Error("Network layer infrastructure breakdown during streaming transaction."));
         };
 
-        uploadRequest.send(uploadFormData);
+        uploadRequest.send(file); // Send raw file stream directly from the browser
       });
 
-      // PROCESSING
+      // 3. Kickoff Transcoding Polling Monitoring
       setUploadStage("processing");
       setProgress(70);
-
       await pollProcessingProgress(bunnyVideoId);
 
-      // SAVE DB
+      // 4. Save metadata configuration directly to your DB
       const response = await fetch("/api/videos", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
           videoKey: bunnyVideoId,
@@ -203,9 +183,7 @@ export default function UploadForm() {
       });
 
       if (!response.ok) {
-        throw new Error(
-          "Metadata serialization framework synchronization failure."
-        );
+        throw new Error("Metadata serialization framework synchronization failure.");
       }
 
       setProgress(100);
@@ -215,11 +193,10 @@ export default function UploadForm() {
         router.push("/");
         router.refresh();
       }, 1500);
+
     } catch (err: any) {
       console.error(err);
-
       setError(err.message || "Pipeline collapse encountered.");
-
       setUploadStage("idle");
     } finally {
       setTimeout(() => {
