@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import VideoModal from "./VideoModal";
+import { normalizeUrl } from "@/utils/normalizeUrl"; // 👈 Imported your standalone utility
 
 interface Video {
   id: string;
@@ -55,30 +56,6 @@ export default function VideoGrid({
     );
   }
 
-  // ✅ Normalize URL safely
- const normalizeUrl = (url?: string | null) => {
-  if (!url) return FALLBACK_IMAGE;
-
-  // Fix duplicated https
-  if (url.startsWith("https://https://")) {
-    return url.replace("https://https://", "https://");
-  }
-
-  // If already valid absolute URL, return as-is
-  if (/^https?:\/\//i.test(url)) {
-    return url;
-  }
-
-  // If it's a relative path, return as-is
-  if (url.startsWith("/")) {
-    return url;
-  }
-
-  // Otherwise, prepend https
-  return `https://${url}`;
-};
-
-
   return (
     <>
       <div className="grid">
@@ -93,6 +70,7 @@ export default function VideoGrid({
 
           const isBroken = brokenImages[video.id];
 
+          // 👈 Tokenized dynamically through your standalone helper utility
           const thumbnail = isBroken
             ? FALLBACK_IMAGE
             : normalizeUrl(video.thumbnailUrl);
@@ -109,6 +87,7 @@ export default function VideoGrid({
                   alt={video.title}
                   fill
                   sizes="(max-width: 768px) 100vw, 300px"
+                  unoptimized // 👈 Bypasses optimization pipelines to keep token query strings functional
                   style={{ objectFit: "cover" }}
                   onError={() =>
                     setBrokenImages((prev) => ({

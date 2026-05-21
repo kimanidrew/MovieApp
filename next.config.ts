@@ -1,28 +1,36 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Fix for ffmpeg and other binary-heavy packages
-  serverExternalPackages: ["@ffmpeg-installer/ffmpeg", "fluent-ffmpeg"],
-  images: {
-  remotePatterns: [
-    {
-      protocol: "https",
-      hostname: "**.r2.dev",
-    },
-    {
-      protocol: "https",
-      hostname: "**.cloudflarestorage.com",
-    },
-    {
-      protocol: "https",
-      hostname: "cdn.movieflix.com",
-    },
-    {
-      protocol: "https",
-      hostname: "i.ytimg.com",
-    }
+  serverExternalPackages: [
+    "@ffmpeg-installer/ffmpeg",
+    "fluent-ffmpeg",
   ],
-},
+
+  images: {
+    qualities: [70, 75, 90], // 👈 Authorize quality 90 here
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "**.cloudflarestorage.com",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.movieflix.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.b-cdn.net",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

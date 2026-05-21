@@ -1,35 +1,28 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import React from "react";
 
-interface Props {
+interface PlayerHeaderProps {
   title: string;
   showControls: boolean;
 }
 
-export default function PlayerHeader({
-  title,
-  showControls
-}: Props) {
-  const router = useRouter();
+export default function PlayerHeader({ title, showControls }: PlayerHeaderProps) {
+  const handleBackAction = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+    window.history.back();
+  };
 
   return (
-    <div className={`netflix-header ${showControls ? 'visible' : ''}`}>
-      <button
-        onClick={() => router.back()}
-        className="back-button hover-scale"
-      >
-        <svg width="32" height="32" viewBox="0 0 24 24">
-          <path
-            d="M19 12H5m7 7l-7-7 7-7"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            fill="none"
-          />
+    <header className="netflix-header">
+      <button className="back-button" onClick={handleBackAction} aria-label="Go Back">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
         </svg>
       </button>
-
-      <h2 className="header-title">{title}</h2>
-    </div>
+      <h1 className="header-title">{title || "Cinematic Stream"}</h1>
+    </header>
   );
 }

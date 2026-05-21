@@ -1,26 +1,23 @@
 import { NextResponse } from "next/server";
-import { redis } from "@/lib/redis";
+import { youtubeQueue } from "@/lib/queues/youtubeQueue";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
 
-  console.log("📡 Status check:", id);
-
   if (!id) {
-    return NextResponse.json({ error: "Missing id" }, { status: 400 });
+    return NextResponse.json({ error: "Tracking identification token missing." }, { status: 400 });
   }
 
-  const data = await redis.get(`yt-job:${id}`);
+  const job = youtubeQueue.get(id);
 
-  console.log("📦 Redis data:", data);
-
-  if (!data) {
-    return NextResponse.json({
-      status: "pending",
-      progress: 0,
-    });
+  if (!job) {
+    return NextResponse.json({ error: "Job structure has been completed or expired." }, { status: 404 });
   }
 
-  return NextResponse.json(JSON.parse(data));
+  return NextResponse.json({
+    status: job.status,
+    progress: job.progress,
+    error: job.error || null
+  });
 }

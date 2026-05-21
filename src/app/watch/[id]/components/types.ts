@@ -12,12 +12,21 @@ export interface SkipAnimation {
   side: "left" | "right" | null;
 }
 
+export interface Chapter {
+  title: string;
+  start: number;
+}
+
 export interface HlsPlayerProps {
   videoId: string;
 
   profileId?: string | null;
 
   src: string;
+
+  thumbnail?: string;
+
+  chapters?: Chapter[];
 
   poster?: string;
 

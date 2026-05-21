@@ -9,13 +9,13 @@ import {
 
 import Hls from "hls.js";
 
-import { HlsPlayerProps } from "./types";
-
 import {
   HISTORY_KEY,
   SETTINGS_KEY,
   formatTime,
 } from "./playerUtils";
+
+import { HlsPlayerProps } from "./types";
 
 export function usePlayer({
   src,
@@ -25,669 +25,366 @@ export function usePlayer({
   introEnd = 85,
 }: HlsPlayerProps) {
 
+  // =====================
   // REFS
-  const videoRef =
-    useRef<HTMLVideoElement>(null);
+  // =====================
 
-  const wrapperRef =
-    useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const hlsRef =
-    useRef<Hls | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
 
-  const controlsTimeoutRef =
-    useRef<NodeJS.Timeout | null>(null);
+  const rafRef = useRef<number | null>(null);
 
-  const lastSavedTime =
-    useRef<number>(0);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const lastTapRef =
-    useRef({
-      time: 0,
-      x: 0,
-      y: 0,
-    });
+  const lastSavedTime = useRef(0);
 
-  const touchStartRef =
-    useRef<{
-      x: number;
-      y: number;
-    } | null>(null);
+  const isSeekingRef = useRef(false);
+  const hlsInitialized = useRef(false);
 
+  // =====================
   // STATES
-  const [isPlaying, setIsPlaying] =
-    useState(false);
+  // =====================
 
-  const [isBuffering, setIsBuffering] =
-    useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
 
-  const [progress, setProgress] =
-    useState(0);
+  const [progress, setProgress] = useState(0);
+  const [buffered, setBuffered] = useState(0);
+  const [duration, setDuration] = useState(0);
 
-  const [buffered, setBuffered] =
-    useState(0);
+  const [volume, setVolume] = useState(1);
+  const [brightness, setBrightness] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
 
-  const [duration, setDuration] =
-    useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
 
-  const [volume, setVolume] =
-    useState(1);
+  const [resumeTime, setResumeTime] = useState<number | null>(null);
 
-  const [brightness, setBrightness] =
-    useState(1);
+  const [showSkipButton, setShowSkipButton] = useState(false);
 
-  const [isMuted, setIsMuted] =
-    useState(false);
+  const [qualities, setQualities] = useState<{ id: number; height: number }[]>([]);
+  const [currentQuality, setCurrentQuality] = useState(-1);
 
-  const [isFullscreen, setIsFullscreen] =
-    useState(false);
+  const [isQualityOpen, setIsQualityOpen] = useState(false);
 
-  const [showControls, setShowControls] =
-    useState(true);
+  const [gestureUI, setGestureUI] = useState<{
+    type: "volume" | "brightness" | null;
+    value: number;
+  }>({ type: null, value: 0 });
 
-  const [resumeTime, setResumeTime] =
-    useState<number | null>(null);
+  const [autoSkipEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const saved = localStorage.getItem(SETTINGS_KEY);
+    return saved ? JSON.parse(saved).autoSkip : false;
+  });
 
-  const [showSkipButton, setShowSkipButton] =
-    useState(false);
-
-  const [showCenterIcon, setShowCenterIcon] =
-    useState(false);
-
-  const [qualities, setQualities] =
-    useState<
-      {
-        id: number;
-        height: number;
-      }[]
-    >([]);
-
-  const [currentQuality, setCurrentQuality] =
-    useState(-1);
-
-  const [autoHeight, setAutoHeight] =
-    useState(0);
-
-  const [isQualityOpen, setIsQualityOpen] =
-    useState(false);
-
-  const [gestureUI, setGestureUI] =
-    useState<{
-      type:
-        | "volume"
-        | "brightness"
-        | null;
-
-      value: number;
-    }>({
-      type: null,
-      value: 0,
-    });
-
-  const [skipAnim, setSkipAnim] =
-    useState<{
-      side:
-        | "left"
-        | "right"
-        | null;
-    }>({
-      side: null,
-    });
-
-  const [autoSkipEnabled, setAutoSkipEnabled] =
-    useState(() => {
-
-      if (
-        typeof window !== "undefined"
-      ) {
-
-        const saved =
-          localStorage.getItem(
-            SETTINGS_KEY
-          );
-
-        return saved
-          ? JSON.parse(saved).autoSkip
-          : false;
-      }
-
-      return false;
-    });
-
+  // =====================
   // PLAY / PAUSE
+  // =====================
+
   const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
-    if (!videoRef.current) return;
-
-    if (videoRef.current.paused) {
-
-      videoRef.current
-        .play()
-        .catch(() => {});
-
+    if (video.paused) {
+      video.play().catch(() => {});
     } else {
-
-      videoRef.current.pause();
+      video.pause();
     }
 
-    setShowCenterIcon(true);
-
-    setTimeout(() => {
-      setShowCenterIcon(false);
-    }, 500);
-
+    setShowControls(true);
   }, []);
 
-  // SKIP
-  const skipTime = (
-    amount: number
-  ) => {
+  // =====================
+  // SEEK SAFE (FIX LOOP BUG)
+  // =====================
 
-    if (!videoRef.current) return;
+  const setSeek = (value: number) => {
+    const video = videoRef.current;
+    if (!video) return;
 
-    videoRef.current.currentTime += amount;
+    isSeekingRef.current = true;
 
-    const side =
-      amount > 0
-        ? "right"
-        : "left";
-
-    setSkipAnim({ side });
+    video.currentTime = value;
+    setProgress(value);
 
     setTimeout(() => {
-      setSkipAnim({
-        side: null,
-      });
-    }, 600);
+      isSeekingRef.current = false;
+    }, 500);
   };
 
-  // MUTE
+  // =====================
+  // SKIP INTRO
+  // =====================
+
+  const handleSkipIntro = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    isSeekingRef.current = true;
+
+    video.currentTime = introEnd;
+    setProgress(introEnd);
+
+    setShowSkipButton(false);
+
+    setTimeout(() => {
+      isSeekingRef.current = false;
+    }, 500);
+  }, [introEnd]);
+
+  // =====================
+  // RESUME
+  // =====================
+
+  const restoreVideo = () => {
+    const video = videoRef.current;
+    if (!video || !resumeTime) return;
+
+    video.currentTime = resumeTime;
+    video.play();
+
+    setResumeTime(null);
+  };
+
+  const closeResume = () => setResumeTime(null);
+
+  // =====================
+  // VOLUME / MUTE
+  // =====================
+
   const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
 
-    if (!videoRef.current) return;
-
-    videoRef.current.muted =
-      !videoRef.current.muted;
-
-    setIsMuted(
-      videoRef.current.muted
-    );
+    video.muted = !video.muted;
+    setIsMuted(video.muted);
   };
 
-  // VOLUME
-  const handleVolumeChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vol = Number(e.target.value);
 
-    const vol =
-      Number(e.target.value);
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.volume = vol;
 
     setVolume(vol);
-
-    if (videoRef.current) {
-
-      videoRef.current.volume =
-        vol;
-
-      setIsMuted(vol === 0);
-    }
+    setIsMuted(vol === 0);
   };
 
-  // SEEK
-  const setSeek = (
-    value: number
-  ) => {
-
-    if (!videoRef.current) return;
-
-    videoRef.current.currentTime =
-      value;
-
-    setProgress(value);
-  };
-
-  // FULLSCREEN
-  const toggleFullscreen =
-    async () => {
-
-      if (!wrapperRef.current)
-        return;
-
-      if (
-        !document.fullscreenElement
-      ) {
-
-        await wrapperRef.current.requestFullscreen();
-
-        setIsFullscreen(true);
-
-      } else {
-
-        await document.exitFullscreen();
-
-        setIsFullscreen(false);
-      }
-    };
-
+  // =====================
   // QUALITY
-  const handleQualityChange = (
-    id: number
-  ) => {
+  // =====================
 
-    if (!hlsRef.current) return;
+  const handleQualityChange = (id: number) => {
+    const hls = hlsRef.current;
+    if (!hls) return;
 
-    hlsRef.current.currentLevel =
-      id;
-
+    hls.currentLevel = id;
     setCurrentQuality(id);
-
     setIsQualityOpen(false);
   };
 
-  // SKIP INTRO
-  const handleSkipIntro =
-    useCallback(() => {
+  // =====================
+  // FULLSCREEN
+  // =====================
 
-      if (!videoRef.current)
-        return;
+  const toggleFullscreen = async () => {
+    if (!wrapperRef.current) return;
 
-      videoRef.current.currentTime =
-        introEnd;
-
-      setShowSkipButton(false);
-
-    }, [introEnd]);
-
-  // RESTORE VIDEO
-  const restoreVideo = () => {
-
-    if (
-      !videoRef.current ||
-      !resumeTime
-    )
-      return;
-
-    videoRef.current.currentTime =
-      resumeTime;
-
-    videoRef.current.play();
-
-    setResumeTime(null);
-  };
-
-  const closeResume = () => {
-    setResumeTime(null);
-  };
-
-  // TOUCH START
-  const handleTouchStart = (
-    e: React.TouchEvent
-  ) => {
-
-    touchStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-    };
-  };
-
-  // TOUCH MOVE
-  const handleTouchMove = (
-    e: React.TouchEvent
-  ) => {
-
-    if (
-      !touchStartRef.current ||
-      !videoRef.current
-    )
-      return;
-
-    const touchY =
-      e.touches[0].clientY;
-
-    const deltaY =
-      touchStartRef.current.y -
-      touchY;
-
-    const change =
-      deltaY / 200;
-
-    const rect =
-      e.currentTarget.getBoundingClientRect();
-
-    const isLeftSide =
-      touchStartRef.current.x <
-      rect.width / 2;
-
-    if (isLeftSide) {
-
-      const newBrightness =
-        Math.min(
-          Math.max(
-            brightness + change,
-            0.2
-          ),
-          1.5
-        );
-
-      setBrightness(
-        newBrightness
-      );
-
-      setGestureUI({
-        type: "brightness",
-        value: Math.round(
-          (newBrightness / 1.5) * 100
-        ),
-      });
-
+    if (!document.fullscreenElement) {
+      await wrapperRef.current.requestFullscreen();
+      setIsFullscreen(true);
     } else {
-
-      const newVolume =
-        Math.min(
-          Math.max(
-            volume + change,
-            0
-          ),
-          1
-        );
-
-      videoRef.current.volume =
-        newVolume;
-
-      setVolume(newVolume);
-
-      setGestureUI({
-        type: "volume",
-        value: Math.round(
-          newVolume * 100
-        ),
-      });
+      await document.exitFullscreen();
+      setIsFullscreen(false);
     }
-
-    touchStartRef.current.y =
-      touchY;
   };
 
-  // TOUCH END
-  const handleTouchEnd = () => {
+  // =====================
+  // PROGRESS LOOP (SAFE)
+  // =====================
 
-    touchStartRef.current =
-      null;
-
-    setTimeout(() => {
-
-      setGestureUI({
-        type: null,
-        value: 0,
-      });
-
-    }, 1000);
-  };
-
-  // SHOW / HIDE CONTROLS
-  const handleMouseMove = () => {
-
-    setShowControls(true);
-
-    if (
-      controlsTimeoutRef.current
-    ) {
-      clearTimeout(
-        controlsTimeoutRef.current
-      );
-    }
-
-    controlsTimeoutRef.current =
-      setTimeout(() => {
-
-        if (
-          isPlaying &&
-          !isQualityOpen &&
-          !gestureUI.type
-        ) {
-
-          setShowControls(false);
-        }
-
-      }, 4000);
-  };
-
-  // VIDEO SETUP
-  useEffect(() => {
-
-    const video =
-      videoRef.current;
-
+  const updateProgress = useCallback(() => {
+    const video = videoRef.current;
     if (!video) return;
 
-    if (
-      src.endsWith(".m3u8") &&
-      Hls.isSupported()
-    ) {
+    if (!isSeekingRef.current) {
+      const t = video.currentTime;
 
-      const hls = new Hls({
-        capLevelToPlayerSize: true,
-        startLevel: -1,
+      setProgress(t);
+
+      if (video.buffered.length) {
+        const end = video.buffered.end(video.buffered.length - 1);
+        setBuffered((end / video.duration) * 100);
+      }
+
+      // SAVE HISTORY
+      if (Math.abs(t - lastSavedTime.current) > 5) {
+        lastSavedTime.current = t;
+
+        const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
+
+        hist[videoId] = {
+          time: t,
+          duration: video.duration,
+        };
+
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(updateProgress);
+  }, [videoId]);
+
+  // =====================
+  // HLS INIT (FIXED DOUBLE INIT BUG)
+  // =====================
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) return;
+
+    if (hlsInitialized.current) return;
+    hlsInitialized.current = true;
+
+    let hls: Hls | null = null;
+
+    if (Hls.isSupported() && src.includes(".m3u8")) {
+      hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        backBufferLength: 60,
       });
 
       hlsRef.current = hls;
 
       hls.loadSource(src);
-
       hls.attachMedia(video);
 
-      hls.on(
-        Hls.Events.MANIFEST_PARSED,
-        (_, data) => {
+      hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+        const levels = data.levels.map((l, i) => ({
+          id: i,
+          height: l.height,
+        }));
 
-          const sorted =
-            data.levels
-              .map((l, i) => ({
-                id: i,
-                height: l.height,
-              }))
-              .sort(
-                (a, b) =>
-                  b.height - a.height
-              );
+        setQualities(levels);
 
-          setQualities(sorted);
+        video.muted = true;
+        video.play().catch(() => {});
+      });
 
-          if (sorted.length > 0) {
-
-            hls.currentLevel =
-              sorted[0].id;
-
-            setCurrentQuality(
-              sorted[0].id
-            );
-          }
-
-          const hist =
-            JSON.parse(
-              localStorage.getItem(
-                HISTORY_KEY
-              ) || "{}"
-            );
-
-          if (
-            hist[videoId]?.time > 10
-          ) {
-
-            setResumeTime(
-              hist[videoId].time
-            );
-          }
-
-          if (autoPlay) {
-
-            video
-              .play()
-              .catch(() => {
-
-                video.muted = true;
-
-                setIsMuted(true);
-
-                video.play();
-              });
-          }
-        }
-      );
-
-      hls.on(
-        Hls.Events.LEVEL_SWITCHED,
-        (_, data) => {
-
-          const level =
-            hls.levels[data.level];
-
-          if (level) {
-
-            setAutoHeight(
-              level.height
-            );
-          }
-        }
-      );
-
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) hls?.destroy();
+      });
     } else {
-
       video.src = src;
+    }
 
-      if (autoPlay) {
+    // EVENTS
+    const onPlay = () => {
+      setIsPlaying(true);
+      if (!rafRef.current) rafRef.current = requestAnimationFrame(updateProgress);
+    };
 
-        video
-          .play()
-          .catch(() => {
+    const onPause = () => {
+      setIsPlaying(false);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
 
-            video.muted = true;
+    const onWaiting = () => setIsBuffering(true);
+    const onPlaying = () => setIsBuffering(false);
 
-            setIsMuted(true);
+    const onLoaded = () => setDuration(video.duration || 0);
 
-            video.play();
-          });
-      }
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("loadedmetadata", onLoaded);
+
+    // RESUME
+    const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
+    if (hist[videoId]?.time > 5) {
+      setResumeTime(hist[videoId].time);
     }
 
     return () => {
-      hlsRef.current?.destroy();
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("loadedmetadata", onLoaded);
+
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+      hls?.destroy();
+      hlsInitialized.current = false;
     };
+  }, [src, videoId, updateProgress]);
 
-  }, [
-    src,
-    videoId,
-    autoPlay,
-  ]);
+  // =====================
+  // INTRO LOGIC (SAFE)
+  // =====================
 
-  // INTRO DETECTION
   useEffect(() => {
-
-    const insideIntro =
-      progress >= introStart &&
-      progress < introEnd;
-
-    if (insideIntro) {
-
+    if (progress >= introStart && progress < introEnd) {
       if (autoSkipEnabled) {
-
         handleSkipIntro();
-
       } else {
-
         setShowSkipButton(true);
       }
-
     } else {
-
       setShowSkipButton(false);
     }
-
-  }, [
-    progress,
-    introStart,
-    introEnd,
-    autoSkipEnabled,
-    handleSkipIntro,
-  ]);
+  }, [progress, introStart, introEnd, autoSkipEnabled, handleSkipIntro]);
 
   return {
-
     videoRef,
     wrapperRef,
 
-    // STATES
+    // STATE
     isPlaying,
     isBuffering,
-
     progress,
     buffered,
     duration,
-
     volume,
     brightness,
-
     isMuted,
-
     isFullscreen,
-
     showControls,
 
     qualities,
     currentQuality,
-    autoHeight,
 
     resumeTime,
-
+    showSkipButton,
     isQualityOpen,
-
-    showCenterIcon,
 
     gestureUI,
 
-    skipAnim,
-
-    showSkipButton,
-
-    // REFS
-    lastTapRef,
-    lastSavedTime,
-
-    // SETTERS
-    setProgress,
-    setBuffered,
-    setDuration,
-
-    setIsPlaying,
-    setIsBuffering,
-
-    setShowControls,
-    setIsQualityOpen,
-
-    // HANDLERS
+    // ACTIONS
     togglePlay,
+    skipTime: (n: number) => {
+      const v = videoRef.current;
+      if (!v) return;
+      v.currentTime += n;
+    },
     toggleMute,
-
-    skipTime,
-
     handleVolumeChange,
-
     setSeek,
-
     handleQualityChange,
-
     toggleFullscreen,
-
     handleSkipIntro,
-
     restoreVideo,
     closeResume,
-
-    handleTouchStart,
-    handleTouchMove,
-    handleTouchEnd,
-
-    handleMouseMove,
+    handleMouseMove: () => setShowControls(true),
 
     formatTime,
   };

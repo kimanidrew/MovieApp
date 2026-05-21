@@ -1,64 +1,43 @@
 import { NextResponse } from "next/server";
+import ytdl from "@distube/ytdl-core";
 
 export async function POST(req: Request) {
   try {
     const { url } = await req.json();
 
-    if (!url) {
-      return NextResponse.json({ error: "Missing URL" }, { status: 400 });
-    }
-
-    // extract video ID
-    const videoIdMatch = url.match(
-      /(?:youtube\.com.*v=|youtu\.be\/)([^&?/]+)/
-    );
-
-    if (!videoIdMatch) {
+    if (!url || !ytdl.validateURL(url)) {
       return NextResponse.json(
-        { error: "Invalid YouTube URL" },
+        { error: "Invalid or missing YouTube URL source link mapping." },
         { status: 400 }
       );
     }
 
-    const videoId = videoIdMatch[1];
+    const cookieString = process.env.YOUTUBE_COOKIE;
+    
+    // Inject extracted authentication cookie parameters to pass bot checks
+    const options: any = {
+      requestOptions: {
+        headers: {
+          cookie: cookieString || "",
+          "User-Agent": "Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36"
+        }
+      }
+    };
 
-    const apiKey = process.env.YOUTUBE_API_KEY;
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "Missing API key" },
-        { status: 500 }
-      );
-    }
-
-    const ytRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${apiKey}`
-    );
-
-    const data = await ytRes.json();
-
-    if (!data.items || data.items.length === 0) {
-      return NextResponse.json(
-        { error: "Video not found" },
-        { status: 404 }
-      );
-    }
-
-    const video = data.items[0];
+    const info = await ytdl.getInfo(url, options);
+    const videoDetails = info.videoDetails;
 
     return NextResponse.json({
-      id: videoId,
-      title: video.snippet.title,
-      description: video.snippet.description,
-      thumbnail:
-        video.snippet.thumbnails?.high?.url ||
-        video.snippet.thumbnails?.default?.url,
-      channel: video.snippet.channelTitle,
+      title: videoDetails.title || "",
+      description: videoDetails.description || "",
+      thumbnail: videoDetails.thumbnails[videoDetails.thumbnails.length - 1]?.url || ""
     });
-  } catch (err: any) {
-    console.error(err);
+
+  } catch (error: any) {
+    console.error("YouTube metadata parsing engine failure:", error);
+    
     return NextResponse.json(
-      { error: "Failed to fetch YouTube data" },
+      { error: "Failed resolving YouTube details. Ensure your YOUTUBE_COOKIE string is pasted correctly inside .env.local" },
       { status: 500 }
     );
   }

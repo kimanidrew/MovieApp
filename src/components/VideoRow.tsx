@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import VideoModal from "./VideoModal";
 import Hls from "hls.js";
 import Image from "next/image";
+import { normalizeUrl } from "@/utils/normalizeUrl"; // 👈 Imported your standalone utility
 
 interface Video {
   id: string;
@@ -14,8 +15,6 @@ interface Video {
   hlsManifestUrl?: string | null;
   releaseYear: number | null;
 }
-
-const FALLBACK_IMAGE = "/fallback.jpg";
 
 export default function VideoRow({
   title,
@@ -116,22 +115,7 @@ function VideoCard({
 }: any) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const normalizeUrl = (url?: string | null) => {
-    if (!url) return FALLBACK_IMAGE;
-
-    // fix double https bug
-    if (url.startsWith("https://https://")) {
-      return url.replace("https://https://", "https://");
-    }
-
-    // valid url
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return url;
-    }
-
-    return `https://${url}`;
-  };
-
+  // 👈 Tokenized dynamically through your standalone utility file
   const thumbnail = normalizeUrl(video.thumbnailUrl);
 
   useEffect(() => {
@@ -140,8 +124,10 @@ function VideoCard({
     const vid = videoRef.current;
     let hls: Hls | null = null;
 
-    const src = video.hlsManifestUrl || video.videoUrl;
-    if (!src) return;
+    // 👈 Tokenize video streams dynamically to prevent 403 blocks during hover previews
+    const rawSrc = video.hlsManifestUrl || video.videoUrl;
+    if (!rawSrc) return;
+    const src = normalizeUrl(rawSrc); 
 
     vid.muted = true;
     vid.playsInline = true;
@@ -151,7 +137,7 @@ function VideoCard({
       vid.play().catch(() => {});
     };
 
-    if (src.endsWith(".m3u8")) {
+    if (src.includes(".m3u8")) {
       if (Hls.isSupported()) {
         hls = new Hls();
         hls.loadSource(src);
@@ -190,6 +176,7 @@ function VideoCard({
             alt={video.title}
             fill
             sizes="240px"
+            unoptimized // 👈 Prevents Next.js from breaking query parameters or throwing quality/domain errors
             style={{ objectFit: "cover" }}
           />
         </div>

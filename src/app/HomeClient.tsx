@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import VideoRow from "@/components/VideoRow";
 import Link from "next/link";
-import VideoModal from "@/components/VideoModal"; // ✅ Import your VideoModal
+import VideoModal from "@/components/VideoModal"; 
+import { normalizeUrl } from "@/utils/normalizeUrl"; // 👈 Imported your standalone component/utility
 
 interface Video {
   id: string;
@@ -16,16 +17,13 @@ interface Video {
   releaseYear: number | null;
 }
 
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1552526922-8393e878411d?q=80&w=1200";
-
 export default function HomeClient({
   initialVideos,
 }: {
   initialVideos: Video[];
 }) {
   const [history, setHistory] = useState<any>({});
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null); // ✅ Modal State
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null); 
 
   useEffect(() => {
     try {
@@ -56,17 +54,7 @@ export default function HomeClient({
 
   const heroVideo = initialVideos?.[0];
 
-  const normalizeUrl = (url?: string | null) => {
-    if (!url) return FALLBACK_IMAGE;
-    if (url.startsWith("https://https://")) {
-      return url.replace("https://https://", "https://");
-    }
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      return url;
-    }
-    return `https://${url}`;
-  };
-
+  // 👈 Tokenized dynamically through our standalone handler
   const heroImage = normalizeUrl(heroVideo?.thumbnailUrl);
 
   return (
@@ -80,6 +68,7 @@ export default function HomeClient({
             fill
             priority
             quality={90}
+            unoptimized // 👈 Keeps Next.js image components from stripping out url query parameters
             style={{ objectFit: "cover" }}
             sizes="100vw"
           />
@@ -154,7 +143,6 @@ export default function HomeClient({
                 {isContinueWatching(heroVideo.id) ? "▶ Resume" : "▶ Play"}
               </Link>
 
-              {/* ✅ UPDATED TO BUTTON FOR MODAL */}
               <button 
                 onClick={() => setSelectedVideo(heroVideo)} 
                 style={btnInfo}
