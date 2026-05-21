@@ -37,22 +37,22 @@ export default function UploadForm() {
     isMovie: true,
   });
 
-  // Handle local file selection feedback rules
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+
     if (file) {
       setSelectedFileName(file.name);
       setError("");
     }
   };
 
-  // Drag and drop infrastructure layout handlers
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
     if (e.type === "dragenter" || e.type === "dragover") {
       setIsDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else {
       setIsDragActive(false);
     }
   };
@@ -60,14 +60,19 @@ export default function UploadForm() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
     setIsDragActive(false);
 
     const file = e.dataTransfer.files?.[0];
+
     if (file && file.type.startsWith("video/")) {
       if (fileInputRef.current) {
         const dataTransfer = new DataTransfer();
+
         dataTransfer.items.add(file);
+
         fileInputRef.current.files = dataTransfer.files;
+
         setSelectedFileName(file.name);
         setError("");
       }
@@ -78,10 +83,14 @@ export default function UploadForm() {
 
   const pollProcessingProgress = async (bunnyVideoId: string) => {
     let finished = false;
+
     while (!finished) {
       const result = await getBunnyVideoStatus(bunnyVideoId);
+
       const encodeProgress = result.encodeProgress || 0;
-      const combinedProgress = 70 + Math.round((encodeProgress / 100) * 30);
+
+      const combinedProgress =
+        70 + Math.round((encodeProgress / 100) * 30);
 
       setProgress(combinedProgress);
 
@@ -93,20 +102,28 @@ export default function UploadForm() {
       }
 
       if (result.status === 5) {
-        throw new Error("Bunny.net cloud transcoding clusters reported an encoder error.");
+        throw new Error(
+          "Bunny.net cloud transcoding clusters reported an encoder error."
+        );
       }
 
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
+
     setError("");
 
     const file = fileInputRef.current?.files?.[0];
+
     if (!file) {
-      setError("Drop area empty. Please select or drag a video container file.");
+      setError(
+        "Drop area empty. Please select or drag a video container file."
+      );
       return;
     }
 
@@ -115,58 +132,81 @@ export default function UploadForm() {
       setProgress(0);
       setUploadStage("uploading");
 
-      const { bunnyVideoId } = await createBunnyVideoPlaceholder(formData.title);
+      // CREATE VIDEO PLACEHOLDER
+      const { bunnyVideoId } =
+        await createBunnyVideoPlaceholder(formData.title);
 
-      const LIBRARY_ID = process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID;
-      const PUBLIC_UPLOAD_KEY = process.env.NEXT_PUBLIC_BUNNY_API_KEY;
+      // SERVER SIDE UPLOAD
+      const uploadFormData = new FormData();
 
-      if (!LIBRARY_ID || !PUBLIC_UPLOAD_KEY) {
-        throw new Error("Missing structural public token variables configuration.");
-      }
+      uploadFormData.append("file", file);
+      uploadFormData.append("videoId", bunnyVideoId);
 
-      const uploadUrl = `https://bunnycdn.com{LIBRARY_ID}/videos/${bunnyVideoId}`;
+      const uploadRequest = new XMLHttpRequest();
+
+      uploadRequest.open("POST", "/api/upload", true);
+
+      uploadRequest.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const uploadProgress = Math.round(
+            (event.loaded / event.total) * 70
+          );
+
+          setProgress(uploadProgress);
+        }
+      };
 
       await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader("AccessKey", PUBLIC_UPLOAD_KEY);
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const uploadProgress = Math.round((event.loaded / event.total) * 70);
-            setProgress(uploadProgress);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
+        uploadRequest.onload = () => {
+          if (
+            uploadRequest.status >= 200 &&
+            uploadRequest.status < 300
+          ) {
             resolve();
           } else {
-            reject(new Error(`CDN Refusal (${xhr.status}): ${xhr.responseText}`));
+            reject(
+              new Error(
+                uploadRequest.responseText ||
+                  "Upload transport failed."
+              )
+            );
           }
         };
 
-        xhr.onerror = () => reject(new Error("Network layer dropped video binary transfer packets."));
-        xhr.onabort = () => reject(new Error("Pipeline transmission aborted."));
-        
-        xhr.send(file);
+        uploadRequest.onerror = () => {
+          reject(
+            new Error(
+              "Network transport failed while sending media packets."
+            )
+          );
+        };
+
+        uploadRequest.send(uploadFormData);
       });
 
+      // PROCESSING
       setUploadStage("processing");
       setProgress(70);
 
       await pollProcessingProgress(bunnyVideoId);
 
+      // SAVE DB
       const response = await fetch("/api/videos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           ...formData,
           videoKey: bunnyVideoId,
         }),
       });
 
-      if (!response.ok) throw new Error("Metadata serialization framework synchronization failure.");
+      if (!response.ok) {
+        throw new Error(
+          "Metadata serialization framework synchronization failure."
+        );
+      }
 
       setProgress(100);
       setUploadStage("completed");
@@ -177,7 +217,9 @@ export default function UploadForm() {
       }, 1500);
     } catch (err: any) {
       console.error(err);
+
       setError(err.message || "Pipeline collapse encountered.");
+
       setUploadStage("idle");
     } finally {
       setTimeout(() => {
@@ -186,6 +228,7 @@ export default function UploadForm() {
       }, 2000);
     }
   };
+
 
   return (
     <div className="upload-form-wrapper">
