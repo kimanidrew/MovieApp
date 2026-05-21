@@ -134,7 +134,7 @@ export default function UploadForm() {
       // Bunny uses the exact same endpoint syntax, but targets their CDN clusters directly
       uploadRequest.open(
         "PUT", 
-        `https://bunnycdn.com/${process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, 
+        `https://video.bunnycdn.com/library/${process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, 
         true
       );
 
