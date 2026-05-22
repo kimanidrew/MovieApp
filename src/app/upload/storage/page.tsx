@@ -37,14 +37,50 @@ export default function UploadForm() {
     isMovie: true,
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+const handleFileChange = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0];
 
-    if (file) {
-      setSelectedFileName(file.name);
-      setError("");
+  if (!file) return;
+
+  setError("");
+
+  // Validate video metadata
+  const video = document.createElement("video");
+
+  video.preload = "metadata";
+
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(video.src);
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    // Require minimum HD
+    if (width < 1920 || height < 1080) {
+      setError(
+        "Only Full HD (1080p) or higher videos are allowed."
+      );
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setSelectedFileName("");
+      return;
     }
+
+    setSelectedFileName(file.name);
   };
+
+  video.onerror = () => {
+    setError("Invalid video file.");
+  };
+
+  video.src = URL.createObjectURL(file);
+};
+
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
