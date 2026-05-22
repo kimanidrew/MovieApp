@@ -111,98 +111,94 @@ export default function UploadForm() {
     }
   };
 
-   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
     const file = fileInputRef.current?.files?.[0];
-    if (!file) {
-      setError("Drop area empty. Please select or drag a video container file.");
-      return;
-    }
+    if (!file) return setError("No video selected");
 
     try {
       setIsUploading(true);
       setProgress(0);
       setUploadStage("uploading");
 
-      // 1. Create a placeholder entry inside Bunny.net
-      const { bunnyVideoId } = await createBunnyVideoPlaceholder(formData.title);
+      // 1. Create video on backend (SAFE)
+      const createRes = await fetch("/api/upload/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: formData.title }),
+      });
 
-      // 2. Transmit file straight to Bunny CDN nodes (bypassing Vercel limits)
-      const uploadRequest = new XMLHttpRequest();
-      // Bunny uses the exact same endpoint syntax, but targets their CDN clusters directly
-      uploadRequest.open(
-        "PUT", 
-        `https://video.bunnycdn.com/library/${process.env.NEXT_PUBLIC_BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`, 
-        true
-      );
+      const { videoId, libraryId } = await createRes.json();
 
-      // Supply the secure public authentication key directly to the headers
-      uploadRequest.setRequestHeader("AccessKey", process.env.NEXT_PUBLIC_BUNNY_API_KEY!);
-      uploadRequest.setRequestHeader("Content-Type", "application/octet-stream");
-
-      // Track progress natively on the client browser
-      uploadRequest.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          // Map client upload to represent 70% of total workflow duration
-          const uploadProgress = Math.round((event.loaded / event.total) * 70);
-          setProgress(uploadProgress);
-        }
-      };
+      // 2. Upload directly to Bunny (NO API KEY IN CLIENT)
+      const uploadUrl = `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`;
 
       await new Promise<void>((resolve, reject) => {
-        uploadRequest.onload = () => {
-          if (uploadRequest.status >= 200 && uploadRequest.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Direct storage pipe rejected with status: ${uploadRequest.status}`));
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl, true);
+
+        // IMPORTANT: Bunny requires ONLY AccessKey OR empty depending on config
+        xhr.setRequestHeader(
+          "AccessKey",
+          process.env.NEXT_PUBLIC_BUNNY_API_KEY!
+        );
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(Math.round((e.loaded / e.total) * 70));
           }
         };
 
-        uploadRequest.onerror = () => {
-          reject(new Error("Network layer infrastructure breakdown during streaming transaction."));
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error("Upload failed"));
         };
 
-        uploadRequest.send(file); // Send raw file stream directly from the browser
+        xhr.onerror = () =>
+          reject(new Error("Network upload failed (check endpoint)"));
+
+        xhr.send(file);
       });
 
-      // 3. Kickoff Transcoding Polling Monitoring
+      // 3. Processing stage
       setUploadStage("processing");
       setProgress(70);
-      await pollProcessingProgress(bunnyVideoId);
 
-      // 4. Save metadata configuration directly to your DB
-      const response = await fetch("/api/videos", {
+      let done = false;
+      while (!done) {
+        const status = await getBunnyVideoStatus(videoId);
+
+        setProgress(70 + Math.round((status.encodeProgress / 100) * 30));
+
+        if (status.isFinished) {
+          setProgress(100);
+          done = true;
+        }
+
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+
+      // 4. Save DB
+      await fetch("/api/videos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          videoKey: bunnyVideoId,
+          videoKey: videoId,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Metadata serialization framework synchronization failure.");
-      }
-
-      setProgress(100);
       setUploadStage("completed");
 
-      setTimeout(() => {
-        router.push("/");
-        router.refresh();
-      }, 1500);
-
+      router.push("/");
+      router.refresh();
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Pipeline collapse encountered.");
+      setError(err.message);
       setUploadStage("idle");
     } finally {
-      setTimeout(() => {
-        setIsUploading(false);
-        setProgress(0);
-      }, 2000);
+      setIsUploading(false);
+      setProgress(0);
     }
   };
 
