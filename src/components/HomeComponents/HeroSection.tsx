@@ -17,26 +17,37 @@ export default function HeroSection({
 }) {
   const [imageError, setImageError] = useState(false);
   const [videoProgress, setVideoProgress] = useState(0);
+  const [timeLeftText, setTimeLeftText] = useState("");
 
-  // Read matching localStorage session keys to derive exact video continuation metrics
+  // Read the localStorage history timeline parameters to compute inline text reminders
   useEffect(() => {
     try {
       const history = JSON.parse(
         localStorage.getItem("movieflix-history") || "{}",
       );
       const savedItem = history[heroVideo.id];
+
       if (savedItem && savedItem.duration > 0 && savedItem.time > 5) {
         const percentage = Math.min(
           100,
           (savedItem.time / savedItem.duration) * 100,
         );
-        // Only render the bar if the video qualifies for "Continue Watching" threshold parameters
+
         if (percentage < 95) {
           setVideoProgress(percentage);
+
+          // Calculate minutes remaining dynamically
+          const remainingSeconds = savedItem.duration - savedItem.time;
+          const remainingMinutes = Math.ceil(remainingSeconds / 60);
+
+          if (remainingMinutes > 0) {
+            setTimeLeftText(`${remainingMinutes}m left`);
+          }
         }
       }
     } catch {
       setVideoProgress(0);
+      setTimeLeftText("");
     }
   }, [heroVideo.id]);
 
@@ -76,7 +87,7 @@ export default function HeroSection({
         <div className="hero-content-card">
           <h1 className="hero-title">{heroVideo.title}</h1>
 
-          {/* STREAM METADATA BADGES */}
+          {/* STREAM METADATA BADGES + INLINE PROGRESS INTEGRATION */}
           <div className="hero-meta-row">
             <span className="match-badge">99% Match</span>
             <span className="year-label">
@@ -84,6 +95,21 @@ export default function HeroSection({
             </span>
             <span className="hd-badge">Ultra HD</span>
             <span className="audio-label">Spatial Audio</span>
+
+            {/* 🔄 INTEGRATED MINI CAPSULE PROGRESS BAR */}
+            {videoProgress > 0 && (
+              <div className="inline-progress-wrapper">
+                <div className="inline-progress-track">
+                  <div
+                    className="inline-progress-fill"
+                    style={{ width: `${videoProgress}%` }}
+                  />
+                </div>
+                {timeLeftText && (
+                  <span className="time-left-label">{timeLeftText}</span>
+                )}
+              </div>
+            )}
           </div>
 
           <p className="hero-description">
@@ -95,7 +121,7 @@ export default function HeroSection({
           <div className="action-button-group">
             <Link href={`/watch/${heroVideo.id}`} className="btn-play">
               {isContinueWatching(heroVideo.id)
-                ? "🔄 Resume Play"
+                ? "▶ Resume Play"
                 : "▶ Play Now"}
             </Link>
 
@@ -104,16 +130,6 @@ export default function HeroSection({
             </button>
           </div>
         </div>
-
-        {/* 🎞️ PREMIUM BOTTOM EDGE HISTORY PROGRESS BAR */}
-        {videoProgress > 0 && (
-          <div className="hero-progress-track">
-            <div
-              className="hero-progress-bar-fill"
-              style={{ width: `${videoProgress}%` }}
-            />
-          </div>
-        )}
       </section>
 
       <style>{`
@@ -167,6 +183,7 @@ export default function HeroSection({
         .hero-meta-row {
           display: flex;
           align-items: center;
+          flex-wrap: wrap;
           gap: 1.2rem;
           margin: 1.2rem 0;
           color: #b3b3b3;
@@ -188,6 +205,41 @@ export default function HeroSection({
           border-radius: 3px;
           font-weight: 600;
           color: #fff;
+        }
+
+        /* 🎬 MIXED METADATA COMPOSITE TRACK */
+        .inline-progress-wrapper {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.06);
+          padding: 4px 10px;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .inline-progress-track {
+          width: 60px;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 2px;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .inline-progress-fill {
+          height: 100%;
+          background: #e50914;
+          box-shadow: 0 0 8px #e50914;
+          border-radius: 2px;
+          transition: width 0.4s ease-out;
+        }
+
+        .time-left-label {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #e0e0e0;
+          letter-spacing: 0.02em;
         }
 
         .hero-description {
@@ -251,24 +303,6 @@ export default function HeroSection({
           transform: translateY(-1px);
         }
 
-        /* 🔄 HARDWARE ACCELERATED PROGRESS TRACK SHEETS */
-        .hero-progress-track {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 5px;
-          background: rgba(255, 255, 255, 0.12);
-          z-index: 30;
-        }
-
-        .hero-progress-bar-fill {
-          height: 100%;
-          background: #e50914;
-          box-shadow: 0 0 12px #e50914, 0 0 4px #e50914;
-          transition: width 0.4s ease-out;
-        }
-
         @media (max-width: 1024px) {
           .hero-title, .hero-description {
             max-width: 75%;
@@ -288,8 +322,8 @@ export default function HeroSection({
             padding: 0.75rem 1.8rem;
             font-size: 0.95rem;
           }
-          .hero-progress-track {
-            height: 4px; /* Slightly thinner accent profile line for mobile viewports */
+          .hero-meta-row {
+            gap: 0.8rem;
           }
         }
       `}</style>
