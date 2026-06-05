@@ -72,7 +72,7 @@ export default function HeroSection({
           <div className="action-button-group">
             <Link href={`/watch/${heroVideo.id}`} className="btn-play">
               {isContinueWatching(heroVideo.id)
-                ? "🔄 Resume Play"
+                ? "▶ Resume Play"
                 : "▶ Play Now"}
             </Link>
 
