@@ -278,7 +278,7 @@ export default function FeatureCard({
           background: linear-gradient(to top, rgba(0, 0, 0, 0.98) 0%, rgba(0, 0, 0, 0.78) 75%, rgba(0, 0, 0, 0.1) 100%);
           padding: 24px 20px 20px 20px;
           z-index: 5;
-          transform: translateY(54px); /* Hides full description block and action rows until hovered */
+          transform: translateY(40px); /* Hides full description block and action rows until hovered */
           transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), background 0.3s;
         }
 
