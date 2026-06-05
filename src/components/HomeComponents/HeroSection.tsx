@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Video } from "@/types/video";
@@ -16,6 +16,29 @@ export default function HeroSection({
   onOpen: (v: Video) => void;
 }) {
   const [imageError, setImageError] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+
+  // Read matching localStorage session keys to derive exact video continuation metrics
+  useEffect(() => {
+    try {
+      const history = JSON.parse(
+        localStorage.getItem("movieflix-history") || "{}",
+      );
+      const savedItem = history[heroVideo.id];
+      if (savedItem && savedItem.duration > 0 && savedItem.time > 5) {
+        const percentage = Math.min(
+          100,
+          (savedItem.time / savedItem.duration) * 100,
+        );
+        // Only render the bar if the video qualifies for "Continue Watching" threshold parameters
+        if (percentage < 95) {
+          setVideoProgress(percentage);
+        }
+      }
+    } catch {
+      setVideoProgress(0);
+    }
+  }, [heroVideo.id]);
 
   return (
     <>
@@ -72,7 +95,7 @@ export default function HeroSection({
           <div className="action-button-group">
             <Link href={`/watch/${heroVideo.id}`} className="btn-play">
               {isContinueWatching(heroVideo.id)
-                ? "▶ Resume Play"
+                ? "🔄 Resume Play"
                 : "▶ Play Now"}
             </Link>
 
@@ -81,6 +104,16 @@ export default function HeroSection({
             </button>
           </div>
         </div>
+
+        {/* 🎞️ PREMIUM BOTTOM EDGE HISTORY PROGRESS BAR */}
+        {videoProgress > 0 && (
+          <div className="hero-progress-track">
+            <div
+              className="hero-progress-bar-fill"
+              style={{ width: `${videoProgress}%` }}
+            />
+          </div>
+        )}
       </section>
 
       <style>{`
@@ -113,7 +146,7 @@ export default function HeroSection({
           bottom: 15%;
           left: 4%;
           right: 4%;
-          z-index: 20; /* Fixed layer stack so it stays on top of page background tracks */
+          z-index: 20;
         }
 
         .hero-title {
@@ -124,7 +157,7 @@ export default function HeroSection({
           margin: 0;
           color: #ffffff;
           text-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-          max-width: 55%; /* Spans to roughly half the page footprint */
+          max-width: 55%;
           display: -webkit-box;
           WebkitLineClamp: 2;
           WebkitBoxOrient: vertical;
@@ -163,7 +196,7 @@ export default function HeroSection({
           line-height: 1.6;
           margin: 0;
           text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-          max-width: 50%; /* Constrains block copy perfectly to 1/2 of the layout track width */
+          max-width: 50%;
           display: -webkit-box;
           WebkitLineClamp: 3;
           WebkitBoxOrient: vertical;
@@ -218,9 +251,27 @@ export default function HeroSection({
           transform: translateY(-1px);
         }
 
+        /* 🔄 HARDWARE ACCELERATED PROGRESS TRACK SHEETS */
+        .hero-progress-track {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 5px;
+          background: rgba(255, 255, 255, 0.12);
+          z-index: 30;
+        }
+
+        .hero-progress-bar-fill {
+          height: 100%;
+          background: #e50914;
+          box-shadow: 0 0 12px #e50914, 0 0 4px #e50914;
+          transition: width 0.4s ease-out;
+        }
+
         @media (max-width: 1024px) {
           .hero-title, .hero-description {
-            max-width: 75%; /* Scales gracefully onto tablet screens */
+            max-width: 75%;
           }
         }
 
@@ -236,6 +287,9 @@ export default function HeroSection({
           .btn-play, .btn-info {
             padding: 0.75rem 1.8rem;
             font-size: 0.95rem;
+          }
+          .hero-progress-track {
+            height: 4px; /* Slightly thinner accent profile line for mobile viewports */
           }
         }
       `}</style>
