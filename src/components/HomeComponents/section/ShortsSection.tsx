@@ -92,7 +92,6 @@ export default function ShortsSection({
 
                 {/* AMBIENT GRADIENT & METADATA OVERLAYS */}
                 <div className="shorts-gradient-overlay" />
-                <div className="shorts-content-badge">⚡ Short</div>
 
                 <div className="shorts-meta-container">
                   <p className="shorts-title-text">{video.title}</p>
