@@ -232,7 +232,7 @@ export default function FeatureCard({
           position: relative;
           width: 480px;
           height: 270px;
-          border-radius: 14px;
+          border-radius: 0px;
           overflow: hidden;
           background: #111111;
           border: 1px solid rgba(255, 255, 255, 0.04);
