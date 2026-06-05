@@ -106,7 +106,7 @@ export default function FeatureCard({
           .f-skeleton-thumb {
             width: 480px;
             height: 270px;
-            border-radius: 14px;
+            border-radius: 0px;
             background: #1f1f1f;
             position: relative;
             overflow: hidden;
