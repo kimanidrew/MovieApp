@@ -18,7 +18,7 @@ export default function MyListPage() {
           <svg style={{ color: '#888', marginBottom: '1.5rem' }} width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 4v16m8-8H4"/></svg>
           <h2 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Your List is Empty</h2>
           <p style={{ color: '#777', fontSize: '1.1rem', marginBottom: '2rem' }}>Add shows and movies to your list so you can easily find them later.</p>
-          <Link href="/movies" style={{ textDecoration: 'none', display: 'inline-block', background: '#e50914', color: '#fff', border: 'none', padding: '1rem 2rem', fontSize: '1.1rem', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>
+          <Link href="/movies" style={{ textDecoration: 'none', display: 'inline-block', background: 'linear-gradient(to right, #3b82f6, #ec4899)', color: '#fff', border: 'none', padding: '1rem 2rem', fontSize: '1.1rem', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>
             Explore Now
           </Link>
         </div>

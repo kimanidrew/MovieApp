@@ -159,7 +159,7 @@ body {
   position: absolute;
   left: 0;
   height: 100%;
-  background: #e50914;
+  background: linear-gradient(to right, #3b82f6, #ec4899);
   border-radius: 4px;
   pointer-events: none;
   z-index: 2;
@@ -184,7 +184,7 @@ body {
   top: 50%;
   width: 16px;
   height: 16px;
-  background: #e50914;
+  background: linear-gradient(to right, #3b82f6, #ec4899);
   border-radius: 50%;
   transform: translate(-50%, -50%) scale(0);
   transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1);
@@ -270,7 +270,7 @@ body {
 
 /* Mozilla Firefox support natively handles tracking fill color */
 .volume-slider::-moz-range-progress {
-  background-color: #e50914;
+  background: linear-gradient(to right, #3b82f6, #ec4899);
   height: 4px;
   border-radius: 2px;
 }
@@ -290,7 +290,7 @@ body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #e50914;
+  background: linear-gradient(to right, #3b82f6, #ec4899);
   margin-top: -5px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   transition: transform 0.1s ease;
@@ -380,9 +380,9 @@ body {
 }
 
 .quality-menu button.active {
-  color: #e50914;
+  color: #ec4899;
   font-weight: 700;
-  background: rgba(229, 9, 20, 0.08);
+  background: rgba(236, 72, 153, 0.08);
 }
 
 /* ==========================================================================

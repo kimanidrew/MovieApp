@@ -13,7 +13,7 @@ export default function AboutPage() {
       <Navbar />
       
       <div className="animate-in" style={{ flex: 1, padding: '12rem 4% 8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '2rem', background: 'linear-gradient(45deg, #e50914, #ff4c4c, #ffb400)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', letterSpacing: '-1px' }}>
+        <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '2rem', background: 'linear-gradient(to right, #3b82f6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', letterSpacing: '-1px' }}>
           Redefining Cinema
         </h1>
         

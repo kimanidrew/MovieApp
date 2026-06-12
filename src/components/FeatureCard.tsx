@@ -234,7 +234,7 @@ export default function FeatureCard({
           height: 270px;
           border-radius: 0px;
           overflow: hidden;
-          background: #111111;
+          background: #141414;
           border: 1px solid rgba(255, 255, 255, 0.04);
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
           transition: box-shadow 0.3s ease;
@@ -309,9 +309,9 @@ export default function FeatureCard({
         }
 
         .f-category {
-          color: #e50914;
+          color: #ec4899;
           font-weight: 800;
-          background: rgba(229, 9, 20, 0.14);
+          background: rgba(236, 72, 153, 0.14);
           padding: 3px 10px;
           border-radius: 4px;
           font-size: 0.68rem;
@@ -381,7 +381,7 @@ export default function FeatureCard({
           transition: background 0.2s, transform 0.1s;
         }
         .f-btn-play:hover {
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           color: #ffffff;
         }
         .f-btn-play:active {
@@ -419,8 +419,8 @@ export default function FeatureCard({
         }
         .f-progress-bar div {
           height: 100%;
-          background: #e50914;
-          box-shadow: 0 0 10px #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          box-shadow: 0 0 10px #ec4899;
         }
 `}</style>
     </div>

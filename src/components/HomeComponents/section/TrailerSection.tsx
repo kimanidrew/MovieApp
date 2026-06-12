@@ -2,11 +2,89 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import Hls from "hls.js";
 import { Video } from "@/types/video";
 import { normalizeUrl } from "@/utils/normalizeUrl";
 import VideoModal from "@/components/VideoModal";
 import PauseIcon from "@/components/icons/PauseIcon";
 import PlayIcon from "@/components/icons/PlayIcon";
+
+// 🔊 Lightweight inline SVG icon components for absolute self-containment
+const VolumeMuteIcon = ({ size = 20, color = "#fff" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6" />
+  </svg>
+);
+
+const VolumeHighIcon = ({ size = 20, color = "#fff" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" />
+  </svg>
+);
+
+const ShareIcon = ({ size = 20, color = "#fff" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />
+  </svg>
+);
+
+const PlusIcon = ({ size = 20, color = "#fff" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const CheckIcon = ({ size = 20, color = "#fff" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color}
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
 
 export default function TrailerSection({
   videos,
@@ -17,27 +95,95 @@ export default function TrailerSection({
 }) {
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
   const [showControlsOnly, setShowControlsOnly] = useState(false);
   const [selectedModalVideo, setSelectedModalVideo] = useState<Video | null>(
     null,
   );
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+  const [addedToList, setAddedToList] = useState<Record<string, boolean>>({});
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Buffer and VP logic
+  const [isVideoBuffering, setIsVideoBuffering] = useState(true);
+  const [isLoopTransitioning, setIsLoopTransitioning] = useState(false);
+  const [isInViewport, setIsInViewport] = useState(false);
+
+  // Custom Observer Overlays (for pausing gracefully out of view)
+  const [outOfViewOverlay, setOutOfViewOverlay] = useState(false);
 
   const sectionRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const carouselRef = useRef<HTMLDivElement>(null);
+  const queueRef = useRef<HTMLDivElement>(null);
   const uiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeVideo = videos[activeVideoIndex] || null;
 
-  // 1. Intersection Observer: Handle view port auto play / pause
+  // 1. Playback Engine
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !activeVideo?.hlsManifestUrl) return;
+
+    setIsVideoBuffering(true);
+    setIsLoopTransitioning(false);
+
+    const streamUrl = normalizeUrl(activeVideo.hlsManifestUrl);
+    let hls: Hls | null = null;
+
+    const handlePlaying = () => setIsVideoBuffering(false);
+
+    const handleTimeUpdate = () => {
+      const loopLimit = 60;
+      const fadeTime = 1.5;
+      if (video.currentTime >= loopLimit - fadeTime && !isLoopTransitioning) {
+        setIsLoopTransitioning(true);
+      }
+      if (video.currentTime >= loopLimit) {
+        video.currentTime = 0;
+        setIsLoopTransitioning(false);
+      }
+    };
+
+    video.addEventListener("playing", handlePlaying);
+    video.addEventListener("timeupdate", handleTimeUpdate);
+
+    if (Hls.isSupported()) {
+      hls = new Hls({ maxMaxBufferLength: 8 });
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (isPlaying && isInViewport) video.play().catch(() => {});
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = streamUrl;
+      video.addEventListener("loadedmetadata", () => {
+        if (isPlaying && isInViewport) video.play().catch(() => {});
+      });
+    }
+
+    return () => {
+      video.removeEventListener("playing", handlePlaying);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      if (hls) hls.destroy();
+    };
+  }, [activeVideoIndex, activeVideo?.hlsManifestUrl]);
+
+  // 2. Intersection Observer (Hardened Rules)
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
+        const currentlyInView = entry.isIntersecting;
+        setIsInViewport(currentlyInView);
+
         if (videoRef.current) {
-          if (entry.isIntersecting && isPlaying) {
-            videoRef.current.play().catch(() => {});
+          if (currentlyInView) {
+            setOutOfViewOverlay(false);
+            if (isPlaying) {
+              videoRef.current.play().catch(() => {});
+            }
           } else {
+            setOutOfViewOverlay(true);
             videoRef.current.pause();
           }
         }
@@ -45,14 +191,11 @@ export default function TrailerSection({
       { threshold: 0.3 },
     );
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
+    if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
-  }, [isPlaying, activeVideoIndex]);
+  }, [isPlaying]);
 
-  // 2. Auto-hide Info controls sequence loop
+  // 3. UI Auto-fade
   const startUiTimeout = () => {
     if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
     setShowControlsOnly(false);
@@ -71,39 +214,26 @@ export default function TrailerSection({
     };
   }, [isPlaying, activeVideoIndex]);
 
-  // 3. Automated Next-Video Loop Cycle & Carousel Alignment Syncer
+  // 4. Queue Syncer
   const handleVideoEnded = () => {
     const nextIndex = (activeVideoIndex + 1) % videos.length;
     setActiveVideoIndex(nextIndex);
-    scrollToCard(nextIndex);
+    scrollToQueueItem(nextIndex);
   };
 
-  const scrollToCard = (index: number) => {
-    if (carouselRef.current) {
-      const cardNodes = carouselRef.current.querySelectorAll(
-        ".carousel-thumb-card",
-      );
-      const targetCard = cardNodes[index] as HTMLElement;
-      if (targetCard) {
-        carouselRef.current.scrollTo({
-          left: targetCard.offsetLeft - carouselRef.current.offsetLeft - 24, // Accounting for paddings
+  const scrollToQueueItem = (index: number) => {
+    if (queueRef.current) {
+      const targetElement = queueRef.current.children[index] as HTMLElement;
+      if (targetElement) {
+        queueRef.current.scrollTo({
+          top: targetElement.offsetTop - 80,
           behavior: "smooth",
         });
       }
     }
   };
 
-  const scrollCarousel = (direction: "left" | "right") => {
-    if (carouselRef.current) {
-      const { scrollLeft, clientWidth } = carouselRef.current;
-      const amount = clientWidth * 0.7;
-      const target =
-        direction === "left" ? scrollLeft - amount : scrollLeft + amount;
-
-      carouselRef.current.scrollTo({ left: target, behavior: "smooth" });
-    }
-  };
-
+  // Actions
   const togglePlayback = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (videoRef.current) {
@@ -117,6 +247,32 @@ export default function TrailerSection({
     }
   };
 
+  const toggleAudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+    }
+  };
+
+  // Marketing CTA actions
+  const showToast = (message: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(message);
+    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href).catch(() => {});
+    showToast("Link Copied to Clipboard!");
+  };
+
+  const handleListToggle = () => {
+    const isAdded = addedToList[activeVideo.id!];
+    setAddedToList((prev) => ({ ...prev, [activeVideo.id!]: !isAdded }));
+    showToast(isAdded ? "Removed from My List" : "Added to My List");
+  };
+
   if (!activeVideo || videos.length === 0) return null;
 
   return (
@@ -126,21 +282,22 @@ export default function TrailerSection({
         className="trailer-theater-section"
         onMouseMove={startUiTimeout}
       >
-        {/* 🎬 CINEMATIC THEATER HERO BANNER */}
+        {/* VIEWPORT PAUSE OVERLAY */}
+        <div
+          className={`viewport-suspend-overlay ${outOfViewOverlay ? "suspended" : ""}`}
+        >
+          <div className="suspend-content">
+            <PauseIcon size={48} color="rgba(255,255,255,0.7)" />
+            <p>Paused for bandwidth</p>
+          </div>
+        </div>
+
+        {/* 🎬 CINEMATIC HERO BACKGROUND (Left Side Focus) */}
         <div className="theater-banner">
-          {activeVideo.videoUrl ? (
-            <video
-              ref={videoRef}
-              key={`banner-stream-${activeVideo.id}`}
-              src={normalizeUrl(activeVideo.videoUrl)}
-              autoPlay
-              muted
-              playsInline
-              onEnded={handleVideoEnded}
-              className="theater-video-bg"
-            />
-          ) : (
-            !brokenImages[`banner-${activeVideo.id}`] && (
+          {!brokenImages[`banner-${activeVideo.id}`] && (
+            <div
+              className={`theater-thumbnail-wrapper ${!isVideoBuffering ? "fade-out" : ""}`}
+            >
               <Image
                 src={normalizeUrl(activeVideo.thumbnailUrl)}
                 alt=""
@@ -155,23 +312,40 @@ export default function TrailerSection({
                   }))
                 }
               />
-            )
+            </div>
+          )}
+
+          {activeVideo.hlsManifestUrl && (
+            <video
+              ref={videoRef}
+              autoPlay
+              muted={isMuted}
+              playsInline
+              onEnded={handleVideoEnded}
+              className={`theater-video-bg ${!isVideoBuffering ? "active-playing" : ""} ${isLoopTransitioning ? "loop-fade-out" : "loop-fade-in"}`}
+              style={{ pointerEvents: "none" }}
+            />
           )}
 
           <div className="theater-gradient-overlay" />
+          <div className="vertical-queue-shadow" />
 
-          {/* TEXT CAPTIONS WITH INTELLIGENT CONDITIONAL HIDE STATES */}
+          {/* LEFT-ALIGNED TEXT CAPTIONS & MARKETING ACTIONS */}
           <div
             className={`theater-content-card ${showControlsOnly ? "ui-hidden" : ""}`}
           >
-            <span className="live-preview-badge">
-              ⚡ Now Previewing Trailer
-            </span>
+            <div className="marketing-badges">
+              <span className="live-preview-badge">🔥 Trending #1</span>
+              <span className="tech-badge">4K Ultra HD</span>
+              <span className="tech-badge">Dolby Vision</span>
+            </div>
+
             <h2 className="theater-title">{activeVideo.title}</h2>
             <p className="theater-description">
               {activeVideo.description ||
                 "Watch the official cinematic teaser and get an exclusive look ahead."}
             </p>
+
             <div className="theater-action-row">
               <button
                 className="btn-theater-play"
@@ -179,6 +353,28 @@ export default function TrailerSection({
               >
                 ▶ Watch Full Movie
               </button>
+
+              <div className="action-circle-group">
+                <button
+                  className="circle-action-btn"
+                  onClick={handleListToggle}
+                  title="Add to List"
+                >
+                  {addedToList[activeVideo.id!] ? (
+                    <CheckIcon color="#3b82f6" />
+                  ) : (
+                    <PlusIcon />
+                  )}
+                </button>
+                <button
+                  className="circle-action-btn"
+                  onClick={handleShare}
+                  title="Share"
+                >
+                  <ShareIcon />
+                </button>
+              </div>
+
               <button
                 className="btn-theater-info"
                 onClick={() => onSelect(activeVideo)}
@@ -188,40 +384,39 @@ export default function TrailerSection({
             </div>
           </div>
 
-          {/* PREMIUM CUSTOM MEDIA ACCESS CONTROLS BAR */}
-          <div className="theater-custom-playback-layer">
+          {/* MEDIA CONTROLS OVERLAY (Bottom Left below content) */}
+          <div
+            className={`theater-custom-playback-layer ${showControlsOnly ? "ui-fade" : ""}`}
+          >
             <button
               className="playback-toggle-circle-btn p-5"
               onClick={togglePlayback}
-              aria-label={isPlaying ? "Pause video" : "Play video"}
+              aria-label="Toggle Play"
             >
               {isPlaying ? (
-                <PauseIcon size={44} color="#ffffff" />
+                <PauseIcon size={32} color="#ffffff" />
               ) : (
-                <PlayIcon size={44} color="#ffffff" />
+                <PlayIcon size={32} color="#ffffff" />
+              )}
+            </button>
+            <button
+              className="playback-toggle-circle-btn p-5"
+              onClick={toggleAudio}
+              aria-label="Toggle Audio"
+            >
+              {isMuted ? (
+                <VolumeMuteIcon size={32} color="#ffffff" />
+              ) : (
+                <VolumeHighIcon size={32} color="#ffffff" />
               )}
             </button>
           </div>
         </div>
 
-        {/* 🎞️ CAROUSEL SELECTION SLIDER TRACK */}
-        <div className="carousel-wrapper-track">
-          <button
-            className="slider-arrow arrow-left"
-            onClick={() => scrollCarousel("left")}
-            aria-label="Slide left"
-          >
-            ‹
-          </button>
-          <button
-            className="slider-arrow arrow-right"
-            onClick={() => scrollCarousel("right")}
-            aria-label="Slide right"
-          >
-            ›
-          </button>
-
-          <div ref={carouselRef} className="carousel-horizontal-scroll">
+        {/* 🎞️ NEW: VERTICAL RIGHT-SIDE QUEUE */}
+        <div className="vertical-queue-panel">
+          <h3 className="queue-title text-gradient">Up Next</h3>
+          <div className="queue-scroll" ref={queueRef}>
             {videos.map((video, idx) => {
               const isActive = activeVideoIndex === idx;
               const isImageBroken = brokenImages[`thumb-${video.id}`];
@@ -229,10 +424,10 @@ export default function TrailerSection({
               return (
                 <div
                   key={`trailer-thumb-${video.id}`}
-                  className={`carousel-thumb-card ${isActive ? "active-thumb" : ""}`}
+                  className={`vertical-thumb-card ${isActive ? "active-thumb" : ""}`}
                   onClick={() => {
                     setActiveVideoIndex(idx);
-                    scrollToCard(idx);
+                    scrollToQueueItem(idx);
                   }}
                 >
                   <div className="thumb-image-carrier">
@@ -256,11 +451,19 @@ export default function TrailerSection({
                       <div className="now-playing-strip">NOW PLAYING</div>
                     )}
                   </div>
-                  <p className="thumb-caption-title">{video.title}</p>
+                  <div className="thumb-meta-info">
+                    <p className="thumb-caption-title">{video.title}</p>
+                    <p className="thumb-caption-sub">Feature Film</p>
+                  </div>
                 </div>
               );
             })}
           </div>
+        </div>
+
+        {/* TOAST SYSTEM */}
+        <div className={`toast-notification ${toastMessage ? "visible" : ""}`}>
+          {toastMessage}
         </div>
       </section>
 
@@ -275,42 +478,92 @@ export default function TrailerSection({
       <style>{`
         .trailer-theater-section {
           width: 100%;
-          background: #0a0a0a;
+          background: #141414;
           font-family: 'Inter', system-ui, sans-serif;
           margin-bottom: 3rem;
           position: relative;
+          display: flex;
+          height: 75vh;
+          overflow: hidden;
+          border-radius: 0px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        .viewport-suspend-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.85);
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.5s ease;
+        }
+        .viewport-suspend-overlay.suspended {
+          opacity: 1;
+        }
+        .suspend-content {
+          text-align: center;
+          color: rgba(255,255,255,0.7);
+          font-weight: 500;
+          letter-spacing: 0.05em;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
         }
 
         .theater-banner {
           position: relative;
-          height: 60vh;
-          width: 100%;
-          background: #111111;
+          flex: 1;
+          background: #141414;
           overflow: hidden;
         }
 
-        .theater-video-bg {
+        .theater-video-bg, .theater-thumbnail-wrapper {
+          position: absolute;
+          inset: 0;
           width: 100%;
           height: 100%;
           object-fit: cover;
-          opacity: 0.55;
         }
+        
+        .theater-thumbnail-wrapper {
+          transition: opacity 0.8s ease;
+          z-index: 1;
+        }
+        .theater-thumbnail-wrapper.fade-out {
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .theater-video-bg { opacity: 0.65; z-index: 0; }
 
         .theater-gradient-overlay {
           position: absolute;
           inset: 0;
-          background: linear-gradient(to top, #0a0a0a 0%, transparent 60%),
-                      linear-gradient(to right, rgba(10,10,10,0.9) 20%, transparent 75%);
+          background: linear-gradient(to top, #141414 0%, transparent 60%),
+                      linear-gradient(to right, rgba(20,20,20,0.95) 15%, transparent 60%);
           z-index: 2;
+        }
+
+        .vertical-queue-shadow {
+          position: absolute;
+          top: 0; bottom: 0; right: 0;
+          width: 20%;
+          background: linear-gradient(to left, rgba(20,20,20,0.85) 0%, transparent 100%);
+          z-index: 2;
+          pointer-events: none;
         }
 
         /* HARDWARE ACCELERATED TRANSPARENCY SHIFTING CORES */
         .theater-content-card {
           position: absolute;
-          bottom: 8%;
-          left: 4%;
-          right: 4%;
-          max-width: 640px;
+          bottom: 15%;
+          left: 5%;
+          max-width: 600px;
           z-index: 10;
           opacity: 1;
           transform: translateY(0);
@@ -318,44 +571,329 @@ export default function TrailerSection({
         }
 
         .theater-content-card.ui-hidden {
-          opacity: 0;
+          opacity: 0.2;
           transform: translateY(8px);
-          pointer-events: none;
+        }
+
+        .marketing-badges {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 12px;
+          align-items: center;
+          flex-wrap: wrap;
         }
 
         .live-preview-badge {
-          color: #e50914;
+          color: #ffffff;
           font-size: 0.75rem;
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.06em;
-          background: rgba(229, 9, 20, 0.1);
-          padding: 4px 8px;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          padding: 4px 10px;
           border-radius: 4px;
-          display: inline-block;
-          margin-bottom: 12px;
+          box-shadow: 0 4px 15px rgba(236,72,153,0.3);
+        }
+
+        .tech-badge {
+          color: #cccccc;
+          font-size: 0.7rem;
+          font-weight: 700;
+          border: 1px solid rgba(255,255,255,0.3);
+          padding: 3px 8px;
+          border-radius: 3px;
         }
 
         .theater-title {
-          font-size: 2.75rem;
+          font-size: 3rem;
           font-weight: 900;
-          line-height: 1.15;
+          line-height: 1.1;
           letter-spacing: -0.02em;
-          margin: 0 0 10px 0;
+          margin: 0 0 12px 0;
           color: #ffffff;
-          text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+          text-shadow: 0 4px 15px rgba(0,0,0,0.7);
         }
 
         .theater-description {
-          font-size: 1rem;
+          font-size: 1.05rem;
           line-height: 1.5;
-          color: #cccccc;
-          margin: 0 0 20px 0;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+          color: #dddddd;
+          margin: 0 0 24px 0;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.8);
           display: -webkit-box;
-          WebkitLineClamp: 3;WebkitBoxOrient: vertical;overflow: hidden;}.theater-action-row {display: flex;gap: 12px;}.btn-theater-play {background: #e50914;color: #ffffff;border: none;padding: 10px 24px;border-radius: 6px;font-weight: 700;font-size: 0.95rem;cursor: pointer;box-shadow: 0 4px 15px rgba(229,9,20,0.3);transition: transform 0.2s ease, background 0.2s;}.btn-theater-play:hover {background: #ff1e27;transform: translateY(-1px);}.btn-theater-info {background: rgba(255, 255, 255, 0.1);color: #ffffff;border: 1px solid rgba(255, 255, 255, 0.15);backdrop-filter: blur(10px);padding: 10px 24px;border-radius: 6px;font-weight: 600;font-size: 0.95rem;cursor: pointer;transition: background 0.2s, transform 0.2s;}.btn-theater-info:hover {background: rgba(255, 255, 255, 0.2);transform: translateY(-1px);}/* FIXED PLACEMENT CONTROL TRIGGERS */.theater-custom-playback-layer {position: absolute;bottom: 8%;right: 4%;z-index: 15;}.playback-toggle-circle-btn {width: 44px;height: 44px;border-radius: 50%;background: rgba(10, 10, 10, 0.5);backdrop-filter: blur(8px);border: 1px solid rgba(255, 255, 255, 0.15);color: #fff;font-size: 0.95rem;display: flex;align-items: center;justify-content: center;cursor: pointer;transition: background 0.2s, transform 0.2s;}.playback-toggle-circle-btn:hover {background: #e50914;border-color: #e50914;transform: scale(1.05);}/* CAROUSEL TRACK CONSTRAINTS (STRICT SYSTEM METRICS) */.carousel-wrapper-track {position: relative;padding: 1rem 4% 0 4%;}.carousel-track-heading {font-size: 1.1rem;font-weight: 600;color: #808080;text-transform: uppercase;letter-spacing: 0.04em;margin: 0 0 1rem 0;}.carousel-horizontal-scroll {display: flex;gap: 1.25rem;overflow-x: auto;scrollbar-width: none;padding: 0.5rem 0 1rem 0;scroll-snap-type: x mandatory;scroll-behavior: smooth;}.carousel-horizontal-scroll::-webkit-scrollbar {display: none;}/* CRITICAL SYNC FIX: Guarantee matching dimensions regardless of text length constraints */.carousel-thumb-card {flex: 0 0 220px;width: 220px;cursor: pointer;scroll-snap-align: start;transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);}.carousel-thumb-card:hover {transform: translateY(-4px);}.thumb-image-carrier {position: relative;width: 220px;height: 124px; /* Hardlocked strict 16:9 box scale heights */border-radius: 6px;overflow: hidden;background: #161616;border: 2px solid transparent;transition: border-color 0.2s, box-shadow 0.2s;}.active-thumb .thumb-image-carrier {border-color: #e50914 !important;box-shadow: 0 0 15px rgba(229,9,20,0.4);}.thumb-blur-layer {position: absolute;inset: 0;background: rgba(0,0,0,0.15);transition: opacity 0.2s;}.carousel-thumb-card:hover .thumb-blur-layer {opacity: 0;}.now-playing-strip {position: absolute;bottom: 0; left: 0; right: 0;background: #e50914;color: #ffffff;font-size: 0.65rem;font-weight: 800;text-align: center;padding: 2px 0;letter-spacing: 0.05em;}.thumb-caption-title {margin: 8px 0 0 0;font-size: 0.88rem;font-weight: 500;color: #a3a3a3;white-space: nowrap;overflow: hidden;text-overflow: ellipsis;width: 100%;}.carousel-thumb-card:hover .thumb-caption-title {color: #ffffff;}.active-thumb .thumb-caption-title {color: #ffffff;font-weight: 600;}/* HARDWARE SCROLL ARROWS */.slider-arrow {position: absolute;top: 60%;transform: translateY(-50%);width: 38px;height: 64px;background: rgba(15, 15, 15, 0.6);backdrop-filter: blur(12px);border: 1px solid rgba(255,255,255,0.05);color: #ffffff;font-size: 1.75rem;display: flex;align-items: center;justify-content: center;cursor: pointer;z-index: 25;transition: background 0.2s, color 0.2s;}.arrow-left { left: 2.5%; border-radius: 4px 0 0 4px; }.arrow-right { right: 2.5%; border-radius: 0 4px 4px 0; }.slider-arrow:hover {background: #e50914;color: #ffffff;}@media (max-width: 768px) {.theater-banner { height: 45vh; }.theater-title { font-size: 1.85rem; }.slider-arrow { display: none; }.carousel-thumb-card, .thumb-image-carrier { width: 170px; }.thumb-image-carrier { height: 96px; }}
-        .carousel-thumb-card:hover .thumb-image-carrier {border-color: rgba(255,255,255,0.4);}
-`}</style>
+          WebkitLineClamp: 3;
+          WebkitBoxOrient: vertical;
+          overflow: hidden;
+        }
+
+        .theater-action-row {
+          display: flex;
+          gap: 16px;
+          align-items: center;
+        }
+
+        .btn-theater-play {
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          color: #ffffff;
+          border: none;
+          padding: 12px 28px;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 1rem;
+          cursor: pointer;
+          box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+          transition: transform 0.2s ease, box-shadow 0.2s, filter 0.2s;
+        }
+        .btn-theater-play:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.1);
+          box-shadow: 0 6px 25px rgba(236, 72, 153, 0.5);
+        }
+
+        .btn-theater-info {
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(10px);
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.2s;
+        }
+        .btn-theater-info:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+
+        .action-circle-group {
+          display: flex;
+          gap: 10px;
+        }
+
+        .circle-action-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.15);
+          backdrop-filter: blur(10px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+        .circle-action-btn:hover {
+          background: rgba(255,255,255,0.2);
+          border-color: #3b82f6;
+          transform: translateY(-2px) scale(1.05);
+        }
+
+        /* MEDIA CONTROLS OVERLAY */
+        .theater-custom-playback-layer {
+          position: absolute;
+          bottom: 5%;
+          right: 5%;
+          z-index: 15;
+          display: flex;
+          gap: 12px;
+          transition: opacity 0.4s;
+        }
+        .theater-custom-playback-layer.ui-fade {
+          opacity: 0.3;
+        }
+        .theater-custom-playback-layer.ui-fade:hover {
+          opacity: 1;
+        }
+
+        .playback-toggle-circle-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .playback-toggle-circle-btn:hover {
+          background: rgba(255,255,255,0.1);
+          transform: scale(1.1);
+          border-color: #ec4899;
+          box-shadow: 0 0 15px rgba(236,72,153,0.3);
+        }
+
+        /* 🆕 VERTICAL QUEUE PANEL */
+        .vertical-queue-panel {
+          width: 320px;
+          background: rgba(20, 20, 20, 0.6);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border-left: 1px solid rgba(255,255,255,0.05);
+          display: flex;
+          flex-direction: column;
+          z-index: 10;
+        }
+
+        .queue-title {
+          padding: 24px 24px 12px 24px;
+          font-size: 1.1rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin: 0;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .queue-scroll {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding: 0 16px 24px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.2) transparent;
+        }
+        .queue-scroll::-webkit-scrollbar { width: 4px; }
+        .queue-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+        .vertical-thumb-card {
+          flex-shrink: 0;
+          display: flex;
+          gap: 12px;
+          padding: 8px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.25s ease;
+          border: 1px solid transparent;
+        }
+        .vertical-thumb-card:hover {
+          background: rgba(255,255,255,0.05);
+        }
+        .vertical-thumb-card.active-thumb {
+          background: rgba(255,255,255,0.08);
+          border-color: rgba(236,72,153,0.3);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .vertical-thumb-card .thumb-image-carrier {
+          position: relative;
+          width: 110px;
+          height: 62px;
+          border-radius: 6px;
+          overflow: hidden;
+          background: #111;
+          border: 1px solid transparent;
+          transition: border-color 0.2s;
+        }
+        .vertical-thumb-card.active-thumb .thumb-image-carrier {
+          border-color: #3b82f6;
+        }
+
+        .thumb-blur-layer {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.3);
+          transition: opacity 0.2s;
+        }
+        .vertical-thumb-card:hover .thumb-blur-layer { opacity: 0; }
+        .vertical-thumb-card.active-thumb .thumb-blur-layer { opacity: 0; }
+
+        .now-playing-strip {
+          position: absolute;
+          bottom: 0; left: 0; right: 0;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          color: #ffffff;
+          font-size: 0.55rem;
+          font-weight: 800;
+          text-align: center;
+          padding: 2px 0;
+          letter-spacing: 0.05em;
+        }
+
+        .thumb-meta-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          overflow: hidden;
+        }
+
+        .thumb-caption-title {
+          margin: 0 0 4px 0;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: #d4d4d4;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          transition: color 0.2s;
+        }
+        .vertical-thumb-card:hover .thumb-caption-title,
+        .vertical-thumb-card.active-thumb .thumb-caption-title {
+          color: #ffffff;
+        }
+
+        .thumb-caption-sub {
+          margin: 0;
+          font-size: 0.7rem;
+          color: #737373;
+          font-weight: 500;
+        }
+
+        /* TOAST ANIMATION */
+        .toast-notification {
+          position: absolute;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%) translateY(-20px);
+          background: rgba(15,23,42,0.9);
+          backdrop-filter: blur(10px);
+          color: #fff;
+          padding: 12px 24px;
+          border-radius: 30px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          border: 1px solid rgba(59,130,246,0.3);
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          z-index: 100;
+        }
+        .toast-notification.visible {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+
+        @media (max-width: 900px) {
+          .trailer-theater-section {
+            flex-direction: column;
+            height: auto;
+          }
+          .theater-banner {
+            height: 50vh;
+            flex: none;
+          }
+          .vertical-queue-panel {
+            width: 100%;
+            height: 30vh;
+            border-left: none;
+            border-top: 1px solid rgba(255,255,255,0.05);
+          }
+          .theater-title { font-size: 2rem; }
+          .marketing-badges { display: none; }
+        }
+      `}</style>
     </>
   );
 }

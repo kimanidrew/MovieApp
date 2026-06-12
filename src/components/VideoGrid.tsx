@@ -180,7 +180,7 @@ export default function VideoGrid({
 
         .poster-progress-fill {
           height: 100%;
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
         }
 
         .poster-play-overlay {

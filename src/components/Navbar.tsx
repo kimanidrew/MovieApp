@@ -16,60 +16,68 @@ export default function Navbar() {
 
   return (
     <nav className={`navbar ${isScrolled ? "scrolled" : ""}`}>
-      <div className="nav-left">
-        <Link href="/" className="nav-brand">MOVIEFLIX</Link>
+      <div className="nav-container">
+        <div className="nav-left">
+          <Link href="/" className="nav-brand text-gradient">MFLIX</Link>
 
-        <ul className="nav-links">
-          <li><Link href="/">Home</Link></li>
-          <li><Link href="/tv">TV Shows</Link></li>
-          <li><Link href="/movies">Movies</Link></li>
-          <li><Link href="/my-list">My List</Link></li>
-        </ul>
-      </div>
+          <ul className="nav-links">
+            <li><Link href="/">Home</Link></li>
+            <li><Link href="/tv">TV</Link></li>
+            <li><Link href="/movies">Movies</Link></li>
+            <li><Link href="/my-list">My Collection</Link></li>
+          </ul>
+        </div>
 
-      <div className="nav-right">
-        <Link href="/upload" className="upload-btn">
-          Upload
-        </Link>
+        <div className="nav-right">
+          <Link href="/upload" className="upload-btn">
+            Upload
+          </Link>
+        </div>
       </div>
 
       <style>{`
         .navbar {
           position: fixed;
-          top: 0;
-          width: 100%;
-          padding: 1rem 4%;
+          top: 1rem;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 95%;
+          max-width: 1400px;
+          z-index: 1000;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-container {
+          padding: 1rem 2rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          z-index: 1000;
-
-          background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
-          backdrop-filter: blur(0px);
-          -webkit-backdrop-filter: blur(0px);
-
+          border-radius: 20px;
+          border: 1px solid transparent;
           transition: all 0.4s ease;
+          background: transparent;
         }
 
-        /* 🔥 SCROLLED STATE */
-        .navbar.scrolled {
-          background: rgba(20, 20, 20, 0.85);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        /* 🔥 SCROLLED STATE: Floating Glass Pill */
+        .navbar.scrolled .nav-container {
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(25px);
+          -webkit-backdrop-filter: blur(20px);
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 0.8rem 2rem;
         }
 
         .nav-left {
           display: flex;
           align-items: center;
-          gap: 2rem;
+          gap: 2.5rem;
         }
 
         .nav-brand {
-          color: var(--primary-brand);
-          font-size: 1.8rem;
+          font-size: 1.6rem;
           font-weight: 900;
-          letter-spacing: 2px;
+          letter-spacing: 1px;
         }
 
         .nav-links {
@@ -80,29 +88,32 @@ export default function Navbar() {
 
         .nav-links a {
           font-size: 0.95rem;
-          color: #e5e5e5;
+          color: var(--text-muted);
           position: relative;
           transition: color 0.3s ease;
-        }
-
-        /* 🔥 NETFLIX HOVER UNDERLINE */
-        .nav-links a::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          bottom: -4px;
-          width: 0%;
-          height: 2px;
-          background: var(--primary-brand);
-          transition: width 0.3s ease;
+          font-weight: 500;
         }
 
         .nav-links a:hover {
-          color: #fff;
+          color: var(--foreground);
+        }
+
+        .nav-links a::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          bottom: -4px;
+          width: 0%;
+          height: 2px;
+          background: var(--tertiary);
+          transition: all 0.3s ease;
+          transform: translateX(-50%);
+          border-radius: 2px;
+          box-shadow: 0 0 8px var(--tertiary);
         }
 
         .nav-links a:hover::after {
-          width: 100%;
+          width: 80%;
         }
 
         /* RIGHT SIDE */
@@ -112,22 +123,23 @@ export default function Navbar() {
           gap: 1rem;
         }
 
-        /* 🔥 NETFLIX STYLE BUTTON */
+        /* 🔥 GLOWING BUTTON */
         .upload-btn {
-          background: var(--primary-brand);
+          background: rgba(255,255,255,0.05);
           color: white;
           padding: 0.5rem 1.2rem;
-          border-radius: 4px;
+          border-radius: 12px;
           font-size: 0.9rem;
           font-weight: 600;
-          transition: all 0.25s ease;
-          box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: 1px solid rgba(255,255,255,0.1);
         }
 
         .upload-btn:hover {
-          background: #f40612;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(229, 9, 20, 0.6);
+          background: rgba(255,255,255,0.1);
+          transform: translateY(-2px);
+          border-color: var(--primary-brand);
+          box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
         }
       `}</style>
     </nav>

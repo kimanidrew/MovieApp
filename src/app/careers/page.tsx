@@ -13,7 +13,7 @@ export default function CareersPage() {
       <Navbar />
       
       <div className="animate-in" style={{ flex: 1, padding: '12rem 4% 8rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ padding: '0.5rem 1rem', background: 'rgba(229, 9, 20, 0.1)', color: '#e50914', borderRadius: '50px', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem' }}>We're Hiring!</div>
+        <div style={{ padding: '0.5rem 1rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', borderRadius: '50px', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem' }}>We're Hiring!</div>
         
         <h1 style={{ fontSize: '4.5rem', fontWeight: 800, marginBottom: '1.5rem', textAlign: 'center', lineHeight: 1.1 }}>
           Build the Future of<br/>Streaming.

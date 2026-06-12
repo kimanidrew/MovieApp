@@ -38,7 +38,7 @@
 }
 
 .error-message {
-  background: rgba(229, 9, 20, 0.1);
+  background: rgba(236, 72, 153, 0.1);
   border: 1px solid var(--primary-brand);
   color: #ff4d4d;
   padding: 1rem;
@@ -115,7 +115,7 @@
 .btn-submit:hover:not(:disabled) {
   background: #f40612;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+  box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
 }
 
 .btn-submit:active:not(:disabled) {

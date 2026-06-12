@@ -198,7 +198,7 @@ export default function FeatureRow({
           transform: translateY(-50%);
           width: 56px;
           height: 120px;
-          background: rgba(10, 10, 10, 0.4);
+          background: rgba(20, 20, 20, 0.4);
           backdrop-filter: blur(12px);
           border: 1px solid rgba(255, 255, 255, 0.04);
           color: #ffffff;
@@ -223,9 +223,9 @@ export default function FeatureRow({
         }
 
         .carousel-arrow:hover {
-          background: rgba(229, 9, 20, 0.85);
+          background: rgba(236, 72, 153, 0.85);
           color: #ffffff;
-          box-shadow: 0 0 25px rgba(229, 9, 20, 0.45);
+          box-shadow: 0 0 25px rgba(236, 72, 153, 0.45);
         }
 
         .carousel-arrow:active {

@@ -1,3 +1,5 @@
+// app/api/videos/route.ts
+
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -5,57 +7,108 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ✅ FIX 1: Validate fields matching Bunny's requirements (URLs are now built on the server)
     if (!body.title || !body.videoKey) {
       return NextResponse.json(
-        { error: "Missing required fields: title or videoKey" },
-        { status: 400 }
+        {
+          error: "Missing required fields: title or videoKey",
+        },
+        {
+          status: 400,
+        },
       );
     }
 
-    const LIBRARY_ID = process.env.BUNNY_LIBRARY_ID;
-    const PULL_ZONE = process.env.BUNNY_PULL_ZONE;
+    // Remove any accidental query string
+    const uid = body.videoKey.split("?")[0].trim();
 
-    if (!LIBRARY_ID || !PULL_ZONE) {
-      return NextResponse.json(
-        { error: "Missing Bunny.net server environment configurations" },
-        { status: 500 }
+    const accountId = process.env.CF_ACCOUNT_ID!;
+    const token = process.env.CF_STREAM_TOKEN!;
+
+    const cfResponse = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (!cfResponse.ok) {
+      const errorText = await cfResponse.text();
+
+      throw new Error(
+        `Cloudflare API Error (${cfResponse.status}): ${errorText}`,
       );
     }
 
-    // ✅ FIX 2: Generate production-ready Bunny streaming and thumbnail links
-    const hlsManifestUrl = `https://${PULL_ZONE}/${body.videoKey}/playlist.m3u8`;
-    const videoUrl = `https://mediadelivery.net{LIBRARY_ID}/${body.videoKey}`;
-    const thumbnailUrl = `https://${PULL_ZONE}/${body.videoKey}/thumbnail.jpg`;
+    const cfData = await cfResponse.json();
 
-    // Save record to database mapping your precise schema fields
+    if (!cfData.success || !cfData.result) {
+      throw new Error("Failed to retrieve Stream metadata");
+    }
+
+    const stream = cfData.result;
+
+    // Build URLs directly from UID
+    const hlsManifestUrl =
+      stream.playback?.hls ||
+      `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+
+    const dashManifestUrl =
+      stream.playback?.dash ||
+      `https://videodelivery.net/${uid}/manifest/video.mpd`;
+
+    const thumbnailUrl =
+      stream.thumbnail ||
+      `https://videodelivery.net/${uid}/thumbnails/thumbnail.jpg`;
+
+    const previewUrl =
+      stream.preview || `https://videodelivery.net/${uid}/iframe`;
+
+    const durationSeconds = Math.round(stream.duration ?? 0);
+
+    if (!thumbnailUrl || !hlsManifestUrl) {
+      throw new Error(
+        "Video processing is not complete yet. Try again in a few moments.",
+      );
+    }
+
     const video = await prisma.video.create({
       data: {
         title: body.title,
         description: body.description || null,
         releaseYear: Number(body.releaseYear) || new Date().getFullYear(),
-        videoKey: body.videoKey,
-        
-        // Generated dynamic Bunny endpoints
-        hlsManifestUrl,
-        videoUrl,
-        thumbnailUrl,
-        
-        // Netflix-like system defaults passed from your form
         category: body.category || "Action",
-        introStart: Number(body.introStart) || 0, 
+
+        videoKey: uid,
+
+        hlsManifestUrl,
+        videoUrl: previewUrl,
+        thumbnailUrl,
+        durationSeconds,
+
+        introStart: Number(body.introStart) || 0,
         introEnd: Number(body.introEnd) || 0,
         isMovie: body.isMovie !== undefined ? Boolean(body.isMovie) : true,
-        durationSeconds: Math.floor(body.duration || 0)
       },
     });
 
-    return NextResponse.json({ video });
-  } catch (err: any) {
-    console.error("Database save failed:", err); 
+    return NextResponse.json({
+      success: true,
+      video,
+    });
+  } catch (error: any) {
+    console.error("Video save failed:", error);
+
     return NextResponse.json(
-      { error: err.message || "DB error" },
-      { status: 500 }
+      {
+        error: error?.message || "Failed to save video metadata",
+      },
+      {
+        status: 500,
+      },
     );
   }
 }

@@ -165,7 +165,7 @@ export default function PlayerControls({
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               style={{
-                background: `linear-gradient(to right, #e50914 0%, #e50914 ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.2) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.2) 100%)`
+                background: `linear-gradient(to right, #3b82f6 0%, #ec4899 ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.2) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.2) 100%)`
               }}
             />
           </div>

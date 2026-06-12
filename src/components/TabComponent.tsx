@@ -132,9 +132,9 @@ export default function Tabs({ tabs }: TabsProps) {
           bottom: 0;
           left: 0;
           height: 3px;
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           border-radius: 2px 2px 0 0;
-          box-shadow: 0 -2px 10px rgba(229, 9, 20, 0.4);
+          box-shadow: 0 -2px 10px rgba(236, 72, 153, 0.4);
           transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), width 0.25s cubic-bezier(0.25, 1, 0.5, 1);
           pointer-events: none;
           will-change: transform, width;

@@ -282,121 +282,148 @@ export default function HomeClient({
 
 /* 🎨 THEME STYLING SHEETS */
 const mainLayout: React.CSSProperties = {
-  background: "#0a0a0a",
-  color: "#ffffff",
+  background: "var(--background)",
+  color: "var(--foreground)",
   minHeight: "100vh",
-  fontFamily: "'Inter', system-ui, sans-serif",
+  fontFamily: "var(--font-main), sans-serif",
   overflowX: "hidden",
   width: "100%",
 };
 
 const heroSection: React.CSSProperties = {
   position: "relative",
-  height: "85vh",
+  height: "90vh",
   width: "100%",
   overflow: "hidden",
-  background: "#121212",
+  background: "var(--background)",
 };
 
 const heroVideoBg: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
+  position: "absolute",
+  top: "5%",
+  right: "5%",
+  width: "60%",
+  height: "75%",
   objectFit: "cover",
-  opacity: 0.65,
+  opacity: 0.8,
+  borderRadius: "24px",
+  boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 80px rgba(59, 130, 246, 0.2)",
+  border: "1px solid rgba(255,255,255,0.05)",
+  maskImage: "linear-gradient(to left, rgba(0,0,0,1) 80%, rgba(0,0,0,0) 100%)",
+  WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1) 80%, rgba(0,0,0,0) 100%)",
 };
 
 const heroGradientOverlay: React.CSSProperties = {
   position: "absolute",
   inset: 0,
   background:
-    "linear-gradient(to top, #0a0a0a 5%, transparent 45%), linear-gradient(to right, rgba(10,10,10,0.9) 25%, transparent 70%)",
+    "radial-gradient(circle at 20% 50%, rgba(15, 23, 42, 0.4) 0%, var(--background) 70%), radial-gradient(circle at 80% -20%, rgba(139, 92, 246, 0.15), transparent 50%), radial-gradient(circle at 0% 120%, rgba(59, 130, 246, 0.15), transparent 50%)",
   zIndex: 1,
+  pointerEvents: "none",
 };
 
 const heroContentCard: React.CSSProperties = {
   position: "absolute",
-  bottom: "15%",
-  left: "4%",
-  maxWidth: "680px",
+  top: "50%",
+  transform: "translateY(-50%)",
+  left: "6%",
+  width: "45%",
+  minWidth: "400px",
   zIndex: 2,
+  padding: "3rem",
+  background: "var(--glass-bg)",
+  backdropFilter: "blur(24px)",
+  WebkitBackdropFilter: "blur(24px)",
+  borderRadius: "24px",
+  border: "1px solid var(--glass-border)",
+  boxShadow: "var(--glass-shadow)",
 };
 
 const heroTitle: React.CSSProperties = {
-  fontSize: "4rem",
-  fontWeight: 900,
+  fontSize: "3.5rem",
+  fontWeight: 800,
   lineHeight: 1.1,
-  letterSpacing: "-0.03em",
+  letterSpacing: "-0.02em",
   margin: 0,
-  textShadow: "0 4px 12px rgba(0,0,0,0.5)",
+  background: "linear-gradient(135deg, #fff 0%, #a5b4fc 100%)",
+  WebkitBackgroundClip: "text",
+  WebkitTextFillColor: "transparent",
+  textShadow: "0 0 30px rgba(165, 180, 252, 0.3)",
 };
 
 const heroMetaRow: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: "1.2rem",
+  gap: "1rem",
   margin: "1.2rem 0",
-  color: "#b3b3b3",
+  color: "var(--text-muted)",
   fontSize: "0.95rem",
+  fontWeight: 500,
 };
 
 const matchBadge: React.CSSProperties = {
-  color: "#00df89",
+  color: "#38bdf8",
   fontWeight: 700,
-  background: "rgba(0, 223, 137, 0.1)",
-  padding: "0.2rem 0.6rem",
-  borderRadius: "4px",
+  background: "rgba(56, 189, 248, 0.1)",
+  border: "1px solid rgba(56, 189, 248, 0.2)",
+  padding: "0.3rem 0.8rem",
+  borderRadius: "8px",
 };
 const hdBadge: React.CSSProperties = {
-  border: "1px solid rgba(255,255,255,0.3)",
-  padding: "0.1rem 0.4rem",
+  border: "1px solid var(--glass-border)",
+  padding: "0.2rem 0.5rem",
   fontSize: "0.75rem",
-  borderRadius: "3px",
-  fontWeight: 600,
+  borderRadius: "6px",
+  fontWeight: 700,
+  background: "rgba(255,255,255,0.05)",
 };
 const heroDescription: React.CSSProperties = {
-  color: "#e0e0e0",
-  fontSize: "1.1rem",
+  color: "#cbd5e1",
+  fontSize: "1.05rem",
   lineHeight: 1.6,
   display: "-webkit-box",
   WebkitLineClamp: 3,
   WebkitBoxOrient: "vertical",
   overflow: "hidden",
+  fontWeight: 300,
 };
 const actionButtonGroup: React.CSSProperties = {
   display: "flex",
   gap: "1rem",
-  marginTop: "2rem",
+  marginTop: "2.5rem",
 };
 const btnPlay: React.CSSProperties = {
-  background: "#ffffff",
-  color: "#000000",
+  background: "linear-gradient(to right, #3b82f6, #8b5cf6)",
+  color: "#ffffff",
   padding: "0.9rem 2.6rem",
-  borderRadius: "6px",
+  borderRadius: "12px",
   fontWeight: 700,
   textDecoration: "none",
   display: "inline-flex",
   alignItems: "center",
   fontSize: "1.05rem",
-  boxShadow: "0 4px 15px rgba(255,255,255,0.15)",
+  boxShadow: "0 8px 25px rgba(139, 92, 246, 0.4)",
   border: "none",
   cursor: "pointer",
+  transition: "transform 0.2s, box-shadow 0.2s",
 };
 const btnInfo: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.12)",
+  background: "rgba(255, 255, 255, 0.05)",
   color: "#fff",
   padding: "0.9rem 2.6rem",
-  borderRadius: "6px",
+  borderRadius: "12px",
   fontWeight: 600,
   textDecoration: "none",
   display: "inline-flex",
   alignItems: "center",
   fontSize: "1.05rem",
   backdropFilter: "blur(10px)",
-  border: "1px solid rgba(255,255,255,0.1)",
+  border: "1px solid var(--glass-border)",
   cursor: "pointer",
+  transition: "background 0.2s",
 };
 const rowsWrapper: React.CSSProperties = {
-  marginTop: "-5rem",
+  marginTop: "-2rem",
   position: "relative",
   zIndex: 5,
   padding: "0 4% 4rem 4%",
@@ -419,18 +446,20 @@ const trailersGrid: React.CSSProperties = {
   gap: "1.5rem",
 };
 const trailerCard: React.CSSProperties = {
-  background: "#121212",
-  borderRadius: "10px",
+  background: "var(--glass-bg)",
+  backdropFilter: "blur(12px)",
+  borderRadius: "16px",
   overflow: "hidden",
   cursor: "pointer",
-  border: "1px solid rgba(255,255,255,0.03)",
-  transition: "transform 0.25s ease-out, border-color 0.25s ease-out",
+  border: "1px solid var(--glass-border)",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+  transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s, border-color 0.3s",
 };
 const trailerImageWrapper: React.CSSProperties = {
   position: "relative",
   aspectRatio: "16/9",
   width: "100%",
-  background: "#161616",
+  background: "#0f172a",
 };
 const playOverlayIcon: React.CSSProperties = {
   position: "absolute",
@@ -438,20 +467,20 @@ const playOverlayIcon: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  transition: "opacity 0.2s ease-out, background-color 0.2s ease-out",
+  transition: "opacity 0.3s ease-out, background-color 0.3s ease-out",
   zIndex: 3,
 };
 const playIconGlyph: React.CSSProperties = {
-  background: "rgba(229, 9, 20, 0.9)",
+  background: "linear-gradient(135deg, #3b82f6, #ec4899)",
   borderRadius: "50%",
-  width: "50px",
-  height: "50px",
+  width: "55px",
+  height: "55px",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   paddingLeft: "4px",
-  fontSize: "1.2rem",
-  boxShadow: "0 4px 20px rgba(229,9,20,0.4)",
+  fontSize: "1.4rem",
+  boxShadow: "0 8px 25px rgba(236, 72, 153, 0.4)",
 };
 const trailerCardTitle: React.CSSProperties = {
   fontSize: "1.1rem",
@@ -502,36 +531,39 @@ const verticalShortCard: React.CSSProperties = {
   position: "relative",
   flex: "0 0 210px",
   aspectRatio: "9/16",
-  borderRadius: "12px",
+  borderRadius: "20px",
   overflow: "hidden",
   cursor: "pointer",
   scrollSnapAlign: "start",
-  background: "#161616",
-  transition: "transform 0.25s ease-out, box-shadow 0.25s ease-out",
+  background: "var(--background)",
+  border: "1px solid var(--glass-border)",
+  transition: "transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease-out",
 };
 const shortImageStyle: React.CSSProperties = {
   objectFit: "cover",
-  transition: "transform 0.35s ease-out",
+  transition: "transform 0.4s ease-out",
 };
 const shortsGradientOverlay: React.CSSProperties = {
   position: "absolute",
   inset: 0,
   background:
-    "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 40%, transparent 100%)",
+    "linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.3) 50%, transparent 100%)",
   zIndex: 1,
 };
 const shortsContentBadge: React.CSSProperties = {
   position: "absolute",
-  top: "12px",
-  left: "12px",
-  background: "#E50914",
-  padding: "0.2rem 0.5rem",
-  borderRadius: "4px",
+  top: "16px",
+  left: "16px",
+  background: "rgba(255,255,255,0.1)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(255,255,255,0.2)",
+  padding: "0.3rem 0.6rem",
+  borderRadius: "8px",
   fontSize: "0.75rem",
   fontWeight: "bold",
-  textTransform: "uppercase",
   letterSpacing: "0.05em",
   zIndex: 2,
+  color: "#fff",
 };
 const shortsMetaContainer: React.CSSProperties = {
   position: "absolute",

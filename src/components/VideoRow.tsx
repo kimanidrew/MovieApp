@@ -186,7 +186,7 @@ function VideoCard({
   if (isLoading) {
     return (
       <div className="card-wrapper skeleton-loading">
-        <div className="netflix-card skeleton-thumb" />
+        <div className="glass-card skeleton-thumb" />
         <div className="meta">
           <div className="skeleton-line skeleton-title" />
           <div className="skeleton-line skeleton-sub" />
@@ -255,7 +255,7 @@ function VideoCard({
       onMouseLeave={onLeave}
       onClick={onClick}
     >
-      <div className="netflix-card">
+      <div className="glass-card">
         {/* THUMBNAIL */}
         <div
           className={`thumb-wrapper ${isHovered || imageError ? "hide" : ""}`}
@@ -315,49 +315,53 @@ function VideoCard({
       <style>
         {`
         .animated-fade-in {
-          animation: fadeInFrame 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: fadeInFrame 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
 
         @keyframes fadeInFrame {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .card-wrapper {
           display: inline-block;
-          width: 240px;
+          width: 250px;
           flex-shrink: 0;
           cursor: pointer;
-          transform: scale(1) translateY(0);
-          transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
-          font-family: 'Inter', system-ui, sans-serif;
+          transform: perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1) translateY(0);
+          transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.4s ease;
+          font-family: var(--font-main), sans-serif;
           position: relative;
         }
 
         .card-wrapper:hover {
-          transform: scale(1.08) translateY(-4px) !important;
+          transform: perspective(1000px) scale(1.08) translateY(-8px) !important;
           z-index: 50;
         }
 
-        .netflix-card {
+        .glass-card {
           position: relative;
-          width: 240px;
-          height: 135px;
-          border-radius: 8px;
+          width: 250px;
+          height: 140px;
+          border-radius: 16px;
           overflow: hidden;
-          background: #141414;
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-          transition: box-shadow 0.3s ease;
+          background: var(--glass-bg);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid var(--glass-border);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+          transition: box-shadow 0.4s ease, border-color 0.4s ease;
         }
 
-        .card-wrapper:hover .netflix-card {
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.8);
+        .card-wrapper:hover .glass-card {
+          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.2);
+          border-color: rgba(255, 255, 255, 0.15);
         }
 
         .thumb-wrapper {
           position: absolute;
           inset: 0;
-          transition: opacity 0.2s ease-out;
+          transition: opacity 0.3s ease-out;
         }
 
         .thumb-wrapper.hide {
@@ -368,10 +372,10 @@ function VideoCard({
           position: absolute;
           inset: 0;
           width: 100%;
-                    height: 100%;
+          height: 100%;
           object-fit: cover;
           opacity: 0;
-          transition: opacity 0.2s ease-out;
+          transition: opacity 0.4s ease-out;
         }
         video.show {
           opacity: 1;
@@ -380,8 +384,8 @@ function VideoCard({
           position: absolute;
           bottom: 0;
           width: 100%;
-          height: 40%;
-          background: linear-gradient(to top, rgba(10, 10, 10, 0.8), transparent);
+          height: 50%;
+          background: linear-gradient(to top, rgba(15, 23, 42, 0.95), transparent);
           pointer-events: none;
         }
         /* PROGRESS BAR */
@@ -389,19 +393,19 @@ function VideoCard({
           position: absolute;
           bottom: 0;
           width: 100%;
-          height: 3px;
-          background: rgba(255, 255, 255, 0.2);
+          height: 4px;
+          background: rgba(255, 255, 255, 0.1);
           z-index: 2;
         }
         .progress-bar div {
           height: 100%;
-          background: #e50914;
-          box-shadow: 0 0 8px #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          box-shadow: 0 0 10px rgba(236, 72, 153, 0.6);
         }
         /* PREMIUM INFO REGION */
         .meta {
-          padding: 10px 4px 4px 4px;
-          color: #fff;
+          padding: 12px 6px 4px 6px;
+          color: var(--foreground);
         }
         .title-row {
           display: flex;
@@ -410,49 +414,51 @@ function VideoCard({
           margin-bottom: 6px;
         }
         .title {
-          font-size: 0.95rem;
-          font-weight: 600;
+          font-size: 1rem;
+          font-weight: 700;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          letter-spacing: 0.01em;
-          color: #ffffff;
+          letter-spacing: 0.02em;
+          color: var(--foreground);
         }
         .sub-row {
           display: flex;
           align-items: center;
           gap: 8px;
           font-size: 0.75rem;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
         }
         .category-chip {
-          color: #ffffff;
+          color: #fff;
           font-weight: 700;
-          background: rgba(255, 255, 255, 0.1);
-          padding: 1.5px 6px;
-          border-radius: 4px;
-          font-size: 0.6rem;
-          letter-spacing: 0.02em;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-size: 0.65rem;
+          letter-spacing: 0.03em;
           text-transform: capitalize;
         }
         .year-badge {
-          color: #a3a3a3;
+          color: var(--text-muted);
           font-weight: 500;
         }
         .hd-label {
           font-size: 0.65rem;
-          font-weight: 700;
-          color: #d4d4d4;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          padding: 0px 4px;
-          border-radius: 2px;
+          font-weight: 800;
+          color: #38bdf8;
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          background: rgba(56, 189, 248, 0.05);
+          padding: 1px 5px;
+          border-radius: 4px;
           letter-spacing: 0.05em;
         }
         .desc {
           margin: 0;
-          font-size: 0.75rem;
-          line-height: 1.4;
-          color: #9ca3af;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          color: var(--text-muted);
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: "vertical";

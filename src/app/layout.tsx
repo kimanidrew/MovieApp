@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Script from "next/script";
 
-// Configure Montserrat font
-const montserrat = Montserrat({
+// Configure Outfit font
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-montserrat",
+  variable: "--font-main",
   weight: ["300", "400", "500", "600", "700", "800"],
 });
 
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: '%s | MovieFlix AI Streaming',
     default: 'MovieFlix - Advanced AI Streaming',
   },
-  description: "Experience the next generation of video streaming with MovieFlix, powered by Gemini AI. Watch your uploads instantly with adaptive Netflix-tier buffering.",
+  description: "Experience the next generation of video streaming with MovieFlix, powered by Gemini AI. Watch your uploads instantly with adaptive buffering.",
   icons: {
     icon: 'https://cdn-icons-png.flaticon.com/512/3253/3253364.png',
     shortcut: 'https://cdn-icons-png.flaticon.com/512/3253/3253364.png',
@@ -47,10 +47,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={montserrat.variable}>
-      <body style={{ fontFamily: "var(--font-montserrat), sans-serif" }}>
+    <html lang="en" className={outfit.variable}>
+      <body style={{ fontFamily: "var(--font-main), sans-serif", backgroundColor: "var(--background)" }}>
         <Navbar />
-        <main style={{ background: "#141414", color: "#fff", minHeight: "100vh" }}>
+        <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
           {children}
         </main>
         <Footer />

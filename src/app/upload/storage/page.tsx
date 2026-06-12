@@ -2,22 +2,15 @@
 
 import React, { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import {
-  createBunnyVideoPlaceholder,
-  getBunnyVideoStatus,
-} from "@/app/actions/stream";
 import { useUploadStatus } from "@/context/UploadContext";
+import * as tus from "tus-js-client";
 
 export default function UploadForm() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    progress,
-    setProgress,
-    isUploading,
-    setIsUploading,
-  } = useUploadStatus();
+  const { progress, setProgress, isUploading, setIsUploading } =
+    useUploadStatus();
 
   const [error, setError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -37,50 +30,60 @@ export default function UploadForm() {
     isMovie: true,
   });
 
-const handleFileChange = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  const file = e.target.files?.[0];
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+    }));
+  };
 
-  if (!file) return;
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
 
-  setError("");
+    if (!file) return;
 
-  // Validate video metadata
-  const video = document.createElement("video");
+    setError("");
 
-  video.preload = "metadata";
+    // Validate video metadata
+    const video = document.createElement("video");
 
-  video.onloadedmetadata = () => {
-    URL.revokeObjectURL(video.src);
+    video.preload = "metadata";
 
-    const width = video.videoWidth;
-    const height = video.videoHeight;
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(video.src);
 
-    // Require minimum HD
-    if (width < 1920 || height < 1080) {
-      setError(
-        "Only Full HD (1080p) or higher videos are allowed."
-      );
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      const duration = video.duration;
 
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (isNaN(width) || isNaN(height) || isNaN(duration)) {
+        setError(
+          "Unable to read video metadata. Please select a different file.",
+        );
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        setSelectedFileName("");
+        return;
       }
 
-      setSelectedFileName("");
-      return;
-    }
+      setSelectedFileName(file.name);
+    };
 
-    setSelectedFileName(file.name);
+    video.onerror = () => {
+      setError("Invalid video file.");
+    };
+
+    video.src = URL.createObjectURL(file);
   };
-
-  video.onerror = () => {
-    setError("Invalid video file.");
-  };
-
-  video.src = URL.createObjectURL(file);
-};
-
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -109,7 +112,11 @@ const handleFileChange = async (
 
         fileInputRef.current.files = dataTransfer.files;
 
-        setSelectedFileName(file.name);
+        handleFileChange({
+          target: {
+            files: dataTransfer.files,
+          },
+        } as React.ChangeEvent<HTMLInputElement>);
         setError("");
       }
     } else if (file) {
@@ -117,120 +124,132 @@ const handleFileChange = async (
     }
   };
 
-  const pollProcessingProgress = async (bunnyVideoId: string) => {
-    let finished = false;
-
-    while (!finished) {
-      const result = await getBunnyVideoStatus(bunnyVideoId);
-
-      const encodeProgress = result.encodeProgress || 0;
-
-      const combinedProgress =
-        70 + Math.round((encodeProgress / 100) * 30);
-
-      setProgress(combinedProgress);
-
-      if (result.isFinished) {
-        setProgress(100);
-        setUploadStage("completed");
-        finished = true;
-        break;
-      }
-
-      if (result.status === 5) {
-        throw new Error(
-          "Bunny.net cloud transcoding clusters reported an encoder error."
-        );
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const file = fileInputRef.current?.files?.[0];
-    if (!file) return setError("No video selected");
+
+    if (!file) {
+      setError("No video selected");
+      return;
+    }
 
     try {
+      setError("");
       setIsUploading(true);
-      setProgress(0);
       setUploadStage("uploading");
+      setProgress(0);
 
-      // 1. Create video on backend (SAFE)
+      // 1. Fetch our newly refactored TUS-compatible endpoint from the backend
       const createRes = await fetch("/api/upload/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: formData.title }),
-      });
-
-      const { videoId, libraryId } = await createRes.json();
-
-      // 2. Upload directly to Bunny (NO API KEY IN CLIENT)
-      const uploadUrl = `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`;
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-
-        // IMPORTANT: Bunny requires ONLY AccessKey OR empty depending on config
-        xhr.setRequestHeader(
-          "AccessKey",
-          process.env.NEXT_PUBLIC_BUNNY_API_KEY!
-        );
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setProgress(Math.round((e.loaded / e.total) * 70));
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error("Upload failed"));
-        };
-
-        xhr.onerror = () =>
-          reject(new Error("Network upload failed (check endpoint)"));
-
-        xhr.send(file);
-      });
-
-      // 3. Processing stage
-      setUploadStage("processing");
-      setProgress(70);
-
-      let done = false;
-      while (!done) {
-        const status = await getBunnyVideoStatus(videoId);
-
-        setProgress(70 + Math.round((status.encodeProgress / 100) * 30));
-
-        if (status.isFinished) {
-          setProgress(100);
-          done = true;
-        }
-
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-
-      // 4. Save DB
-      await fetch("/api/videos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          ...formData,
-          videoKey: videoId,
+          title: formData.title,
+          fileSize: file.size, // Required for backend authorization headers
         }),
       });
 
-      setUploadStage("completed");
+      if (!createRes.ok) {
+        const errorText = await createRes.text();
+        throw new Error(
+          `Failed to create upload URL (${createRes.status}): ${errorText}`,
+        );
+      }
 
+      const { uploadURL, uid } = await createRes.json();
+
+      // 2. Pass the provided Cloudflare TUS upload URL to the frontend client
+      await new Promise<void>((resolve, reject) => {
+        const upload = new tus.Upload(file, {
+          // Provide uploadUrl but completely omit the 'endpoint' key.
+          // This instructs TUS to bypass the creation handshake and stream binary data immediately.
+          uploadUrl: uploadURL,
+          chunkSize: 50 * 1024 * 1024, // 50MB chunks
+          retryDelays: [0, 1000, 3000, 5000],
+          onError: (error) => {
+            console.error("TUS error stack:", error);
+            reject(new Error(`Upload failed: ${error.message}`));
+          },
+          onProgress: (bytesUploaded, bytesTotal) => {
+            const percent = Math.round((bytesUploaded / bytesTotal) * 70);
+            setProgress(percent);
+          },
+          onSuccess: () => {
+            console.log("Chunks successfully processed by Cloudflare!");
+            resolve();
+          },
+        });
+
+        // Start the transfer
+        upload.start();
+      });
+
+      // 3. Processing Stage
+      setUploadStage("processing");
+      setProgress(70);
+
+      let ready = false;
+      let attempts = 0;
+
+      while (!ready) {
+        attempts++;
+
+        const statusRes = await fetch(`/api/videos/status/${uid}`, {
+          cache: "no-store",
+        });
+
+        if (!statusRes.ok) {
+          const errorText = await statusRes.text();
+          throw new Error(
+            `Status check failed (${statusRes.status}): ${errorText}`,
+          );
+        }
+
+        const status = await statusRes.json();
+        const encodeProgress = status.pctComplete ?? 0;
+        const combinedProgress = 70 + Math.round((encodeProgress / 100) * 30);
+        setProgress(Math.min(combinedProgress, 99));
+
+        if (status.readyToStream) {
+          ready = true;
+          break;
+        }
+
+        if (attempts > 600) {
+          throw new Error("Video processing timed out.");
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+
+      setProgress(100);
+
+      // 4. Save Final Video Record to your internal Database
+      const saveRes = await fetch("/api/videos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...formData,
+          videoKey: uid,
+        }),
+      });
+
+      if (!saveRes.ok) {
+        const errorText = await saveRes.text();
+        throw new Error(`Failed to save video record: ${errorText}`);
+      }
+
+      setUploadStage("completed");
       router.push("/");
       router.refresh();
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError(err?.message || "Upload failed");
       setUploadStage("idle");
     } finally {
       setIsUploading(false);
@@ -238,17 +257,19 @@ const handleFileChange = async (
     }
   };
 
-
   return (
     <div className="upload-form-wrapper">
       <form onSubmit={handleSubmit} className="premium-upload-form">
         <header className="form-header">
           <h2>Upload Cinematic Media</h2>
-          <p>Deploy video files directly across optimized HLS bitrate adaptive distribution networks.</p>
+          <p>
+            Deploy video files directly across optimized HLS bitrate adaptive
+            distribution networks.
+          </p>
         </header>
 
         {/* DRAG AND DROP APERTURE TARGET ZONE */}
-        <div 
+        <div
           className={`dropzone-box ${isDragActive ? "drag-active" : ""} ${selectedFileName ? "has-file" : ""} ${isUploading ? "disabled" : ""}`}
           onDragEnter={handleDrag}
           onDragOver={handleDrag}
@@ -266,18 +287,23 @@ const handleFileChange = async (
             onChange={handleFileChange}
             disabled={isUploading}
           />
-          
+
           <div className="dropzone-content">
             <svg viewBox="0 0 24 24" className="upload-icon-svg">
-              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
             </svg>
             {selectedFileName ? (
               <div className="file-info-tags">
                 <span className="file-name-text">{selectedFileName}</span>
-                <span className="file-change-hint">Click or drop another file to exchange</span>
+                <span className="file-change-hint">
+                  Click or drop another file to exchange
+                </span>
               </div>
             ) : (
-              <p className="dropzone-text-prompt">Drag & drop asset container files here or <span className="highlight-browse">browse system files</span></p>
+              <p className="dropzone-text-prompt">
+                Drag & drop asset container files here or{" "}
+                <span className="highlight-browse">browse system files</span>
+              </p>
             )}
           </div>
         </div>
@@ -292,19 +318,25 @@ const handleFileChange = async (
             placeholder="e.g., Bloodline: Ground Zero (2026)"
             disabled={isUploading}
             value={formData.title}
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, title: e.target.value })
+            }
           />
         </div>
 
         {/* INPUT: DESCRIPTION */}
         <div className="form-group">
-          <label className="field-label">Streaming Summary / Plot Details</label>
+          <label className="field-label">
+            Streaming Summary / Plot Details
+          </label>
           <textarea
             className="premium-field text-area"
             placeholder="Provide context regarding casting indices, narrative synopses, and production milestones..."
             disabled={isUploading}
             value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, description: e.target.value })
+            }
             rows={4}
           />
         </div>
@@ -318,7 +350,12 @@ const handleFileChange = async (
               className="premium-field"
               disabled={isUploading}
               value={formData.releaseYear}
-              onChange={(e) => setFormData({ ...formData, releaseYear: Number(e.target.value) })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  releaseYear: Number(e.target.value),
+                })
+              }
             />
           </div>
 
@@ -330,7 +367,9 @@ const handleFileChange = async (
               placeholder="Action, Sci-Fi, Drama"
               disabled={isUploading}
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, category: e.target.value })
+              }
             />
           </div>
         </div>
@@ -338,26 +377,35 @@ const handleFileChange = async (
         {/* INPUTS: TIMELINE ANCHORS ROW */}
         <div className="form-row">
           <div className="form-group flex-1">
-            <label className="field-label">Intro Sequence Start <span className="sub-unit">(Seconds)</span></label>
+            <label className="field-label">
+              Intro Sequence Start <span className="sub-unit">(Seconds)</span>
+            </label>
             <input
               type="number"
               min={0}
               className="premium-field"
               disabled={isUploading}
               value={formData.introStart}
-              onChange={(e) => setFormData({ ...formData, introStart: Number(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, introStart: Number(e.target.value) })
+              }
             />
           </div>
 
           <div className="form-group flex-1">
-            <label className="field-label">Intro Sequence Termination <span className="sub-unit">(Seconds)</span></label>
+            <label className="field-label">
+              Intro Sequence Termination{" "}
+              <span className="sub-unit">(Seconds)</span>
+            </label>
             <input
               type="number"
               min={0}
               className="premium-field"
               disabled={isUploading}
               value={formData.introEnd}
-              onChange={(e) => setFormData({ ...formData, introEnd: Number(e.target.value) })}
+              onChange={(e) =>
+                setFormData({ ...formData, introEnd: Number(e.target.value) })
+              }
             />
           </div>
         </div>
@@ -371,13 +419,20 @@ const handleFileChange = async (
                 className="hidden-checkbox-core"
                 checked={formData.isMovie}
                 disabled={isUploading}
-                onChange={(e) => setFormData({ ...formData, isMovie: e.target.checked })}
+                onChange={(e) =>
+                  setFormData({ ...formData, isMovie: e.target.checked })
+                }
               />
               <div className="custom-switch-slider" />
             </div>
             <div className="checkbox-meta-text">
-              <span className="card-primary-title">Standalone Feature Film</span>
-              <span className="card-sub-description">Uncheck this if you are deploying a serialized episodic TV show component template.</span>
+              <span className="card-primary-title">
+                Standalone Feature Film
+              </span>
+              <span className="card-sub-description">
+                Uncheck this if you are deploying a serialized episodic TV show
+                component template.
+              </span>
             </div>
           </label>
         </div>
@@ -388,13 +443,18 @@ const handleFileChange = async (
             <div className="label-heading-row">
               <span className="stage-status-text">
                 {uploadStage === "uploading" && "Uploading Video to CDN..."}
-                {uploadStage === "processing" && "Generating HLS Adaptive Stream Slices..."}
-                {uploadStage === "completed" && "Video Storage Synthesized Successfully"}
+                {uploadStage === "processing" &&
+                  "Generating HLS Adaptive Stream Slices..."}
+                {uploadStage === "completed" &&
+                  "Video Storage Synthesized Successfully"}
               </span>
               <span className="percentage-counter-bold">{progress}%</span>
             </div>
             <div className="upload-progress-bar">
-              <div className="upload-progress-fill" style={{ width: `${progress}%` }} />
+              <div
+                className="upload-progress-fill"
+                style={{ width: `${progress}%` }}
+              />
             </div>
           </div>
         )}
@@ -402,8 +462,14 @@ const handleFileChange = async (
         {/* SYSTEM PACKET RUNTIME EXCEPTION MESSAGE WINDOW */}
         {error && (
           <div className="upload-error-banner animate-slide-in">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style={{ flexShrink: 0 }}>
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="currentColor"
+              style={{ flexShrink: 0 }}
+            >
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
             </svg>
             <span>{error}</span>
           </div>
@@ -476,13 +542,13 @@ const handleFileChange = async (
         }
 
         .dropzone-box:hover:not(.disabled) {
-          border-color: #e50914;
-          background: rgba(229, 9, 20, 0.02);
+          border-color: #ec4899;
+          background: rgba(236, 72, 153, 0.02);
         }
 
         .dropzone-box.drag-active {
-          border-color: #e50914;
-          background: rgba(229, 9, 20, 0.06);
+          border-color: #ec4899;
+          background: rgba(236, 72, 153, 0.06);
           transform: scale(1.01);
         }
 
@@ -511,7 +577,7 @@ const handleFileChange = async (
         }
 
         .dropzone-box:hover .upload-icon-svg {
-          fill: #e50914;
+          fill: #ec4899;
         }
 
         .dropzone-box.has-file .upload-icon-svg {
@@ -525,7 +591,7 @@ const handleFileChange = async (
         }
 
         .highlight-browse {
-          color: #e50914;
+          color: #ec4899;
           font-weight: 600;
           text-decoration: underline;
         }
@@ -580,7 +646,7 @@ const handleFileChange = async (
 
         .premium-field {
           width: 100%;
-          background: #161616;
+          background: #141414;
           border: 1px solid rgba(255, 255, 255, 0.12);
           color: #ffffff;
           padding: 14px 18px;
@@ -588,11 +654,13 @@ const handleFileChange = async (
           border-radius: 6px;
           outline: none;
           font-family: inherit;
-          transition: border-color 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.2s ease;
+          transition:
+            border-color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
+            background 0.2s ease;
         }
 
         .premium-field:focus {
-          border-color: #e50914;
+          border-color: #ec4899;
           background: #1c1c1c;
         }
 
@@ -657,7 +725,7 @@ const handleFileChange = async (
         }
 
         .hidden-checkbox-core:checked + .custom-switch-slider {
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
         }
 
         .hidden-checkbox-core:checked + .custom-switch-slider::before {
@@ -706,9 +774,9 @@ const handleFileChange = async (
         }
 
         .percentage-counter-bold {
-          color: #e50914;
+          color: #ec4899;
           font-weight: 700;
-          text-shadow: 0 0 10px rgba(229, 9, 20, 0.2);
+          text-shadow: 0 0 10px rgba(236, 72, 153, 0.2);
         }
 
         .upload-progress-bar {
@@ -721,16 +789,16 @@ const handleFileChange = async (
 
         .upload-progress-fill {
           height: 100%;
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           border-radius: 4px;
-          box-shadow: 0 0 12px #e50914;
+          box-shadow: 0 0 12px #ec4899;
           transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         /* RUNTIME EXCEPTION WARNING LAYER */
         .upload-error-banner {
-          background: rgba(229, 9, 20, 0.12);
-          border: 1px solid rgba(229, 9, 20, 0.3);
+          background: rgba(236, 72, 153, 0.12);
+          border: 1px solid rgba(236, 72, 153, 0.3);
           color: #ff4d56;
           padding: 14px 18px;
           border-radius: 6px;
@@ -747,13 +815,19 @@ const handleFileChange = async (
         }
 
         @keyframes slideIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         /* SUBMIT BLOCK ACTION BUTTON */
         .btn-submit {
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           color: #ffffff;
           border: none;
           padding: 16px;
@@ -763,13 +837,16 @@ const handleFileChange = async (
           border-radius: 6px;
           cursor: pointer;
           margin-top: 8px;
-          box-shadow: 0 6px 20px rgba(229, 9, 20, 0.25);
-          transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+          box-shadow: 0 6px 20px rgba(236, 72, 153, 0.25);
+          transition:
+            background 0.2s,
+            transform 0.15s,
+            box-shadow 0.2s;
         }
 
         .btn-submit:hover:not(:disabled) {
           background: #ff1a25;
-          box-shadow: 0 8px 24px rgba(229, 9, 20, 0.4);
+          box-shadow: 0 8px 24px rgba(236, 72, 153, 0.4);
         }
 
         .btn-submit:active:not(:disabled) {
@@ -799,7 +876,9 @@ const handleFileChange = async (
         }
 
         @keyframes spin {
-          to { transform: rotate(360deg); }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         @media (max-width: 560px) {

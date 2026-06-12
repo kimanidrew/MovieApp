@@ -164,9 +164,9 @@ export function ContentRenderer({
         }
 
         .scroll-to-top-btn:hover {
-          background: #e50914;
-          border-color: #e50914;
-          box-shadow: 0 0 25px rgba(229, 9, 20, 0.6);
+          background: linear-gradient(to right, #3b82f6, #ec4899);
+          border-color: #ec4899;
+          box-shadow: 0 0 25px rgba(236, 72, 153, 0.6);
           transform: translateY(-3px);
         }
 

@@ -192,7 +192,7 @@ export default function ShortsSection({
           position: absolute;
           top: 12px;
           left: 12px;
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           color: #ffffff;
           padding: 0.2rem 0.5rem;
           border-radius: 4px;
@@ -201,7 +201,7 @@ export default function ShortsSection({
           text-transform: uppercase;
           letter-spacing: 0.04em;
           z-index: 2;
-          box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+          box-shadow: 0 2px 8px rgba(236, 72, 153, 0.4);
         }
 
         .shorts-meta-container {

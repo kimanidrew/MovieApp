@@ -24,11 +24,11 @@ function UploadLayoutContent({ children }: { children: React.ReactNode }) {
         {/* Dynamic header showing global progress updates */}
         {isUploading && (
           <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "#141414", borderRadius: "8px" }}>
-            <p style={{ color: "#E50914", fontWeight: "bold", margin: "0 0 0.5rem 0" }}>
+            <p style={{ color: "#ec4899", fontWeight: "bold", margin: "0 0 0.5rem 0" }}>
               Uploading Media... {progress}%
             </p>
             <div style={{ width: "100%", background: "#333", height: "4px", borderRadius: "2px" }}>
-              <div style={{ width: `${progress}%`, background: "#E50914", height: "100%", borderRadius: "2px", transition: "width 0.2s ease" }} />
+              <div style={{ width: `${progress}%`, background: "#ec4899", height: "100%", borderRadius: "2px", transition: "width 0.2s ease" }} />
             </div>
           </div>
         )}

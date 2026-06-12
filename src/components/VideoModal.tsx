@@ -383,7 +383,7 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
         }
         .modal-progress-fill {
           height: 100%;
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           border-radius: 2px;
         }
 

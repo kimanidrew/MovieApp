@@ -2,41 +2,50 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { title } = await req.json();
+    const { title, fileSize } = await req.json();
 
-    const libraryId = process.env.BUNNY_LIBRARY_ID!;
-    const apiKey = process.env.BUNNY_API_KEY!;
+    const accountId = process.env.CF_ACCOUNT_ID!;
+    const token = process.env.CF_STREAM_TOKEN!;
 
+    // 1. TUS uploads require pointing to the core stream endpoint with direct_user=true
     const response = await fetch(
-      `https://video.bunnycdn.com/library/${libraryId}/videos`,
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream?direct_user=true`,
       {
         method: "POST",
-         headers: {
-        Accept: "application/json",
-        "Content-Type":
-          "application/json",
-        AccessKey: apiKey,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Tus-Resumable": "1.0.0",
+          "Upload-Length": fileSize.toString(),
+          // Metadata values must be base64-encoded for Cloudflare TUS to process them
+          "Upload-Metadata": `name ${btoa(title)}`,
+        },
       },
-        body: JSON.stringify({
-          title,
-        }),
-      }
     );
 
     if (!response.ok) {
-      throw new Error("Failed creating Bunny video");
+      const errText = await response.text();
+      return NextResponse.json({ error: errText }, { status: response.status });
     }
 
-    const data = await response.json();
+    // 2. Cloudflare passes the unique TUS token URL back inside the Location header
+    const uploadURL = response.headers.get("Location");
 
-    return NextResponse.json({
-      videoId: data.guid,
-      libraryId,
-    });
-  } catch (err: any) {
+    // 3. Extract the unique video UID out of the URL string path for state tracking
+    const uid = uploadURL ? uploadURL.split("/").pop() : null;
+
+    if (!uploadURL || !uid) {
+      return NextResponse.json(
+        { error: "Missing upload location" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ uploadURL, uid });
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
+      { error: "Failed to allocate TUS route" },
+      { status: 500 },
     );
   }
 }

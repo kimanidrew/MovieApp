@@ -244,7 +244,7 @@ export default function YoutubeUploadPage() {
         }
         .premium-field:focus {
           outline: none;
-          border-color: #e50914;
+          border-color: #ec4899;
           background: #262626;
         }
         .premium-field:disabled {
@@ -286,13 +286,13 @@ export default function YoutubeUploadPage() {
         }
         .submit-trigger-style {
           width: 100%;
-          background: #e50914;
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           color: #ffffff;
           padding: 16px;
           font-size: 1.1rem;
           font-weight: 700;
           margin-top: 24px;
-          box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3);
+          box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);
         }
         .submit-trigger-style:hover:not(:disabled) {
           background: #ff1a25;

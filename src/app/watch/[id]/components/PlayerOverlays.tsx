@@ -126,7 +126,7 @@ export default function PlayerOverlays({
           width: 60px;
           height: 60px;
           border: 6px solid rgba(255, 255, 255, 0.1);
-          border-top-color: #e50914;
+          border-top-color: #ec4899;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -166,7 +166,7 @@ export default function PlayerOverlays({
         }
 
         .countdown-timer {
-          color: #e50914;
+          color: #ec4899;
           font-size: 0.9rem;
           font-weight: 500;
           margin-left: 4px;
