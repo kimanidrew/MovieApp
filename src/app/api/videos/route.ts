@@ -1,114 +1,231 @@
 // app/api/videos/route.ts
 
-import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { ContentStatus } from "@/app/generated/prisma";
 
-export async function POST(req: Request) {
+// 👈 GLOBAL POLYFILL: Automatically intercepts BigInt fields and safely flattens them to strings for JSON transfers
+if (!(BigInt.prototype as any).toJSON) {
+  (BigInt.prototype as any).toJSON = function () {
+    return this.toString();
+  };
+}
+
+export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    if (!body.title || !body.videoKey) {
+    const {
+      type, // "TV_SHOW" | "MOVIE" | "EPISODE"
+      title,
+      description,
+      releaseYear,
+      category,
+      introStart = 0,
+      introEnd = 0,
+      videoKey,
+      tvShowId,
+      seasonNumber,
+      episodeNumber,
+    } = body;
+
+    // ------------------------------------------------------------------
+    // DYNAMIC ADMIN CONTEXT RESOLUTION
+    // ------------------------------------------------------------------
+    const admin = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+    });
+
+    if (!admin) {
       return NextResponse.json(
-        {
-          error: "Missing required fields: title or videoKey",
-        },
-        {
-          status: 400,
-        },
+        { error: "Authorized database administrative user could not be resolved." },
+        { status: 500 }
       );
     }
 
-    // Remove any accidental query string
-    const uid = body.videoKey.split("?")[0].trim();
-
-    const accountId = process.env.CF_ACCOUNT_ID!;
-    const token = process.env.CF_STREAM_TOKEN!;
-
-    const cfResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${uid}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (!cfResponse.ok) {
-      const errorText = await cfResponse.text();
-
-      throw new Error(
-        `Cloudflare API Error (${cfResponse.status}): ${errorText}`,
+    // Validate global base maturity configuration
+    const maturity = await prisma.maturityRating.findFirst();
+    if (!maturity) {
+      return NextResponse.json(
+        { error: "No maturity rating configured." },
+        { status: 500 }
       );
     }
 
-    const cfData = await cfResponse.json();
+    // ------------------------------------------------------------------
+    // CATEGORY MANAGEMENT
+    // ------------------------------------------------------------------
+    let dbCategory = null;
+    if (category) {
+      dbCategory = await prisma.category.findFirst({
+        where: { name: category },
+      });
 
-    if (!cfData.success || !cfData.result) {
-      throw new Error("Failed to retrieve Stream metadata");
+      if (!dbCategory) {
+        dbCategory = await prisma.category.create({
+          data: {
+            name: category,
+            slug: category.toLowerCase().replace(/\s+/g, "-"),
+          },
+        });
+      }
     }
 
-    const stream = cfData.result;
+    // ------------------------------------------------------------------
+    // ACTION 1: CREATE TV SHOW SERIES CONTAINER
+    // ------------------------------------------------------------------
+    if (type === "TV_SHOW") {
+      const content = await prisma.content.create({
+        data: {
+          title,
+          slug: `${title.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          description,
+          releaseYear: Number(releaseYear),
+          status: ContentStatus.READY,
+          maturityRating: { connect: { id: maturity.id } },
+          createdBy: { connect: { id: admin.id } },
+          updatedBy: { connect: { id: admin.id } },
+          show: { create: {} },
+          ...(dbCategory && {
+            categories: {
+              create: {
+                category: { connect: { id: dbCategory.id } },
+              },
+            },
+          }),
+        },
+        include: {
+          show: true,
+        },
+      });
 
-    // Build URLs directly from UID
-    const hlsManifestUrl =
-      stream.playback?.hls ||
-      `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+      // Will now serialize safely without throwing TypeError
+      return NextResponse.json(content);
+    }
 
-    const dashManifestUrl =
-      stream.playback?.dash ||
-      `https://videodelivery.net/${uid}/manifest/video.mpd`;
-
-    const thumbnailUrl =
-      stream.thumbnail ||
-      `https://videodelivery.net/${uid}/thumbnails/thumbnail.jpg`;
-
-    const previewUrl =
-      stream.preview || `https://videodelivery.net/${uid}/iframe`;
-
-    const durationSeconds = Math.round(stream.duration ?? 0);
-
-    if (!thumbnailUrl || !hlsManifestUrl) {
-      throw new Error(
-        "Video processing is not complete yet. Try again in a few moments.",
+    // ------------------------------------------------------------------
+    // ATTACH MEDIA ASSET SOURCE (Required only for MOVIE & EPISODE)
+    // ------------------------------------------------------------------
+    if (!videoKey) {
+      return NextResponse.json(
+        { error: "Missing videoKey parameter for playable media content." },
+        { status: 400 }
       );
     }
 
     const video = await prisma.video.create({
       data: {
-        title: body.title,
-        description: body.description || null,
-        releaseYear: Number(body.releaseYear) || new Date().getFullYear(),
-        category: body.category || "Action",
-
-        videoKey: uid,
-
-        hlsManifestUrl,
-        videoUrl: previewUrl,
-        thumbnailUrl,
-        durationSeconds,
-
-        introStart: Number(body.introStart) || 0,
-        introEnd: Number(body.introEnd) || 0,
-        isMovie: body.isMovie !== undefined ? Boolean(body.isMovie) : true,
+        durationSeconds: 0,
+        introStart: Number(introStart),
+        introEnd: Number(introEnd),
+        sources: {
+          create: {
+            url: `https://customer-xxxx.cloudflarestream.com/${videoKey}/manifest/video.m3u8`,
+            codec: "h264",
+            audioCodec: "aac",
+            fps: 24,
+            aspectRatio: "16:9",
+          },
+        },
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      video,
-    });
-  } catch (error: any) {
-    console.error("Video save failed:", error);
+    // ------------------------------------------------------------------
+    // ACTION 2: INGEST FEATURE FILM (MOVIE)
+    // ------------------------------------------------------------------
+    if (type === "MOVIE") {
+      const content = await prisma.content.create({
+        data: {
+          title,
+          slug: `${title.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          description,
+          releaseYear: Number(releaseYear),
+          status: ContentStatus.READY,
+          maturityRating: { connect: { id: maturity.id } },
+          createdBy: { connect: { id: admin.id } },
+          updatedBy: { connect: { id: admin.id } },
+          movies: {
+            create: {
+              durationTotal: 0,
+              video: { connect: { id: video.id } },
+            },
+          },
+          ...(dbCategory && {
+            categories: {
+              create: {
+                category: { connect: { id: dbCategory.id } },
+              },
+            },
+          }),
+        },
+      });
+
+      return NextResponse.json(content);
+    }
+
+    // ------------------------------------------------------------------
+    // ACTION 3: INGEST INDIVIDUAL EPISODE
+    // ------------------------------------------------------------------
+    if (type === "EPISODE") {
+      if (!tvShowId || !seasonNumber || !episodeNumber) {
+        return NextResponse.json(
+          { error: "Missing lineage mapping fields (tvShowId, seasonNumber, or episodeNumber)." },
+          { status: 400 }
+        );
+      }
+
+      const parentShow = await prisma.show.findUnique({
+        where: { id: tvShowId },
+      });
+
+      if (!parentShow) {
+        return NextResponse.json(
+          { error: `Target parent show with ID "${tvShowId}" does not exist.` },
+          { status: 404 }
+        );
+      }
+
+      let season = await prisma.season.findFirst({
+        where: {
+          showId: parentShow.id,
+          seasonNumber: Number(seasonNumber),
+        },
+      });
+
+      if (!season) {
+        season = await prisma.season.create({
+          data: {
+            seasonNumber: Number(seasonNumber),
+            slug: `${parentShow.id}-season-${seasonNumber}`,
+            show: { connect: { id: parentShow.id } },
+          },
+        });
+      }
+
+      const episode = await prisma.episode.create({
+        data: {
+          title,
+          slug: `${title.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          episodeNumber: Number(episodeNumber),
+          description,
+          season: { connect: { id: season.id } },
+          video: { connect: { id: video.id } },
+        },
+      });
+
+      return NextResponse.json(episode);
+    }
 
     return NextResponse.json(
-      {
-        error: error?.message || "Failed to save video metadata",
-      },
-      {
-        status: 500,
-      },
+      { error: "Invalid action classification type provided." },
+      { status: 400 }
+    );
+
+  } catch (error) {
+    console.error("Critical core-database ingestion failure:", error);
+    return NextResponse.json(
+      { error: "Failed to save media metadata structures safely." },
+      { status: 500 }
     );
   }
 }

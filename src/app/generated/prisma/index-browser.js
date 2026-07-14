@@ -120,29 +120,346 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.MaturityRatingScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  system: 'system',
+  severityRank: 'severityRank',
+  description: 'description',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.LanguageRegistryScalarFieldEnum = {
+  id: 'id',
+  iso6391: 'iso6391',
+  name: 'name',
+  nativeName: 'nativeName',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
-  firebaseUid: 'firebaseUid',
+  passwordHash: 'passwordHash',
   email: 'email',
-  subscriptionTier: 'subscriptionTier',
+  role: 'role',
+  subscriptionPlanId: 'subscriptionPlanId',
+  isActive: 'isActive',
+  deletedAt: 'deletedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SubscriptionPlanScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  maxSimultaneousScreens: 'maxSimultaneousScreens',
+  maxResolution: 'maxResolution',
+  allowsDownloads: 'allowsDownloads',
+  priceCents: 'priceCents',
+  currency: 'currency',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DeviceSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  deviceUuid: 'deviceUuid',
+  deviceName: 'deviceName',
+  deviceType: 'deviceType',
+  ipAddress: 'ipAddress',
+  refreshToken: 'refreshToken',
+  lastActiveAt: 'lastActiveAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ProfileScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  avatarUrl: 'avatarUrl',
+  maxMaturityId: 'maxMaturityId',
+  pinLockCode: 'pinLockCode',
+  deletedAt: 'deletedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ProfileSettingsScalarFieldEnum = {
+  id: 'id',
+  profileId: 'profileId',
+  interfaceLanguage: 'interfaceLanguage',
+  audioLanguage: 'audioLanguage',
+  subtitleLanguage: 'subtitleLanguage',
+  autoplayNext: 'autoplayNext',
+  autoplayPreviews: 'autoplayPreviews',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ContentScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  slug: 'slug',
+  description: 'description',
+  storyline: 'storyline',
+  releaseYear: 'releaseYear',
+  status: 'status',
+  maturityRatingId: 'maturityRatingId',
+  imdbId: 'imdbId',
+  tmdbId: 'tmdbId',
+  tvdbId: 'tvdbId',
+  traktId: 'traktId',
+  keywords: 'keywords',
+  popularityScore: 'popularityScore',
+  viewCount: 'viewCount',
+  watchSeconds: 'watchSeconds',
+  playCount: 'playCount',
+  trendingScore: 'trendingScore',
+  createdById: 'createdById',
+  updatedById: 'updatedById',
+  publishedAt: 'publishedAt',
+  deletedAt: 'deletedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.MovieScalarFieldEnum = {
+  id: 'id',
+  contentId: 'contentId',
+  cutVariant: 'cutVariant',
+  durationTotal: 'durationTotal',
+  videoId: 'videoId'
+};
+
+exports.Prisma.ShowScalarFieldEnum = {
+  id: 'id',
+  contentId: 'contentId'
+};
+
+exports.Prisma.SeasonScalarFieldEnum = {
+  id: 'id',
+  seasonNumber: 'seasonNumber',
+  title: 'title',
+  slug: 'slug',
+  description: 'description',
+  showId: 'showId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.EpisodeScalarFieldEnum = {
+  id: 'id',
+  episodeNumber: 'episodeNumber',
+  title: 'title',
+  slug: 'slug',
+  description: 'description',
+  releaseDate: 'releaseDate',
+  seasonId: 'seasonId',
+  nextEpisodeId: 'nextEpisodeId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  videoId: 'videoId'
+};
+
+exports.Prisma.PersonScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  biography: 'biography',
+  avatarUrl: 'avatarUrl',
+  deletedAt: 'deletedAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.StudioScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ProductionCompanyScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CountryScalarFieldEnum = {
+  id: 'id',
+  isoAlpha2: 'isoAlpha2',
+  name: 'name'
+};
+
+exports.Prisma.CastScalarFieldEnum = {
+  id: 'id',
+  character: 'character',
+  displayOrder: 'displayOrder',
+  personId: 'personId',
+  contentId: 'contentId'
+};
+
+exports.Prisma.CrewScalarFieldEnum = {
+  id: 'id',
+  job: 'job',
+  department: 'department',
+  personId: 'personId',
+  contentId: 'contentId'
+};
+
+exports.Prisma.CategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CollectionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  slug: 'slug',
+  description: 'description',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.HomepageRowScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  displayOrder: 'displayOrder',
+  renderStyle: 'renderStyle',
+  sourceType: 'sourceType',
+  isActive: 'isActive',
+  collectionId: 'collectionId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ContentCategoryScalarFieldEnum = {
+  contentId: 'contentId',
+  categoryId: 'categoryId',
+  isPrimary: 'isPrimary'
+};
+
+exports.Prisma.CollectionItemScalarFieldEnum = {
+  collectionId: 'collectionId',
+  contentId: 'contentId',
+  displayOrder: 'displayOrder',
+  isFeatured: 'isFeatured'
+};
+
+exports.Prisma.ContentLanguageScalarFieldEnum = {
+  contentId: 'contentId',
+  languageId: 'languageId',
+  isDubbed: 'isDubbed',
+  isSubbed: 'isSubbed'
+};
+
+exports.Prisma.ContentStudioScalarFieldEnum = {
+  contentId: 'contentId',
+  studioId: 'studioId'
+};
+
+exports.Prisma.ContentProductionCompanyScalarFieldEnum = {
+  contentId: 'contentId',
+  productionCompanyId: 'productionCompanyId'
+};
+
+exports.Prisma.ContentCountryScalarFieldEnum = {
+  contentId: 'contentId',
+  countryId: 'countryId'
+};
+
+exports.Prisma.AwardScalarFieldEnum = {
+  id: 'id',
+  contentId: 'contentId',
+  academy: 'academy',
+  year: 'year',
+  category: 'category',
+  isWinner: 'isWinner',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ImageAssetScalarFieldEnum = {
+  id: 'id',
+  url: 'url',
+  type: 'type',
+  width: 'width',
+  height: 'height',
+  displayOrder: 'displayOrder',
+  languageId: 'languageId',
+  contentId: 'contentId',
+  seasonId: 'seasonId',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.TrailerScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  hlsManifestUrl: 'hlsManifestUrl',
+  durationSeconds: 'durationSeconds',
+  contentId: 'contentId',
   createdAt: 'createdAt'
 };
 
 exports.Prisma.VideoScalarFieldEnum = {
   id: 'id',
-  title: 'title',
-  description: 'description',
-  releaseYear: 'releaseYear',
   durationSeconds: 'durationSeconds',
-  hlsManifestUrl: 'hlsManifestUrl',
-  videoUrl: 'videoUrl',
-  thumbnailUrl: 'thumbnailUrl',
-  videoKey: 'videoKey',
   introStart: 'introStart',
   introEnd: 'introEnd',
-  category: 'category',
-  isMovie: 'isMovie',
-  createdAt: 'createdAt'
+  recapStart: 'recapStart',
+  recapEnd: 'recapEnd',
+  creditsStart: 'creditsStart',
+  creditsEnd: 'creditsEnd',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.VideoSourceScalarFieldEnum = {
+  id: 'id',
+  type: 'type',
+  url: 'url',
+  resolution: 'resolution',
+  bitrate: 'bitrate',
+  codec: 'codec',
+  audioCodec: 'audioCodec',
+  fps: 'fps',
+  hdr: 'hdr',
+  aspectRatio: 'aspectRatio',
+  videoId: 'videoId',
+  widevineKeyId: 'widevineKeyId',
+  widevineLicenseUrl: 'widevineLicenseUrl',
+  fairplayAssetId: 'fairplayAssetId',
+  fairplayCertificateUrl: 'fairplayCertificateUrl',
+  playreadyHeader: 'playreadyHeader'
+};
+
+exports.Prisma.SubtitleTrackScalarFieldEnum = {
+  id: 'id',
+  languageId: 'languageId',
+  label: 'label',
+  url: 'url',
+  isCC: 'isCC',
+  videoId: 'videoId'
+};
+
+exports.Prisma.AudioTrackScalarFieldEnum = {
+  id: 'id',
+  languageId: 'languageId',
+  label: 'label',
+  url: 'url',
+  isDescriptive: 'isDescriptive',
+  videoId: 'videoId'
+};
+
+exports.Prisma.RegionAvailabilityScalarFieldEnum = {
+  id: 'id',
+  countryCode: 'countryCode',
+  isAllowed: 'isAllowed',
+  expiresAt: 'expiresAt',
+  videoSourceId: 'videoSourceId'
 };
 
 exports.Prisma.WatchHistoryScalarFieldEnum = {
@@ -151,15 +468,46 @@ exports.Prisma.WatchHistoryScalarFieldEnum = {
   videoId: 'videoId',
   lastTime: 'lastTime',
   isFinished: 'isFinished',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
 
-exports.Prisma.ProfileScalarFieldEnum = {
+exports.Prisma.MyListItemScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
-  name: 'name',
-  avatarUrl: 'avatarUrl',
-  maturityRating: 'maturityRating'
+  profileId: 'profileId',
+  contentId: 'contentId',
+  displayOrder: 'displayOrder',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.RatingScalarFieldEnum = {
+  id: 'id',
+  value: 'value',
+  profileId: 'profileId',
+  contentId: 'contentId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RecommendationScoreScalarFieldEnum = {
+  id: 'id',
+  profileId: 'profileId',
+  targetContentId: 'targetContentId',
+  predictedScore: 'predictedScore',
+  reasonCode: 'reasonCode',
+  sourceContentId: 'sourceContentId',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DownloadScalarFieldEnum = {
+  id: 'id',
+  profileId: 'profileId',
+  videoId: 'videoId',
+  deviceUuid: 'deviceUuid',
+  authToken: 'authToken',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -176,13 +524,131 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
+exports.Role = exports.$Enums.Role = {
+  USER: 'USER',
+  MODERATOR: 'MODERATOR',
+  CONTENT_MANAGER: 'CONTENT_MANAGER',
+  ADMIN: 'ADMIN',
+  SUPERADMIN: 'SUPERADMIN'
+};
 
+exports.DeviceType = exports.$Enums.DeviceType = {
+  WEB: 'WEB',
+  MOBILE_IOS: 'MOBILE_IOS',
+  MOBILE_ANDROID: 'MOBILE_ANDROID',
+  SMART_TV: 'SMART_TV',
+  APPLE_TV: 'APPLE_TV',
+  ROKU: 'ROKU',
+  FIRE_TV: 'FIRE_TV',
+  PLAYSTATION: 'PLAYSTATION',
+  XBOX: 'XBOX'
+};
+
+exports.ContentStatus = exports.$Enums.ContentStatus = {
+  DRAFT: 'DRAFT',
+  PROCESSING: 'PROCESSING',
+  READY: 'READY',
+  PUBLISHED: 'PUBLISHED',
+  ARCHIVED: 'ARCHIVED'
+};
+
+exports.RowRenderStyle = exports.$Enums.RowRenderStyle = {
+  STANDARD_POSTER: 'STANDARD_POSTER',
+  WIDE_BACKDROP: 'WIDE_BACKDROP',
+  HERO_BILLBOARD: 'HERO_BILLBOARD',
+  TOP_10_NUMERIC: 'TOP_10_NUMERIC',
+  CONTINUE_WATCHING: 'CONTINUE_WATCHING'
+};
+
+exports.RowDataSource = exports.$Enums.RowDataSource = {
+  CURATED_COLLECTION: 'CURATED_COLLECTION',
+  TRENDING: 'TRENDING',
+  POPULAR: 'POPULAR',
+  NEW_RELEASES: 'NEW_RELEASES',
+  TOP_10: 'TOP_10',
+  CONTINUE_WATCHING: 'CONTINUE_WATCHING',
+  RECOMMENDED: 'RECOMMENDED'
+};
+
+exports.AssetType = exports.$Enums.AssetType = {
+  POSTER: 'POSTER',
+  BACKDROP: 'BACKDROP',
+  BANNER: 'BANNER',
+  STILL: 'STILL',
+  LOGO: 'LOGO',
+  HERO_ART: 'HERO_ART'
+};
+
+exports.VideoSourceType = exports.$Enums.VideoSourceType = {
+  HLS: 'HLS',
+  DASH: 'DASH',
+  MP4: 'MP4'
+};
+
+exports.VideoResolution = exports.$Enums.VideoResolution = {
+  P240: 'P240',
+  P360: 'P360',
+  P480: 'P480',
+  P720: 'P720',
+  P1080: 'P1080',
+  UHD_4K: 'UHD_4K',
+  UHD_8K: 'UHD_8K'
+};
+
+exports.HDRFormat = exports.$Enums.HDRFormat = {
+  SDR: 'SDR',
+  HDR10: 'HDR10',
+  DOLBY_VISION: 'DOLBY_VISION',
+  HLG: 'HLG'
+};
+
+exports.RatingValue = exports.$Enums.RatingValue = {
+  THUMBS_DOWN: 'THUMBS_DOWN',
+  THUMBS_UP: 'THUMBS_UP',
+  DOUBLE_THUMBS_UP: 'DOUBLE_THUMBS_UP'
+};
 
 exports.Prisma.ModelName = {
+  MaturityRating: 'MaturityRating',
+  LanguageRegistry: 'LanguageRegistry',
   User: 'User',
+  SubscriptionPlan: 'SubscriptionPlan',
+  DeviceSession: 'DeviceSession',
+  Profile: 'Profile',
+  ProfileSettings: 'ProfileSettings',
+  Content: 'Content',
+  Movie: 'Movie',
+  Show: 'Show',
+  Season: 'Season',
+  Episode: 'Episode',
+  Person: 'Person',
+  Studio: 'Studio',
+  ProductionCompany: 'ProductionCompany',
+  Country: 'Country',
+  Cast: 'Cast',
+  Crew: 'Crew',
+  Category: 'Category',
+  Collection: 'Collection',
+  HomepageRow: 'HomepageRow',
+  ContentCategory: 'ContentCategory',
+  CollectionItem: 'CollectionItem',
+  ContentLanguage: 'ContentLanguage',
+  ContentStudio: 'ContentStudio',
+  ContentProductionCompany: 'ContentProductionCompany',
+  ContentCountry: 'ContentCountry',
+  Award: 'Award',
+  ImageAsset: 'ImageAsset',
+  Trailer: 'Trailer',
   Video: 'Video',
+  VideoSource: 'VideoSource',
+  SubtitleTrack: 'SubtitleTrack',
+  AudioTrack: 'AudioTrack',
+  RegionAvailability: 'RegionAvailability',
   WatchHistory: 'WatchHistory',
-  Profile: 'Profile'
+  MyListItem: 'MyListItem',
+  Rating: 'Rating',
+  RecommendationScore: 'RecommendationScore',
+  Download: 'Download'
 };
 
 /**

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Script from "next/script";
 
@@ -41,19 +40,25 @@ export const metadata: Metadata = {
   },
 };
 
+import { AuthProvider } from "@/components/AuthProvider";
+import ConsumerNavbar from "@/components/Navbar/ConsumerNavbar";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
   return (
     <html lang="en" className={outfit.variable}>
       <body style={{ fontFamily: "var(--font-main), sans-serif", backgroundColor: "var(--background)" }}>
-        <Navbar />
-        <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
-          {children}
-        </main>
-        <Footer />
+        <AuthProvider>
+          <ConsumerNavbar/>
+          <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
+            {children}
+          </main>
+          <Footer />
+        </AuthProvider>
         <Script
           src="https://widget.cloudinary.com/v2.0/global/all.js"
           strategy="afterInteractive"

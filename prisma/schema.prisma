@@ -1,70 +1,791 @@
+// =========================================================================
+// 1. GENERATOR, DATASOURCE & EXTENSION CONFIGURATION
+// =========================================================================
+
 generator client {
   provider        = "prisma-client-js"
   output          = "../src/app/generated/prisma"
-  previewFeatures = ["driverAdapters"] // Explicitly ensuring adapter features are ready
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id               String    @id @default(uuid())
-  firebaseUid      String    @unique
-  email            String    @unique
-  subscriptionTier String    @default("basic")
-  createdAt        DateTime  @default(now())
-  profiles         Profile[]
+// =========================================================================
+// 2. ENUMS & CORE VALUE REGISTRIES
+// =========================================================================
+
+enum Role {
+  USER
+  MODERATOR
+  CONTENT_MANAGER
+  ADMIN
+  SUPERADMIN
 }
+
+enum ContentStatus {
+  DRAFT
+  PROCESSING
+  READY
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AssetType {
+  POSTER       // Standard vertical portrait card (e.g., 2:3 aspect ratio grids)
+  BACKDROP     // Wide landscape showcase billboard image 
+  BANNER       // High-density horizontal graphic components
+  STILL        // Isolated static freeze-frame thumbnail from stream captures
+  LOGO         // Alpha-channel transparent typographic typography layers
+  HERO_ART     // Prominent premium marketing banners
+}
+
+enum VideoResolution {
+  P240
+  P360
+  P480
+  P720
+  P1080
+  UHD_4K
+  UHD_8K
+}
+
+enum VideoSourceType {
+  HLS
+  DASH
+  MP4
+}
+
+enum HDRFormat {
+  SDR
+  HDR10
+  DOLBY_VISION
+  HLG
+}
+
+enum RatingValue {
+  THUMBS_DOWN
+  THUMBS_UP
+  DOUBLE_THUMBS_UP
+}
+
+enum DeviceType {
+  WEB
+  MOBILE_IOS
+  MOBILE_ANDROID
+  SMART_TV
+  APPLE_TV
+  ROKU
+  FIRE_TV
+  PLAYSTATION
+  XBOX
+}
+
+enum RowRenderStyle {
+  STANDARD_POSTER
+  WIDE_BACKDROP
+  HERO_BILLBOARD
+  TOP_10_NUMERIC
+  CONTINUE_WATCHING
+}
+
+enum RowDataSource {
+  CURATED_COLLECTION
+  TRENDING
+  POPULAR
+  NEW_RELEASES
+  TOP_10
+  CONTINUE_WATCHING
+  RECOMMENDED
+}
+
+// =========================================================================
+// 3. CORE CONTENT CLASSIFICATION (NORMALIZED RATINGS & LANGUAGES)
+// =========================================================================
+
+model MaturityRating {
+  id           String   @id @default(uuid())
+  code         String   @unique // e.g., "PG-13", "TV-MA", "18+"
+  system       String   // e.g., "MPAA", "TVPG", "BBFC"
+  severityRank Int      // Numeric weight for sorting/parental lock control (e.g., G=10, R=50)
+  description  String?
+  createdAt    DateTime @default(now())
+
+  // Back-Relations
+  contentItems Content[]
+  profiles     Profile[]
+}
+
+model LanguageRegistry {
+  id           String   @id @default(uuid())
+  iso6391      String   @unique // e.g., "en", "es", "ja"
+  name         String   // e.g., "English", "Español", "Japanese"
+  nativeName   String?
+  createdAt    DateTime @default(now())
+
+  // Back-Relations
+  contentLanguages ContentLanguage[]
+  subtitleTracks   SubtitleTrack[]
+  audioTracks      AudioTrack[]
+  imageAssets      ImageAsset[]
+}
+
+// =========================================================================
+// 4. IDENTITY, BILLING STRATAS & ACTIVE RUNTIME DEVICE SESSIONS
+// =========================================================================
+
+model User {
+  id                 String            @id @default(uuid())
+  passwordHash       String?
+  email              String            @unique
+  role               Role              @default(USER)
+  subscriptionPlanId String?
+  subscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id], onDelete: Restrict)
+  isActive           Boolean           @default(true)
+  deletedAt          DateTime?         
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  profiles           Profile[]
+  sessions           DeviceSession[]
+
+  // CMS Auditing Back-References
+  createdContents    Content[]         @relation("ContentCreator")
+  updatedContents    Content[]         @relation("ContentUpdater")
+
+  @@index([email])
+}
+
+model SubscriptionPlan {
+  id               String   @id @default(uuid())
+  name             String   @unique // e.g., "Premium Ultra 4K"
+  slug             String   @unique // e.g., "premium-ultra-4k"
+  maxSimultaneousScreens Int @default(1)
+  maxResolution    String   @default("1080p") 
+  allowsDownloads  Boolean  @default(false)
+  priceCents       Int
+  currency         String   @default("USD")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users            User[]
+}
+
+model DeviceSession {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceUuid   String     
+  deviceName   String     // e.g., "Living Room Samsung TV"
+  deviceType   DeviceType @default(WEB)
+  ipAddress    String?
+  refreshToken String     @unique
+  lastActiveAt DateTime   @updatedAt
+  createdAt    DateTime   @default(now())
+
+  @@index([userId])
+  @@index([deviceUuid])
+  @@unique([userId, deviceUuid])
+}
+
+// =========================================================================
+// 5. USER PROFILES & RUNTIME CONTROLS
+// =========================================================================
+
+model Profile {
+  id               String           @id @default(uuid())
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  avatarUrl        String?
+  
+  maxMaturityId    String
+  maxMaturity      MaturityRating   @relation(fields: [maxMaturityId], references: [id], onDelete: Restrict)
+  pinLockCode      String?          
+  
+  deletedAt        DateTime?        
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  settings         ProfileSettings?
+  watchHistory     WatchHistory[]
+  myList           MyListItem[]
+  ratings          Rating[]
+  downloads        Download[]
+  recommendations  RecommendationScore[]
+
+  @@index([userId])
+}
+
+model ProfileSettings {
+  id                 String   @id @default(uuid())
+  profileId          String   @unique
+  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  interfaceLanguage  String   @default("en")
+  audioLanguage      String   @default("en")
+  subtitleLanguage   String   @default("en")
+  autoplayNext       Boolean  @default(true)
+  autoplayPreviews   Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+}
+
+// =========================================================================
+// 6. CONTENT CORE METADATA CONTAINER (Polymorphic Unified Entrypoint)
+// =========================================================================
+
+model Content {
+  id               String            @id @default(uuid())
+  title            String
+  slug             String            @unique 
+  description      String?
+  storyline        String?           @db.Text
+  releaseYear      Int?
+  status           ContentStatus     @default(DRAFT)
+  maturityRatingId String
+  maturityRating   MaturityRating    @relation(fields: [maturityRatingId], references: [id], onDelete: Restrict)
+  
+  // External Provider Mappings
+  imdbId           String?           @unique
+  tmdbId           Int?              @unique
+  tvdbId           String?           @unique
+  traktId          Int?              @unique
+
+  // Global Engine Search Optimization
+  keywords         String[]          
+
+  // Macro Engine Metrics & Telemetry Rollups
+  popularityScore  Float             @default(0.0)
+  viewCount        BigInt            @default(0)
+  watchSeconds     BigInt            @default(0)
+  playCount        Int               @default(0)
+  trendingScore    Float             @default(0.0)
+
+  // CMS Lifecycle Auditing
+  createdById      String
+  createdBy        User              @relation("ContentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById      String
+  updatedBy        User              @relation("ContentUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  publishedAt      DateTime?
+  deletedAt        DateTime?         
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Structural Variants
+  movies           Movie[]           // Now an explicit array to support Director's Cuts, Regional Variants, etc.
+  show             Show?
+
+  // Explicit Joint Relationship Connectors
+  categories       ContentCategory[]
+  collections      CollectionItem[]
+  languages        ContentLanguage[]
+  studios          ContentStudio[]
+  productionCos    ContentProductionCompany[]
+  countries        ContentCountry[]
+  awards           Award[]
+  images           ImageAsset[]
+  trailers         Trailer[]
+  cast             Cast[]
+  crew             Crew[]
+  myListItems      MyListItem[]
+  ratings          Rating[]
+  targetedRecomms  RecommendationScore[] @relation("TargetContent")
+  sourcedRecomms   RecommendationScore[] @relation("SourceContent")
+
+  @@index([title])
+  @@index([releaseYear])
+  @@index([status])
+  @@index([createdAt])
+  @@index([popularityScore])
+  @@index([trendingScore])
+  @@index([keywords])
+}
+
+// =========================================================================
+// 7. SUBSURFACE SUB-METADATA SUB-TYPES (MOVIES, SHOWS, SEASONS, EPISODES)
+// =========================================================================
+
+model Movie {
+  id             String   @id @default(uuid())
+  contentId      String
+  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  // Cut Customizations (e.g., "Theatrical Cut", "Director's Cut", "Unrated")
+  cutVariant     String   @default("Theatrical")
+  durationTotal  Int      
+
+  // Structural isolation separating metadata from the physical playback resource
+  videoId        String   @unique
+  video          Video    @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  @@index([contentId])
+}
+
+model Show {
+  id             String   @id @default(uuid())
+  contentId      String   @unique
+  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  seasons        Season[]
+}
+
+model Season {
+  id           String       @id @default(uuid())
+  seasonNumber Int
+  title        String?      
+  slug         String       @unique
+  description  String?
+  showId       String
+  show         Show         @relation(fields: [showId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  episodes     Episode[]
+  images       ImageAsset[]
+
+  @@unique([showId, seasonNumber])
+  @@index([showId])
+}
+
+model Episode {
+  id            String   @id @default(uuid())
+  episodeNumber Int
+  title         String   
+  slug          String   @unique
+  description   String?
+  releaseDate   DateTime?
+  seasonId      String
+  season        Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  
+  // Chained Linear Playlist Preloading Links
+  nextEpisodeId String?  @unique
+  nextEpisode   Episode? @relation("EpisodeChaining", fields: [nextEpisodeId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Structural isolation separating metadata from the physical playback resource
+  videoId       String   @unique
+  video         Video    @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  // Inverse relation for chained preloading
+  previousEpisode Episode? @relation("EpisodeChaining")
+
+  @@unique([seasonId, episodeNumber])
+  @@index([seasonId])
+}
+
+// =========================================================================
+// 8. PERSONNEL & CORPORATE ORG REGISTRIES
+// =========================================================================
+
+model Person {
+  id         String    @id @default(uuid())
+  name       String
+  slug       String    @unique 
+  biography  String?   @db.Text
+  avatarUrl  String?
+  deletedAt  DateTime? 
+  createdAt  DateTime  @default(now())
+
+  castRoles  Cast[]
+  crewRoles  Crew[]
+
+  @@index([name])
+}
+
+model Studio {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  slug      String          @unique
+  createdAt DateTime        @default(now())
+  contents  ContentStudio[]
+}
+
+model ProductionCompany {
+  id        String                     @id @default(uuid())
+  name      String                     @unique
+  slug      String                     @unique
+  createdAt DateTime                   @default(now())
+  contents  ContentProductionCompany[]
+}
+
+model Country {
+  id          String           @id @default(uuid())
+  isoAlpha2   String           @unique 
+  name        String           @unique
+  contents    ContentCountry[]
+}
+
+// =========================================================================
+// 9. EXPLICIT JOIN TABLES FOR PERFORMANCES & CONTRIBUTIONS
+// =========================================================================
+
+model Cast {
+  id         String   @id @default(uuid())
+  character  String   
+  displayOrder Int    @default(0) 
+  personId   String
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  contentId  String
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([contentId])
+  @@index([displayOrder])
+}
+
+model Crew {
+  id         String   @id @default(uuid())
+  job        String   
+  department String   
+  personId   String
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  contentId  String
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([contentId])
+}
+
+// =========================================================================
+// 10. EDITORIAL TAXONOMIES & HOMEPAGE ROW DYNAMIC SHELF LAYOUT CONFIGS
+// =========================================================================
+
+model Category {
+  id        String            @id @default(uuid())
+  name      String            @unique
+  slug      String            @unique
+  createdAt DateTime          @default(now())
+  contents  ContentCategory[]
+}
+
+model Collection {
+  id          String           @id @default(uuid())
+  name        String           
+  slug        String           @unique
+  description String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  items       CollectionItem[]
+  homeRows    HomepageRow[]
+}
+
+model HomepageRow {
+  id             String         @id @default(uuid())
+  title          String         
+  displayOrder   Int            @unique 
+  renderStyle    RowRenderStyle @default(STANDARD_POSTER)
+  sourceType     RowDataSource  @default(CURATED_COLLECTION)
+  isActive       Boolean        @default(true)
+  
+  // Nullable if the row is powered by an automated dynamic engine path (e.g., TRENDING, RECOMMENDED)
+  collectionId   String?
+  collection     Collection?    @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+  
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([displayOrder])
+  @@index([sourceType])
+}
+
+// =========================================================================
+// 11. EXPLICIT RELATIONSHIP TABLES (ADD METADATA STAMPS & CUSTOM POSITIONS)
+// =========================================================================
+
+model ContentCategory {
+  contentId  String
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  isPrimary  Boolean  @default(false)
+
+  @@id([contentId, categoryId])
+  @@index([contentId])
+  @@index([categoryId])
+}
+
+model CollectionItem {
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  contentId    String
+  content      Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  displayOrder Int        @default(0) 
+  isFeatured   Boolean    @default(false)
+
+  @@id([collectionId, contentId])
+  @@index([collectionId])
+  @@index([contentId])
+  @@index([displayOrder])
+}
+
+model ContentLanguage {
+  contentId  String
+  content    Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  languageId String
+  language   LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  isDubbed   Boolean          @default(false)
+  isSubbed   Boolean          @default(true)
+
+  @@id([contentId, languageId])
+}
+
+model ContentStudio {
+  contentId String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  studioId  String
+  studio    Studio  @relation(fields: [studioId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, studioId])
+}
+
+model ContentProductionCompany {
+  contentId           String
+  content             Content           @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  productionCompanyId String
+  productionCompany   ProductionCompany @relation(fields: [productionCompanyId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, productionCompanyId])
+}
+
+model ContentCountry {
+  contentId String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, countryId])
+}
+
+model Award {
+  id        String   @id @default(uuid())
+  contentId String
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  academy   String   
+  year      Int
+  category  String   
+  isWinner  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([contentId])
+}
+
+// =========================================================================
+// 12. MARKETING ASSETS & MULTILANGUAGE MEDIA SPECIFICATIONS
+// =========================================================================
+
+model ImageAsset {
+  id           String           @id @default(uuid())
+  url          String           
+  type         AssetType        @default(POSTER)
+  width        Int?
+  height       Int?
+  displayOrder Int              @default(0) 
+  
+  languageId   String
+  language     LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Restrict)
+
+  contentId    String?
+  content      Content?         @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  seasonId     String?
+  season       Season?          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime         @default(now())
+
+  @@index([contentId])
+  @@index([seasonId])
+}
+
+model Trailer {
+  id             String   @id @default(uuid())
+  title          String
+  hlsManifestUrl String
+  durationSeconds Int?
+  contentId      String
+  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([contentId])
+}
+
+// =========================================================================
+// 13. PHYSICAL STREAM EXECUTABLE ENGINE (The Bitstream Wrapper Core)
+// =========================================================================
 
 model Video {
   id              String   @id @default(uuid())
-  title           String
-  description     String?
-  releaseYear     Int?
-  durationSeconds Int?
-  hlsManifestUrl  String?
-  videoUrl        String?
-  thumbnailUrl    String?
-  videoKey        String
-  
-  // 🔥 Relevant Netflix-like fields
-  introStart      Int?     @default(0)  // Seconds when intro starts
-  introEnd        Int?     @default(0)  // Seconds when intro ends
-  category        String?               // e.g. "Action", "Drama"
-  isMovie         Boolean  @default(true)
+  durationSeconds Int
 
-  createdAt       DateTime @default(now())
-  
-  // Relations
+  // Interactive Playback Timeline Meta Markers (in seconds)
+  introStart      Int?     @default(0)  
+  introEnd        Int?     @default(0)  
+  recapStart      Int?     @default(0)  
+  recapEnd        Int?     @default(0)
+  creditsStart    Int?     
+  creditsEnd      Int?     
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Inverse Decoupled Structural Links
+  movie           Movie?
+  episode         Episode?
+  sources         VideoSource[]
+  subtitles       SubtitleTrack[]
+  audioTracks     AudioTrack[]
   watchHistory    WatchHistory[]
+  downloads       Download[]
 }
+
+model VideoSource {
+  id              String               @id @default(uuid())
+  type            VideoSourceType      @default(HLS)
+  url             String               
+  resolution      VideoResolution      @default(P1080)
+  bitrate         Int?                 // Encoding throughput metric bits per second
+  
+  // Granular Playback & Hardware Encoding Metadata
+  codec           String               // e.g., "avc1.64002a", "hvc1.2.4.L153.B0" (HEVC)
+  audioCodec      String               // e.g., "mp4a.40.2" (AAC), "ec-3" (Dolby Digital Plus)
+  fps             Float                // e.g., 23.976, 24.0, 60.0
+  hdr             HDRFormat            @default(SDR)
+  aspectRatio     String               // e.g., "16:9", "2.39:1"
+  
+  videoId         String
+  video           Video                @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  // High-Scale Multi-DRM Security Payloads
+  widevineKeyId   String?
+  widevineLicenseUrl String?
+  fairplayAssetId String?
+  fairplayCertificateUrl String?
+  playreadyHeader String?
+
+  regions         RegionAvailability[]
+
+  @@index([videoId])
+}
+
+model SubtitleTrack {
+  id         String           @id @default(uuid())
+  languageId String
+  language   LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  label      String           
+  url        String           
+  isCC       Boolean          @default(false) 
+  videoId    String
+  video      Video            @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+model AudioTrack {
+  id            String           @id @default(uuid())
+  languageId    String
+  language      LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  label         String           
+  url           String?          
+  isDescriptive Boolean          @default(false) 
+  videoId       String
+  video         Video            @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+model RegionAvailability {
+  id             String       @id @default(uuid())
+  countryCode    String       // ISO 3166-1 alpha-2 standard country codes (e.g., "US", "DE")
+  isAllowed      Boolean      @default(true) 
+  expiresAt      DateTime?    
+  videoSourceId  String
+  videoSource    VideoSource  @relation(fields: [videoSourceId], references: [id], onDelete: Cascade)
+
+  @@unique([countryCode, videoSourceId])
+  @@index([videoSourceId])
+}
+
+// =========================================================================
+// 14. TELEMETRY LOGGING, BOOKMARKS, RECOMMS, & DOWNLOAD SYSTEMS
+// =========================================================================
 
 model WatchHistory {
-  id        String   @id @default(uuid())
-  profileId String
-  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  videoId   String
-  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  videoId     String
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
   
-  // 🔥 Progress Tracking
-  lastTime  Int      @default(0)   // Last watched second (for Resume feature)
-  isFinished Boolean @default(false)
-  
-  updatedAt DateTime @updatedAt
+  lastTime    Int      @default(0)   
+  isFinished  Boolean  @default(false) 
+  completedAt DateTime? 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@unique([profileId, videoId]) // One history record per video per profile
+  @@unique([profileId, videoId])
+  @@index([profileId])
+  @@index([videoId])
+  @@index([updatedAt]) 
 }
 
-// Update your Profile model to include the relation
-model Profile {
-  id             String  @id @default(uuid())
-  userId         String
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  avatarUrl      String?
-  maturityRating String  @default("R")
+model MyListItem {
+  id           String   @id @default(uuid())
+  profileId    String
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  contentId    String
+  content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  displayOrder Int      @default(0) 
+  createdAt    DateTime @default(now())
+
+  @@unique([profileId, contentId])
+  @@index([profileId])
+  @@index([displayOrder])
+}
+
+model Rating {
+  id        String      @id @default(uuid())
+  value     RatingValue
+  profileId String
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  contentId String
+  content   Content     @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([profileId, contentId])
+  @@index([profileId])
+  @@index([contentId])
+}
+
+model RecommendationScore {
+  id              String   @id @default(uuid())
+  profileId       String
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  targetContentId String
+  targetContent   Content  @relation("TargetContent", fields: [targetContentId], references: [id], onDelete: Cascade)
+  predictedScore  Float    
+  reasonCode      String?  
+  sourceContentId String?  
+  sourceContent   Content? @relation("SourceContent", fields: [sourceContentId], references: [id], onDelete: SetNull)
+  updatedAt       DateTime @updatedAt
+
+  @@unique([profileId, targetContentId])
+  @@index([profileId, predictedScore]) 
+}
+
+model Download {
+  id         String   @id @default(uuid())
+  profileId  String
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  videoId    String
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
   
-  // 🔥 Relation to history
-  watchHistory   WatchHistory[]
+  deviceUuid String   
+  authToken  String   
+  expiresAt  DateTime 
+  createdAt  DateTime @default(now())
+
+  @@unique([profileId, videoId, deviceUuid])
+  @@index([profileId])
 }

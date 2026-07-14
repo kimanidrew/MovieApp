@@ -1,7 +1,6 @@
 import React from 'react';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import prisma from '@/lib/prisma';
+import getBaseUrl from '@/lib/getBaseUrl';
 import Link from 'next/link';
 
 import VideoGrid from '@/components/VideoGrid';
@@ -14,13 +13,12 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function TvShowsPage() {
-  const shows = await prisma.video.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+  const res = await fetch(`${getBaseUrl()}/api/videos/getAllVideos`, { cache: 'no-store' });
+  const shows = await res.json();
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#141414', color: '#fff' }}>
-      <Navbar />
+      
       
       <div className="animate-in" style={{ flex: 1, padding: '10rem 4% 4rem' }}>
         <h1 style={{ fontSize: '3rem', marginBottom: '3rem', fontWeight: 700 }}>TV Shows</h1>

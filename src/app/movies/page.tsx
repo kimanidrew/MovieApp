@@ -1,7 +1,7 @@
 import React from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import prisma from '@/lib/prisma';
+import getBaseUrl from '@/lib/getBaseUrl';
 import Link from 'next/link';
 
 import VideoGrid from '@/components/VideoGrid';
@@ -14,9 +14,8 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function MoviesPage() {
-  const movies = await prisma.video.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+  const res = await fetch(`${getBaseUrl()}/api/videos/getAllVideos`, { cache: 'no-store' });
+  const movies = await res.json();
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column' }}>

@@ -1,14 +1,13 @@
 import React from 'react';
-import prisma from '@/lib/prisma';
+import getBaseUrl from '@/lib/getBaseUrl';
 import { notFound } from 'next/navigation';
 import HlsPlayer from './HlsPlayer';
 
 export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const video = await prisma.video.findUnique({
-    where: { id }
-  });
+  const res = await fetch(`${getBaseUrl()}/api/videos/${id}`, { cache: 'no-store' });
+  const video = res.ok ? await res.json() : null;
 
   if (!video) {
     notFound();

@@ -1,36 +1,60 @@
 // app/api/videos/status/[uid]/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID!;
+const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN!;
 
 export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ uid: string }> }
+  req: NextRequest,
+  { params }: { params: { uid: string } }
 ) {
   try {
-    const { uid } = await params;
+    const uid = params.uid;
 
     const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/stream/${uid}`,
+      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${uid}`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.CF_STREAM_TOKEN}`,
+          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
         },
         cache: "no-store",
       }
     );
 
-    const data = await response.json();
+    const json = await response.json();
+
+    if (!json.success) {
+      return NextResponse.json(
+        {
+          error: json.errors,
+        },
+        { status: 500 }
+      );
+    }
+
+    const result = json.result;
+
+    const ready =
+      result.readyToStream === true ||
+      result.status?.state === "ready";
 
     return NextResponse.json({
-      readyToStream: data.result?.readyToStream ?? false,
-      pctComplete: data.result?.status?.pctComplete ?? 0,
-      state: data.result?.status?.state ?? null,
+      uid,
+      readyToStream: ready,
+      status: result.status?.state ?? "processing",
+      pctComplete: result.status?.pctComplete ?? 0,
+      duration: result.duration ?? 0,
+      thumbnail: result.thumbnail,
+      playback: result.playback,
     });
   } catch (error) {
     console.error(error);
 
     return NextResponse.json(
-      { error: "Failed to fetch status" },
+      {
+        error: "Failed to check processing status.",
+      },
       { status: 500 }
     );
   }
