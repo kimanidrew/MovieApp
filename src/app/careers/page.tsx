@@ -1,5 +1,4 @@
 import React from 'react';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata = {
@@ -10,8 +9,7 @@ export const metadata = {
 export default function CareersPage() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'radial-gradient(circle at top right, #1a0505 0%, #050505 100%)', color: '#fff' }}>
-      <Navbar />
-      
+   
       <div className="animate-in" style={{ flex: 1, padding: '12rem 4% 8rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ padding: '0.5rem 1rem', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', borderRadius: '50px', fontSize: '0.9rem', fontWeight: 600, marginBottom: '2rem' }}>We're Hiring!</div>
         
