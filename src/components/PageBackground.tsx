@@ -50,7 +50,7 @@ function PosterImage({ src }: { src: string }) {
       <style jsx>{`
         .poster {
           width: 135px;
-          height: 200px;
+          height: 190px;
           background-size: cover;
           background-repeat: no-repeat;
           background-position: center;
@@ -202,7 +202,7 @@ export default function PageBackground({
         .track-wrapper {
           display: flex;
           width: max-content;
-          gap: 8px;
+          gap: 5px;
           padding-right: 22px;
           transform-style: flat;
           backface-visibility: hidden;
