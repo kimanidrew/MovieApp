@@ -26,7 +26,7 @@ type AuthContextType = {
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   login: (user: User, userType: "admin" | "customer", redirectPath?: string) => Promise<void>;
   logout: (userType: "admin" | "customer") => Promise<void>;
-  setActiveProfile: (profile: Profile | null) => void;
+  setActiveProfile: (profile: Profile | null, shouldRedirect?: boolean) => void;
   refreshSessions: () => Promise<void>;
 };
 
@@ -140,15 +140,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  const handleSetActiveProfile = (profile: Profile | null) => {
+const handleSetActiveProfile = (profile: Profile | null, shouldRedirect = false) => {
     setActiveProfile(profile);
+    
     if (profile) {
       localStorage.setItem("customer_active_profile_id", profile.id);
-      // 👇 Set a cookie so the middleware can read the active profile
+      // Set the cookie so Next.js middleware and layouts can read the active profile
       document.cookie = `profile_id=${profile.id}; path=/; max-age=31536000; SameSite=Lax`;
+      
+      if (shouldRedirect) {
+        // 1. Refresh ensures Server Components re-evaluate with the fresh cookie
+        router.refresh();
+        // 2. Head home safely
+        router.push("/");
+      }
     } else {
       localStorage.removeItem("customer_active_profile_id");
-      // 👇 Clear the cookie
       document.cookie = "profile_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
     }
   };

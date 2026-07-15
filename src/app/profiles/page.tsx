@@ -70,20 +70,9 @@ export default function ProfilesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerUser, authLoading]);
 
-const handleProfileSelect = async (profile: Profile) => {
-    try {
-      // 1. Await the state and cookie persistence in your Auth Provider
-      await setActiveProfile(profile);
-      
-      // 2. Force Next.js to refresh server-side layout data with the new profile cookie
-      router.refresh();
-      
-      // 3. Navigate home
-      router.push("/");
-    } catch (err) {
-      console.error("Failed to set active profile:", err);
-      setError("An error occurred while selecting this profile.");
-    }
+const handleProfileSelect = (profile: Profile) => {
+    // This now updates state, sets the cookie, refreshes Next.js, and redirects home!
+    setActiveProfile(profile, true); 
   };
 
   const handleCreateProfile = async (e: React.FormEvent) => {
