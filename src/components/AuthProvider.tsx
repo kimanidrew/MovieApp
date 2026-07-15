@@ -150,7 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 👇 Clear the cookie
       document.cookie = "profile_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
     }
-    router.push("/");
   };
 
   return (

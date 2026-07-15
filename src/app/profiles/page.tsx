@@ -17,7 +17,7 @@ const DEFAULT_AVATARS = [
 
 export default function ProfilesPage() {
   const router = useRouter();
-  const { customerUser, setActiveProfile, loading: authLoading } = useAuth();
+  const { customerUser, activeProfile, setActiveProfile, loading: authLoading } = useAuth();
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +50,12 @@ export default function ProfilesPage() {
     }
   }
 
+  useEffect(() => {
+  if (activeProfile) {
+    router.push("/");
+  }
+  }, [activeProfile, router]);
+
   // Load initial profiles from Auth Provider context, or fall back to an API poll
   useEffect(() => {
     if (authLoading) return;
@@ -69,9 +75,20 @@ export default function ProfilesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerUser, authLoading]);
 
-  const handleProfileSelect = (profile: Profile) => {
-    setActiveProfile(profile);
-    router.push("/");
+const handleProfileSelect = async (profile: Profile) => {
+    try {
+      // 1. Await the state and cookie persistence in your Auth Provider
+      await setActiveProfile(profile);
+      
+      // 2. Force Next.js to refresh server-side layout data with the new profile cookie
+      router.refresh();
+      
+      // 3. Navigate home
+      router.push("/");
+    } catch (err) {
+      console.error("Failed to set active profile:", err);
+      setError("An error occurred while selecting this profile.");
+    }
   };
 
   const handleCreateProfile = async (e: React.FormEvent) => {
