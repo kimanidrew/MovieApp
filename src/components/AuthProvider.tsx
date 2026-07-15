@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push(targetPath);
   };
 
-  const logout = async (userType: "admin" | "customer") => {
+ const logout = async (userType: "admin" | "customer") => {
     try {
       setLoading(true);
       // 1. Dispatch request to server to clear HTTP-Only session cookies
@@ -126,15 +126,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 3. Clear application state and storage
       if (userType === "admin") {
         setAdminUser(null);
-        router.refresh();
+        // Navigate immediately, then trigger the background cache refresh
         router.push("/admin/login");
+        router.refresh();
       } else {
         setCustomerUser(null);
         setActiveProfile(null);
         localStorage.removeItem("customer_active_profile_id");
-        router.refresh();
+        // Navigate immediately, then trigger the background cache refresh
         router.push("/login");
+        router.refresh();
       }
+      
       setLoading(false);
     }
   };
