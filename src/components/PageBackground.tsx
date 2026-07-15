@@ -92,10 +92,13 @@ export default function PageBackground({
       return;
     }
 
-    async function loadTrendingMovies() {
+  async function loadTrendingMovies() {
       try {
+        // List of major African film production country ISO codes (NG = Nigeria, ZA = South Africa, EG = Egypt, etc.)
+        const africanCountries = ["NG", "ZA", "EG", "KE", "GH", "MA", "SEN", "ET", "TZ"].join("|");
+
         const res = await fetch(
-          `https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY}`
+          `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_origin_country=${africanCountries}&sort_by=popularity.desc&include_adult=false&page=1`
         );
         if (!res.ok) throw new Error(`HTTP status: ${res.status}`);
         
@@ -107,7 +110,7 @@ export default function PageBackground({
         
         setPosters(imgs);
       } catch (err) {
-        console.error("Failed to fetch backgrounds from TMDB:", err);
+        console.error("Failed to fetch African backgrounds from TMDB:", err);
       }
     }
 
