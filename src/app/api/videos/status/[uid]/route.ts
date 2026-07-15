@@ -7,10 +7,10 @@ const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN!;
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { uid: string } }
+  { params }: { params: Promise<{ uid: string }> }
 ) {
   try {
-    const uid = params.uid;
+    const uid = (await params).uid;
 
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${uid}`,

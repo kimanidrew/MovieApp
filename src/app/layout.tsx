@@ -42,6 +42,7 @@ export const metadata: Metadata = {
 
 import { AuthProvider } from "@/components/AuthProvider";
 import ConsumerNavbar from "@/components/Navbar/ConsumerNavbar";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function RootLayout({
   children,
@@ -52,13 +53,15 @@ export default function RootLayout({
   return (
     <html lang="en" className={outfit.variable}>
       <body style={{ fontFamily: "var(--font-main), sans-serif", backgroundColor: "var(--background)" }}>
-        <AuthProvider>
-          <ConsumerNavbar/>
-          <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
-            {children}
-          </main>
-          <Footer />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ConsumerNavbar/>
+            <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
+              {children}
+            </main>
+            <Footer />
+          </AuthProvider>
+        </ThemeProvider>
         <Script
           src="https://widget.cloudinary.com/v2.0/global/all.js"
           strategy="afterInteractive"

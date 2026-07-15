@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import PageBackground from "@/components/PageBackground";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -65,13 +66,12 @@ export default function LoginPage() {
       minHeight: "100vh",
       display: "flex",
       flexDirection: "column",
-      backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.8)), url('https://assets.nflxext.com/ffe/siteui/vlv3/9f46b569-aff7-4975-9b8e-3212e4637f16/453ba2a1-6138-4e3c-9a06-b66f9a2832e4/US-en-20240415-popsignuptwoweeks-perspective_alpha_website_large.jpg')",
-      backgroundSize: "cover",
-      backgroundPosition: "center",
       alignItems: "center",
       justifyContent: "center",
-      padding: "20px"
+      padding: "20px",
+      position: "relative"
     }}>
+      <PageBackground />
       <div style={{
         background: "rgba(0, 0, 0, 0.75)",
         padding: "60px 68px 40px",

@@ -10,16 +10,16 @@ export async function GET(request: Request) {
     if (profileId) {
       const profile = await prisma.profile.findUnique({
         where: { id: profileId },
-        include: { maturityRating: true }
+        include: { maxMaturity: true }
       });
-      if (profile?.maturityRating) maxMaturityOrder = profile.maturityRating.displayOrder;
+      if (profile?.maxMaturity) maxMaturityOrder = profile.maxMaturity.severityRank;
     }
 
     const hero = await prisma.content.findFirst({
       where: {
         status: "PUBLISHED",
         deletedAt: null,
-        maturityRating: { displayOrder: { lte: maxMaturityOrder } }
+        maturityRating: { severityRank: { lte: maxMaturityOrder } }
       },
       orderBy: [{ trendingScore: "desc" }, { popularityScore: "desc" }],
       include: {

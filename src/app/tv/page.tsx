@@ -2,6 +2,7 @@ import React from 'react';
 import Footer from '@/components/Footer';
 import getBaseUrl from '@/lib/getBaseUrl';
 import Link from 'next/link';
+import prisma from '@/lib/prisma';
 
 import VideoGrid from '@/components/VideoGrid';
 
@@ -13,8 +14,59 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function TvShowsPage() {
-  const res = await fetch(`${getBaseUrl()}/api/videos/getAllVideos`, { cache: 'no-store' });
-  const shows = await res.json();
+  const showsRaw = await prisma.show.findMany({
+    include: {
+      content: {
+        include: {
+          images: {
+            where: { type: 'POSTER' },
+            take: 1
+          }
+        }
+      },
+      seasons: {
+        include: {
+          episodes: {
+            include: {
+              video: {
+                include: {
+                  sources: {
+                    where: { type: 'HLS' },
+                    take: 1
+                  }
+                }
+              }
+            },
+            orderBy: {
+              episodeNumber: 'asc'
+            },
+            take: 1
+          }
+        },
+        orderBy: {
+          seasonNumber: 'asc'
+        },
+        take: 1
+      }
+    },
+    orderBy: {
+      content: {
+        createdAt: 'desc'
+      }
+    }
+  });
+
+  const shows = showsRaw.map(s => {
+    const firstEpisode = s.seasons[0]?.episodes[0];
+    return {
+      id: firstEpisode?.video?.id || s.content.id,
+      title: s.content.title,
+      description: s.content.description,
+      thumbnailUrl: s.content.images[0]?.url || null,
+      hlsManifestUrl: firstEpisode?.video?.sources[0]?.url || null,
+      releaseYear: s.content.releaseYear
+    };
+  });
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#141414', color: '#fff' }}>

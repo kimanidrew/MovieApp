@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
     const profileId = req.nextUrl.searchParams.get("profileId");
     if (!profileId) return NextResponse.json({ success: false, error: "profileId missing" }, { status: 400 });
 
-    const myList = await prisma.myList.findMany({
+    const myList = await prisma.myListItem.findMany({
       where: { profileId },
       orderBy: { createdAt: "desc" },
       include: {

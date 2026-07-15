@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, Profile } from "@/components/AuthProvider";
+import PageBackground from "@/components/PageBackground";
 
 // Curated modern default avatar designs matching our backend presets
 const DEFAULT_AVATARS = [
@@ -118,6 +119,8 @@ export default function ProfilesPage() {
 
   return (
     <div className="profiles-viewport">
+      <PageBackground overlayOpacity={0.8} />
+      
       {/* 1. Main "Who's Watching" Selection view */}
       {!isAdding && (
         <div className="view-container fade-in">
@@ -158,10 +161,6 @@ export default function ProfilesPage() {
                 <span className="profile-card-name text-muted">Add Profile</span>
               </div>
             )}
-          </div>
-
-          <div className="button-group">
-            <button className="flat-border-btn">MANAGE PROFILES</button>
           </div>
         </div>
       )}
@@ -231,18 +230,19 @@ export default function ProfilesPage() {
       <style>{`
         .profiles-viewport {
           min-height: 100vh;
-          background-color: #141414;
+          background-color: transparent;
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
-          padding: 40px 20px;
+          justify-content: flex-start; 
+          padding: 140px 20px 60px 20px; 
           font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
           color: #fff;
+          position: relative;
         }
         .loader-overlay {
           min-height: 100vh;
-          background-color: #141414;
+          background-color: transparent;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -254,106 +254,124 @@ export default function ProfilesPage() {
           flex-direction: column;
           align-items: center;
           width: 100%;
-          max-width: 900px;
+          max-width: 1100px;
         }
         .fade-in {
-          animation: fadeIn 0.3s ease-out forwards;
+          animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
         }
         .main-title {
-          font-size: 3.5vw;
-          font-weight: 500;
+          font-size: 4rem;
+          font-weight: 600;
           margin-bottom: 40px;
           text-align: center;
+          text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+          letter-spacing: 1px;
         }
         @media (max-width: 768px) {
-          .main-title { font-size: 2.2rem; }
+          .main-title { font-size: 2.5rem; }
         }
         .subtitle {
-          color: #666;
+          color: #ccc;
           margin-top: -30px;
           margin-bottom: 40px;
-          font-size: 1.1rem;
+          font-size: 1.2rem;
           text-align: center;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
+        
+        /* Fixed Grid Setup with 3 Columns flowing Right to Left */
         .profiles-flex-grid {
-          display: flex;
-          flex-wrap: wrap;
+          display: grid;
+          grid-template-columns: repeat(3, 180px);
           justify-content: center;
-          gap: 30px;
-          width: 100%;
+          gap: 40px;
+          width: auto;
           margin-bottom: 60px;
+          align-items: end;
+          
+          /* Forces columns to order and layout right-to-left */
+          direction: rtl; 
         }
+        
+        @media (max-width: 680px) {
+          .profiles-flex-grid {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 20px;
+            width: 100%;
+          }
+        }
+
         .profile-card-node {
           display: flex;
           flex-direction: column;
           align-items: center;
           cursor: pointer;
-          width: 150px;
+          width: 100%;
+          
+          /* Resets textual layouts inside cards back to normal left-to-right */
+          direction: ltr; 
         }
         .avatar-wrapper {
-          width: 150px;
-          height: 150px;
-          border-radius: 4px;
+          width: 180px;
+          height: 180px;
+          border-radius: 90px;
           overflow: hidden;
-          border: 3px solid transparent;
-          transition: border-color 0.2s, transform 0.2s;
+          border: 4px solid transparent;
+          transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
           background-size: cover;
           background-position: center;
           background-color: #222;
+          box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        @media (max-width: 680px) {
+          .avatar-wrapper {
+            width: 140px;
+            height: 140px;
+            border-radius: 70px;
+          }
         }
         .profile-card-node:hover .avatar-wrapper {
           border-color: #fff;
-          transform: scale(1.05);
+          transform: scale(1.05) translateY(-10px);
+          box-shadow: 0 15px 30px rgba(255,255,255,0.2);
         }
         .placeholder-add {
-          border: 3px dashed #444;
+          border: 4px dashed rgba(255,255,255,0.4);
           display: flex;
           justify-content: center;
           align-items: center;
-          background: transparent;
-          transition: background-color 0.2s, border-color 0.2s;
+          background: rgba(0,0,0,0.4);
+          backdrop-filter: blur(5px);
+          transition: background-color 0.3s, border-color 0.3s, transform 0.3s;
         }
         .profile-card-node:hover .placeholder-add {
-          background: #222;
-          border-color: #888;
+          background: rgba(255,255,255,0.1);
+          border-color: #fff;
         }
         .plus-symbol {
-          font-size: 4rem;
-          color: #444;
+          font-size: 5rem;
+          color: rgba(255,255,255,0.5);
           line-height: 1;
+          transition: color 0.3s;
         }
         .profile-card-node:hover .plus-symbol {
-          color: #888;
+          color: #fff;
         }
         .profile-card-name {
-          margin-top: 16px;
-          color: #808080;
-          font-size: 1.1rem;
+          margin-top: 20px;
+          color: #b3b3b3;
+          font-size: 1.3rem;
+          font-weight: 500;
           text-align: center;
-          transition: color 0.2s;
+          transition: color 0.3s, transform 0.3s;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
         .profile-card-node:hover .profile-card-name {
           color: #fff;
+          transform: translateY(5px);
         }
         .text-muted {
-          color: #555;
-        }
-        .button-group {
-          margin-top: 20px;
-        }
-        .flat-border-btn {
-          background: transparent;
-          color: #808080;
-          border: 1px solid #808080;
-          padding: 10px 24px;
-          font-size: 16px;
-          letter-spacing: 2px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .flat-border-btn:hover {
-          color: #fff;
-          border-color: #fff;
+          color: #aaa;
         }
 
         /* Profile Creation Form Layout */
@@ -363,11 +381,12 @@ export default function ProfilesPage() {
           display: flex;
           flex-direction: column;
           gap: 24px;
-          background: #181818;
-          border: 1px solid rgba(255,255,255,0.05);
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.1);
           padding: 40px;
-          border-radius: 8px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          border-radius: 12px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
         .avatar-preview-stack {
           display: flex;

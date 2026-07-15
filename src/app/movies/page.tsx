@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import getBaseUrl from '@/lib/getBaseUrl';
 import Link from 'next/link';
+import prisma from '@/lib/prisma';
 
 import VideoGrid from '@/components/VideoGrid';
 
@@ -14,8 +15,40 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function MoviesPage() {
-  const res = await fetch(`${getBaseUrl()}/api/videos/getAllVideos`, { cache: 'no-store' });
-  const movies = await res.json();
+  const moviesRaw = await prisma.movie.findMany({
+    include: {
+      content: {
+        include: {
+          images: {
+            where: { type: 'POSTER' },
+            take: 1
+          }
+        }
+      },
+      video: {
+        include: {
+          sources: {
+            where: { type: 'HLS' },
+            take: 1
+          }
+        }
+      }
+    },
+    orderBy: {
+      content: {
+        createdAt: 'desc'
+      }
+    }
+  });
+
+  const movies = moviesRaw.map(m => ({
+    id: m.video.id,
+    title: m.content.title,
+    description: m.content.description,
+    thumbnailUrl: m.content.images[0]?.url || null,
+    hlsManifestUrl: m.video.sources[0]?.url || null,
+    releaseYear: m.content.releaseYear
+  }));
 
   return (
     <main style={{ display: 'flex', flexDirection: 'column' }}>

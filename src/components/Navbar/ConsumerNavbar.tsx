@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import ThemePicker from "@/components/Theme/ThemePicker";
 
 export default function ConsumerNavbar() {
   const { customerUser, activeProfile, logout } = useAuth();
@@ -13,7 +14,7 @@ export default function ConsumerNavbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // 1. Create a ref for the entire profile menu container
+  // Create a ref for the entire profile menu container
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function ConsumerNavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // 2. Listen for clicks outside the container to close the menu cleanly
+  // Listen for clicks outside the container to close the menu cleanly
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -78,13 +79,12 @@ export default function ConsumerNavbar() {
         </div>
 
         <div className="nav-right">
+          <ThemePicker />
           {customerUser ? (
-            /* 3. Attach ref to the menu wrapper */
             <div className="profile-menu-container" ref={dropdownRef}>
               <button 
                 className="profile-trigger-btn" 
                 onClick={() => setDropdownOpen(!dropdownOpen)} 
-                /* Removed onBlur entirely */
               >
                 <div 
                   className="profile-avatar-thumb" 
@@ -109,7 +109,7 @@ export default function ConsumerNavbar() {
                   <Link 
                     href="/profiles" 
                     className="dropdown-item link-accent"
-                    onClick={() => setDropdownOpen(false)} // Close layout smoothly on navigation
+                    onClick={() => setDropdownOpen(false)}
                   >
                     Switch Profiles
                   </Link>
@@ -132,11 +132,44 @@ export default function ConsumerNavbar() {
         </div>
       </div>
       <style>{`
-        .navbar { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); width: 95%; max-width: 1400px; z-index: 1000; transition: all 0.4s; }
-        .nav-container { padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-radius: 20px; background: transparent; }
-        .navbar.scrolled .nav-container { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 0.8rem 2rem; }
+        .navbar { 
+          position: fixed; 
+          top: 1rem; 
+          left: 50%; 
+          transform: translate3d(-50%, -120%, 0); 
+          width: 95%; 
+          max-width: 1400px; 
+          z-index: 1000; 
+          
+          /* Only transition colors and filters — NEVER layout sizes or positions */
+          transition: transform 0s;
+          
+          animation: slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          will-change: transform, opacity;
+        }
+        
+        /* Fixed-size base container with invisible border placeholder */
+        .nav-container { 
+          padding: 0.9rem 2rem; 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          border-radius: 20px; 
+          background: rgba(0, 0, 0, 0); 
+          border: 1px solid rgba(255, 255, 255, 0);
+          transition: background-color 0.35s ease, border-color 0.35s ease, backdrop-filter 0.35s ease;
+        }
+        
+        /* Scrolled state merely changes visual properties, not sizing */
+        .navbar.scrolled .nav-container { 
+          background: rgba(0, 0, 0, 0.85); 
+          backdrop-filter: blur(20px); 
+          border-color: rgba(255, 255, 255, 0.1); 
+        }
+        
         .nav-left, .nav-links { display: flex; align-items: center; gap: 2.5rem; list-style: none; }
         .nav-brand { font-size: 1.6rem; font-weight: 900; color: #fff; text-decoration: none; }
+        .nav-right { display: flex; align-items: center; gap: 1rem; }
         .nav-links a { font-size: 0.95rem; color: #b3b3b3; text-decoration: none; font-weight: 500; }
         .nav-links a:hover { color: #fff; }
         .profile-reminder { color: #e50914 !important; font-weight: 600; animation: pulse 2s infinite; }
@@ -154,6 +187,18 @@ export default function ConsumerNavbar() {
         .text-danger { color: #e50914; }
         .divider { border: 0; height: 1px; background: rgba(255, 255, 255, 0.1); margin: 4px 0; }
         .login-btn { background: #e50914; color: white; padding: 0.4rem 1rem; border-radius: 4px; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+        
+        @keyframes slide-down {
+          from {
+            transform: translate3d(-50%, -120%, 0);
+            opacity: 0;
+          }
+          to {
+            transform: translate3d(-50%, 0, 0);
+            opacity: 1;
+          }
+        }
+        
         @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
       `}</style>
     </nav>
