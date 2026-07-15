@@ -108,8 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
  const logout = async (userType: "admin" | "customer") => {
     try {
-      setLoading(true);
-      // 1. Dispatch request to server to clear HTTP-Only session cookies
+      // 1. Clear HTTP-Only session cookies on the server
       await fetch("/api/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,44 +117,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Logout dispatch failed:", err);
     } finally {
-      // 2. Clear all client-accessible cookies immediately
+      // 2. Clear all client-accessible cookies
       document.cookie = "profile_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
       document.cookie = "admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
       document.cookie = "customer_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
 
-      // 3. Clear application state and storage
+      // 3. Clear local storage
+      localStorage.removeItem("customer_active_profile_id");
+
+      // 4. Force hard redirect to clear all internal React state
       if (userType === "admin") {
-        setAdminUser(null);
-        // Navigate immediately, then trigger the background cache refresh
-        router.push("/admin/login");
-        router.refresh();
+        window.location.href = "/admin/login";
       } else {
-        setCustomerUser(null);
-        setActiveProfile(null);
-        localStorage.removeItem("customer_active_profile_id");
-        // Navigate immediately, then trigger the background cache refresh
-        router.push("/login");
-        router.refresh();
+        window.location.href = "/login";
       }
-      
-      setLoading(false);
     }
   };
-
 
 const handleSetActiveProfile = (profile: Profile | null, shouldRedirect = false) => {
     setActiveProfile(profile);
     
     if (profile) {
       localStorage.setItem("customer_active_profile_id", profile.id);
-      // Set the cookie so Next.js middleware and layouts can read the active profile
+      // 1. Set the cookie
       document.cookie = `profile_id=${profile.id}; path=/; max-age=31536000; SameSite=Lax`;
       
       if (shouldRedirect) {
-        // 1. Refresh ensures Server Components re-evaluate with the fresh cookie
-        router.refresh();
-        // 2. Head home safely
-        router.push("/");
+        // 2. Force a hard reload to "/" -> completely fresh server and client state
+        window.location.href = "/";
       }
     } else {
       localStorage.removeItem("customer_active_profile_id");
