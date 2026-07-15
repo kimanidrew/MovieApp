@@ -23,6 +23,7 @@ type AuthContextType = {
   customerUser: User | null;
   activeProfile: Profile | null;
   loading: boolean;
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   login: (user: User, userType: "admin" | "customer", redirectPath?: string) => Promise<void>;
   logout: (userType: "admin" | "customer") => Promise<void>;
   setActiveProfile: (profile: Profile | null) => void;
@@ -159,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         customerUser,
         activeProfile,
         loading,
+        setLoading,
         login,
         logout,
         setActiveProfile: handleSetActiveProfile,

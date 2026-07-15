@@ -17,10 +17,9 @@ const DEFAULT_AVATARS = [
 
 export default function ProfilesPage() {
   const router = useRouter();
-  const { customerUser, activeProfile, setActiveProfile, loading: authLoading } = useAuth();
+  const { customerUser, activeProfile, setActiveProfile, loading: authLoading, setLoading: setAuthLoading } = useAuth();
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Control state for profile creation UI
@@ -31,6 +30,7 @@ export default function ProfilesPage() {
 
   // Fetch profiles directly from database session state
   async function fetchProfiles() {
+    setAuthLoading(true);
     try {
       const res = await fetch("/api/profiles");
       const data = await res.json();
@@ -46,15 +46,11 @@ export default function ProfilesPage() {
     } catch (err) {
       setError("A network error occurred while loading your profiles.");
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   }
 
-  useEffect(() => {
-  if (activeProfile) {
-    router.push("/");
-  }
-  }, [activeProfile, router]);
+ 
 
   // Load initial profiles from Auth Provider context, or fall back to an API poll
   useEffect(() => {
@@ -68,7 +64,6 @@ export default function ProfilesPage() {
 
     if (customerUser.profiles && customerUser.profiles.length > 0) {
       setProfiles(customerUser.profiles);
-      setLoading(false);
     } else {
       fetchProfiles();
     }
@@ -126,13 +121,6 @@ const handleProfileSelect = async (profile: Profile) => {
     }
   };
 
-  if (loading || authLoading) {
-    return (
-      <div className="loader-overlay">
-        <p>Loading Profiles...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="profiles-viewport">
