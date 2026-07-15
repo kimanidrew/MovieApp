@@ -17,7 +17,7 @@ interface DBPlan {
 
 export default function PlansPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { customerUser } = useAuth();
   
   const [plans, setPlans] = useState<DBPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("");
