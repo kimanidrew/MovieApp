@@ -72,7 +72,6 @@ export default function ProfilesPage() {
 
 const handleProfileSelect = async (profile: Profile) => {
     try {
-      setAuthLoading(true);
       // 1. Await the state and cookie persistence in your Auth Provider
       await setActiveProfile(profile);
       
@@ -84,8 +83,6 @@ const handleProfileSelect = async (profile: Profile) => {
     } catch (err) {
       console.error("Failed to set active profile:", err);
       setError("An error occurred while selecting this profile.");
-    } finally {
-      setAuthLoading(false);
     }
   };
 
