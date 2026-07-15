@@ -49,7 +49,7 @@ function PosterImage({ src }: { src: string }) {
     >
       <style jsx>{`
         .poster {
-          width: 135px;
+          width: 140px;
           height: 190px;
           background-size: cover;
           background-repeat: no-repeat;
