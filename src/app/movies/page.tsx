@@ -1,5 +1,4 @@
 import React from 'react';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import getBaseUrl from '@/lib/getBaseUrl';
 import Link from 'next/link';
