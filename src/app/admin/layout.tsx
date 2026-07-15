@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import AdminNavbar from "@/components/Navbar/AdminNavbar";
 
 // Your production allowed admin IP address
-const ALLOWED_ADMIN_IP = "192.168.1.6"; 
+const ALLOWED_ADMIN_IP = "62.8.66.213"; 
 
 // Localhost identifiers used during development
 const LOCALHOST_IPS = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
