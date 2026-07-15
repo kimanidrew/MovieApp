@@ -95,7 +95,7 @@ export default function PageBackground({
   async function loadTrendingMovies() {
       try {
         // List of major African film production country ISO codes (NG = Nigeria, ZA = South Africa, EG = Egypt, etc.)
-        const africanCountries = ["NG", "ZA", "EG", "KE", "GH", "MA", "SEN", "ET", "TZ"].join("|");
+        const africanCountries = ["KE", "TZ"].join("|");
 
         const res = await fetch(
           `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&with_origin_country=${africanCountries}&sort_by=popularity.desc&include_adult=false&page=1`
