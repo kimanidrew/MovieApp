@@ -12,6 +12,11 @@ interface Video {
   videoUrl?: string | null;
   hlsManifestUrl?: string | null;
   releaseYear: number | null;
+  // Added these fields to match VideoModal requirements
+  categories: string[];
+  maturityRating: string;
+  cast: string[];
+  productionCompanies: string[];
 }
 
 export default function FeatureRow({
