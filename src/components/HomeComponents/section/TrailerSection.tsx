@@ -5,7 +5,7 @@ import Image from "next/image";
 import Hls from "hls.js";
 import { Video } from "@/types/video";
 import { normalizeUrl } from "@/utils/normalizeUrl";
-import VideoModal from "@/components/VideoModal";
+import VideoModal from "@/components/Modals/VideoModal";
 import PauseIcon from "@/components/icons/PauseIcon";
 import PlayIcon from "@/components/icons/PlayIcon";
 
