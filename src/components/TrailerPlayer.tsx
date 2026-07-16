@@ -67,7 +67,7 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
             top: "50%",
             left: "50%",
             width: "150%", // Scale up to cover gaps
-            height: "150%",
+            height: "180%",
             transform: "translate(-50%, -50%)",
             pointerEvents: "none",
           }}
