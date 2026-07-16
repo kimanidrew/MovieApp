@@ -63,13 +63,13 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
           }}
           onReady={handleComplete}
           style={{
-            width: "400px",    // Maintains 16:9 aspect ratio for 250px height
-    height: "300px",   // Matches your target height
-    position: "absolute",
-    top: "-60px",
-    left: "-42px",     // Centers the 444px width in the 350px container (444 - 350) / 2
-    transform: "scale(1.0)",
-    pointerEvents: "none",
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: "150%", // Scale up to cover gaps
+            height: "150%",
+            transform: "translate(-50%, -50%)",
+            pointerEvents: "none",
           }}
         />
       ) : (
@@ -77,7 +77,7 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
           src={url}
           autoPlay
           loop
-          muted // Added muted back as it's required for autoplay in most browsers
+          muted
           playsInline
           onLoadedData={handleComplete}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
