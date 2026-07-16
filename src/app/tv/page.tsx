@@ -3,8 +3,7 @@ import Footer from '@/components/Footer';
 import getBaseUrl from '@/lib/getBaseUrl';
 import Link from 'next/link';
 import prisma from '@/lib/prisma';
-
-import VideoGrid from '@/components/VideoGrid';
+import VideoGrid from "@/components/VideoGrid";
 
 export const metadata = {
   title: 'TV Shows - MovieFlix',
