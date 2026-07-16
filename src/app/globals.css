@@ -30,6 +30,16 @@ a {
   text-decoration: none;
 }
 
+/* Apply your defined font to all button elements */
+input,
+button, 
+.btn, 
+.tab, 
+.scrollBtn, 
+.profile-trigger-btn {
+  font-family: var(--font-main);
+}
+
 /* Global Aurora Layout Classes */
 .glass-panel {
   background: var(--glass-bg);

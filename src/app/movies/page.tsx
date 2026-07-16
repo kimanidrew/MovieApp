@@ -4,10 +4,6 @@ import Footer from "@/components/Footer";
 import PageBackground from "@/components/PageBackground";
 import MoviesPageClient from "@/components/MoviesPageClient";
 
-export const metadata = {
-  title: "Movies - MovieFlix",
-  description: "Explore blockbuster movies.",
-};
 
 export const dynamic = "force-dynamic";
 

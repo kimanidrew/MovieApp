@@ -13,20 +13,14 @@ interface VideoCardProps {
 export default function VideoCard({ video, onSelect }: VideoCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   
-  // Use lazy initializer to pick a random image ONCE when the component mounts
   const [displayThumbnail] = useState(() => {
     if (!video.images || !Array.isArray(video.images)) {
       return normalizeUrl(video.thumbnailUrl);
     }
-    
-    // Filter for POSTER type
     const posters = video.images.filter((img: any) => img.type === "POSTER");
-    
-    // Pick random index, or fall back to the first image if no posters exist
     const selected = posters.length > 0 
       ? posters[Math.floor(Math.random() * posters.length)] 
       : video.images[0];
-      
     return normalizeUrl(selected?.url || video.thumbnailUrl);
   });
 
@@ -46,10 +40,7 @@ export default function VideoCard({ video, onSelect }: VideoCardProps) {
           fill 
           sizes="(max-width: 768px) 100vw, 320px"
           quality={75}
-          style={{ 
-            objectFit: "cover",
-            objectPosition: "center" 
-          }}
+          style={{ objectFit: "cover", objectPosition: "center" }}
         />
         
         {isHovered && trailerTarget && (
@@ -61,44 +52,59 @@ export default function VideoCard({ video, onSelect }: VideoCardProps) {
 
       <div className="card-info">
         <h3>{video.title}</h3>
-        <div className="category-container">
-          {video.categories?.map((cat: any) => {
-            const catName = typeof cat === 'string' ? cat : cat.category?.name;
-            if (!catName) return null;
-            return <span key={catName} className="pill">{catName}</span>;
-          })}
-        </div>
-        <div className="meta-row">
-          <span className="rating">{video.maturityRating}</span>
-          <span className="year">{video.releaseYear}</span>
+        
+        <div className="card-footer">
+          <div className="meta-row">
+            {/* Styled Maturity Rating Badge */}
+            <span className={`rating-badge ${video.maturityRating === '18+' ? 'explicit' : ''}`}>
+              {video.maturityRating || 'G'}
+            </span>
+            <span className="hd-tag">HD</span>
+            <span className="year">{video.releaseYear}</span>
+          </div>
+
+          <div className="category-container">
+            {video.categories?.slice(0, 2).map((cat: any) => {
+              const catName = typeof cat === 'string' ? cat : cat.category?.name;
+              if (!catName) return null;
+              return <span key={catName} className="pill">{catName}</span>;
+            })}
+          </div>
         </div>
       </div>
 
       <style jsx>{`
         .card-container {
-          background: #121212;
+          background: #000;
           border-radius: 8px;
           overflow: hidden;
           cursor: pointer;
           transition: transform 0.4s ease, box-shadow 0.4s ease;
-          border: 1px solid transparent;
+          border: 1px solid #1a1a1a;
         }
         .card-container:hover {
           transform: translateY(-5px);
-          box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+          box-shadow: 0 15px 30px rgba(0,0,0,0.8);
+          border-color: #333;
         }
-        .media-wrapper { 
-          position: relative; 
-          padding-top: 56.25%; 
-          background: #000; 
-        }
+        .media-wrapper { position: relative; padding-top: 56.25%; background: #000; }
         .trailer-overlay { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
-        .card-info { padding: 1rem; }
-        h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .category-container { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 0.8rem; }
-        .pill { font-size: 0.7rem; color: #888; background: #1a1a1a; padding: 2px 8px; border-radius: 4px; }
-        .meta-row { display: flex; align-items: center; gap: 10px; color: #666; font-size: 0.75rem; }
-        .rating { border: 1px solid #333; padding: 0 4px; border-radius: 2px; }
+        
+        .card-info { padding: 0.8rem; }
+        h3 { margin: 0 0 1rem 0; font-size: 0.95rem; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        .card-footer { display: flex; flex-direction: column; gap: 6px; }
+        .meta-row { display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 0.7rem; }
+        
+        .rating-badge { 
+          font-weight: bold; padding: 1px 4px; border: 1px solid #444; border-radius: 2px; color: #eee; 
+        }
+        .rating-badge.explicit { border-color: #e50914; color: #e50914; }
+        
+        .hd-tag { border: 1px solid #444; padding: 0 3px; border-radius: 2px; font-size: 0.6rem; color: #aaa; }
+        
+        .category-container { display: flex; gap: 4px; }
+        .pill { font-size: 0.65rem; color: #666; }
       `}</style>
     </div>
   );

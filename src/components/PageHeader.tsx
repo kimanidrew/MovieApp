@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Film } from "lucide-react";
+import { Search, Film, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PageHeaderProps {
   title: string;
@@ -18,101 +18,133 @@ export default function PageHeader({
   onSearch,
   searchValue,
 }: PageHeaderProps) {
-  const tabs = ["Trending", "Recently Added"];
+  const tabs = [
+    "Trending Now", "Must-Binge Series", "Weekend Marathons", 
+    "Short & Sweet", "Hidden Gems", "Critics' Choice", 
+    "Coming Soon", "My Favorites"
+  ];
+  
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 });
+  const [scrollState, setScrollState] = useState({ left: true, right: true });
+  
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const activeIndex = tabs.indexOf(activeTab);
     const element = tabsRef.current[activeIndex];
     if (element) {
-      setIndicatorStyle({
-        width: element.offsetWidth,
-        left: element.offsetLeft,
+      setIndicatorStyle({ width: element.offsetWidth, left: element.offsetLeft });
+    }
+    checkScroll();
+  }, [activeTab]);
+
+  const checkScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setScrollState({
+        left: scrollLeft > 0,
+        right: scrollLeft < scrollWidth - clientWidth - 1,
       });
     }
-  }, [activeTab]);
+  };
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ 
+        left: direction === 'left' ? -250 : 250, 
+        behavior: 'smooth' 
+      });
+    }
+  };
 
   return (
     <div className="headerContainer">
       <div className="titleSection">
-        <Film size={64} strokeWidth={1.3} className="movieIcon" />
+        <Film size={80} strokeWidth={1.5} className="movieIcon" />
         <div>
-          <span className="pageLabel">Movie Collection</span>
           <h1 className="pageTitle">{title}</h1>
-          <p className="pageSubtitle">{subtitle}</p>
         </div>
       </div>
 
       <div className="rightSection">
-        <div className="searchWrapper">
-          <div className="searchBox">
-            <div className="iconWrapper">
-              <Search size={20} />
-            </div>
-            <input
-              type="text"
-              value={searchValue}
-              placeholder={searchPlaceholder}
-              onChange={(e) => onSearch(e.target.value)}
-            />
-          </div>
+        <div className="searchBox">
+          <div className="iconWrapper"><Search size={25} /></div>
+          <input
+            type="text"
+            value={searchValue}
+            placeholder="Looking for something to watch?"
+            onChange={(e) => onSearch(e.target.value)}
+          />
         </div>
 
-        <div className="tabsContainer">
-          {tabs.map((tab, index) => (
-            <button
-              key={tab}
-              /* FIX: Added block body to ensure function returns void */
-              ref={(el) => {
-                tabsRef.current[index] = el;
-              }}
-              className={`tab ${activeTab === tab ? "active" : ""}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-          <div className="tabIndicator" style={indicatorStyle} />
+        <div className="tabsWrapper">
+          <button 
+            className={`scrollBtn left ${!scrollState.left ? 'inactive' : ''}`} 
+            onClick={() => scrollTabs('left')}
+            disabled={!scrollState.left}
+          >
+            <ChevronLeft size={20} />
+          </button>
+          
+          <div className="tabsContainer" ref={scrollContainerRef} onScroll={checkScroll}>
+            {tabs.map((tab, index) => (
+              <button
+                key={tab}
+                ref={(el) => { tabsRef.current[index] = el; }}
+                className={`tab ${activeTab === tab ? "active" : ""}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                <span>{tab}</span>
+              </button>
+            ))}
+            <div className="tabIndicator" style={{ width: indicatorStyle.width, left: indicatorStyle.left }} />
+          </div>
+
+          <button 
+            className={`scrollBtn right ${!scrollState.right ? 'inactive' : ''}`} 
+            onClick={() => scrollTabs('right')}
+            disabled={!scrollState.right}
+          >
+            <ChevronRight size={20} />
+          </button>
         </div>
       </div>
 
       <style jsx>{`
-        .headerContainer { display: flex; justify-content: space-between; align-items: flex-start; gap: 60px; margin-bottom: 60px; flex-wrap: wrap; }
-        
-        .titleSection { display: flex; align-items: center; gap: 24px; }
-        .movieIcon { color: white; transition: .3s; }
-        .titleSection:hover .movieIcon { color: #E50914; transform: rotate(-8deg) scale(1.05); }
+        .headerContainer { display: flex; align-items: flex-center; gap: 60px; margin-bottom: 60px; flex-wrap: wrap; }
+        .titleSection { display: flex; align-items: center; gap: 24px; min-width: 300px; }
         .pageLabel { color: #E50914; text-transform: uppercase; letter-spacing: 4px; font-size: .8rem; font-weight: 700; }
         .pageTitle { margin: 8px 0 0; color: white; font-size: 3.8rem; font-weight: 800; line-height: 1; }
         .pageSubtitle { margin-top: 14px; color: #9ca3af; font-size: 1rem; line-height: 1.7; max-width: 400px; }
-
-        .rightSection { display: flex; flex-direction: column; width: 380px; max-width: 100%; padding-top: 10px; }
+        .rightSection { display: flex; flex-direction: column; flex: 1; min-width: 300px; padding-top: 10px; }
         
-        .searchBox { position: relative; width: 100%; }
+        .searchBox { position: relative; width: 100%; margin-bottom: 20px; }
         .iconWrapper { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #8b8b8b; pointer-events: none; z-index: 5; }
         .searchBox input { 
-          display: block; width: 100%; height: 50px; box-sizing: border-box; 
-          padding-left: 55px; padding-right: 20px; border-radius: 999px; 
-          border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05);
-          backdrop-filter: blur(18px); color: white; font-size: 15px; transition: .25s;
+          width: 100%; height: 50px; padding-left: 55px; padding-bottom: 3px; border-radius: 999px; 
+          border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.05); 
+          color: white; font-size: 15px; font-weight: 600; transition: 0.3s; 
         }
-        .searchBox input:focus { outline: none; border-color: #E50914; background: rgba(255,255,255,.08); box-shadow: 0 0 0 4px rgba(229,9,20,.15); }
+        .searchBox input:focus { border-color: #E50914; outline: none; }
 
-        .tabsContainer { 
-          position: relative; display: flex; gap: 25px; 
-          margin-top: 25px; justify-content: flex-end; padding-right: 10px;
+        .tabsWrapper { position: relative; display: flex; align-items: center; gap: 15px; }
+        .tabsContainer { position: relative; display: flex; gap: 30px; flex: 1; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+        .tabsContainer::-webkit-scrollbar { display: none; }
+        
+        .tab { background: none; border: none; cursor: pointer; padding: 0; }
+        .tab span { color: #8b8b8b; font-size: 1rem; font-weight: 500; padding-bottom: 8px; transition: .3s; white-space: nowrap; display: block; }
+        .tab.active span { color: white; }
+        
+        .scrollBtn { 
+          background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0; margin-bottom: 20px; transition: 0.3s;
         }
-        .tab { background: none; border: none; color: #8b8b8b; font-size: 0.95rem; font-weight: 600; padding-bottom: 12px; cursor: pointer; transition: .3s; white-space: nowrap; }
-        .tab.active { color: white; }
-        .tabIndicator { position: absolute; bottom: 0; height: 3px; background: #E50914; transition: .3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px; }
-
-        @media(max-width:1024px){ 
-          .headerContainer { flex-direction: column; } 
-          .rightSection { width: 100%; padding-top: 0; }
-          .tabsContainer { justify-content: flex-start; padding-right: 0; }
-        }
+        .scrollBtn.inactive { opacity: 0.6; cursor: default; }
+        
+        .tabIndicator { position: absolute; bottom: 0; height: 3px; background: #E50914; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px; }
       `}</style>
     </div>
   );

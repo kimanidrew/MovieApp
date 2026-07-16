@@ -60,6 +60,7 @@ export default function CategoryFilter({
           position:sticky;
           top:95px;
           width:240px;
+          padding-top: 10px;
         }
 
         .header{
