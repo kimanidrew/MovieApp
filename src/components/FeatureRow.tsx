@@ -36,7 +36,7 @@ export default function FeatureRow({
 
     const timer = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(timer);
-  }, [selectedVideo]);
+  }, []); // Changed dependency to empty array to run once on mount
 
   const handleScroll = () => {
     if (containerRef.current) {
@@ -65,14 +65,12 @@ export default function FeatureRow({
       <section className="feature-row-section">
         <h2 className="feature-row-title">{title}</h2>
 
-        {/* 🎬 DISSOLVING EDGE GRADIENT MASKS */}
         <div
           className="edge-fade-mask mask-left"
           style={{ opacity: showLeftArrow ? 1 : 0 }}
         />
         <div className="edge-fade-mask mask-right" />
 
-        {/* INTERACTIVE CAROUSEL ARROWS */}
         {showLeftArrow && (
           <button
             className="carousel-arrow arrow-left"
@@ -91,7 +89,6 @@ export default function FeatureRow({
           ›
         </button>
 
-        {/* CONTAINER TRACK ENGINE */}
         <div
           ref={containerRef}
           className="feature-row-container"
@@ -125,121 +122,29 @@ export default function FeatureRow({
         </div>
       </section>
 
+      {/* Passing both the selected video and the full list to the modal */}
       {selectedVideo && (
         <VideoModal
           video={selectedVideo}
+          videos={videos}
           onClose={() => setSelectedVideo(null)}
         />
       )}
 
-      <style>{`
-        .feature-row-section {
-          padding: 2rem 0;
-          position: relative;
-          clear: both;
-        }
-
-        .feature-row-title {
-          padding: 0 4%;
-          margin-bottom: 0.25rem;
-          font-size: 1.75rem;
-          font-weight: 800;
-          letter-spacing: -0.03em;
-          color: #fff;
-          font-family: 'Inter', system-ui, sans-serif;
-        }
-
-        .feature-row-container {
-          display: flex;
-          gap: 1.5rem;
-          padding: 1.5rem 4% 2.5rem 4%; 
-          margin-top: -0.5rem;
-          overflow-x: auto;
-          overflow-y: visible;
-          scrollbar-width: none;
-          scroll-snap-type: x mandatory;
-          scroll-behavior: smooth;
-        }
-
-        .feature-row-container::-webkit-scrollbar {
-          display: none;
-        }
-
-        .feature-snap-item {
-          scroll-snap-align: start;
-          flex-shrink: 0;
-        }
-
-        /* 🎨 THEME HARDWARE-ACCELERATED EDGE FADE OVERLAYS */
-        .edge-fade-mask {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 5%;
-          pointer-events: none; /* Allows user mouse interaction to click right through the mask layer */
-          z-index: 40; /* Sits completely flat above scroll rows but below controls/hover scale boundaries */
-          transition: opacity 0.3s ease-in-out;
-        }
-
-        .mask-left {
-          left: 0;
-          background: linear-gradient(to right, #0a0a0a 20%, transparent 100%);
-        }
-
-        .mask-right {
-          right: 0;
-          background: linear-gradient(to left, #0a0a0a 20%, transparent 100%);
-        }
-
-        /* NAVIGATION ARROWS */
-        .carousel-arrow {
-          position: absolute;
-          top: 55%;
-          transform: translateY(-50%);
-          width: 56px;
-          height: 120px;
-          background: rgba(20, 20, 20, 0.4);
-          backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.04);
-          color: #ffffff;
-          font-size: 2.5rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          z-index: 60; 
-          transition: background 0.2s ease, opacity 0.2s ease, color 0.2s ease, transform 0.2s;
-          outline: none;
-        }
-
-        .arrow-left {
-          left: 0;
-          border-radius: 0 10px 10px 0;
-        }
-
-        .arrow-right {
-          right: 0;
-          border-radius: 10px 0 0 10px;
-        }
-
-        .carousel-arrow:hover {
-          background: rgba(236, 72, 153, 0.85);
-          color: #ffffff;
-          box-shadow: 0 0 25px rgba(236, 72, 153, 0.45);
-        }
-
-        .carousel-arrow:active {
-          transform: translateY(-50%) scale(0.95);
-        }
-
-        @media (max-width: 768px) {
-          .carousel-arrow, .edge-fade-mask {
-            display: none; 
-          }
-          .feature-row-container {
-            padding-bottom: 1.5rem;
-          }
-        }
+      <style jsx>{`
+        .feature-row-section { padding: 2rem 0; position: relative; clear: both; }
+        .feature-row-title { padding: 0 4%; margin-bottom: 0.25rem; font-size: 1.75rem; font-weight: 800; color: #fff; }
+        .feature-row-container { display: flex; gap: 1.5rem; padding: 1.5rem 4% 2.5rem 4%; margin-top: -0.5rem; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x mandatory; }
+        .feature-row-container::-webkit-scrollbar { display: none; }
+        .feature-snap-item { scroll-snap-align: start; flex-shrink: 0; }
+        .edge-fade-mask { position: absolute; top: 0; bottom: 0; width: 5%; pointer-events: none; z-index: 40; transition: opacity 0.3s ease-in-out; }
+        .mask-left { left: 0; background: linear-gradient(to right, #0a0a0a 20%, transparent 100%); }
+        .mask-right { right: 0; background: linear-gradient(to left, #0a0a0a 20%, transparent 100%); }
+        .carousel-arrow { position: absolute; top: 55%; transform: translateY(-50%); width: 56px; height: 120px; background: rgba(20, 20, 20, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.04); color: #fff; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 60; }
+        .arrow-left { left: 0; border-radius: 0 10px 10px 0; }
+        .arrow-right { right: 0; border-radius: 10px 0 0 10px; }
+        .carousel-arrow:hover { background: rgba(236, 72, 153, 0.85); box-shadow: 0 0 25px rgba(236, 72, 153, 0.45); }
+        @media (max-width: 768px) { .carousel-arrow, .edge-fade-mask { display: none; } }
       `}</style>
     </>
   );
