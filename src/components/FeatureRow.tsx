@@ -3,21 +3,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import VideoModal from "./Modals/VideoModal";
 import FeatureCard from "./FeatureCard";
-
-interface Video {
-  id: string;
-  title: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  videoUrl?: string | null;
-  hlsManifestUrl?: string | null;
-  releaseYear: number | null;
-  // Added these fields to match VideoModal requirements
-  categories: string[];
-  maturityRating: string;
-  cast: string[];
-  productionCompanies: string[];
-}
+import { Video } from "@/types/video"; // Importing the shared type
 
 export default function FeatureRow({
   title,
@@ -41,7 +27,7 @@ export default function FeatureRow({
 
     const timer = setTimeout(() => setIsLoading(false), 600);
     return () => clearTimeout(timer);
-  }, []); // Changed dependency to empty array to run once on mount
+  }, []);
 
   const handleScroll = () => {
     if (containerRef.current) {
@@ -127,7 +113,6 @@ export default function FeatureRow({
         </div>
       </section>
 
-      {/* Passing both the selected video and the full list to the modal */}
       {selectedVideo && (
         <VideoModal
           video={selectedVideo}

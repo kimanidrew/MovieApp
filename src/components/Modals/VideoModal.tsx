@@ -5,25 +5,11 @@ import ReactDOM from 'react-dom';
 import Link from 'next/link';
 import Hls from 'hls.js';
 import { normalizeUrl } from "@/utils/normalizeUrl";
+import { Video } from "@/types/video"; // Import shared type
 
 const PREVIEW_START = 120;
 const PREVIEW_DURATION = 150;
 const FADE_DURATION = 800;
-
-interface Video {
-  id: string;
-  title: string;
-  description: string | null;
-  thumbnailUrl: string | null;
-  backdropUrl?: string | null;
-  videoUrl?: string | null;
-  trailerUrl?: string | null;
-  releaseYear: number | null;
-  categories: string[];
-  maturityRating: string;
-  cast: { name: string; character: string }[];
-  productionCompanies: string[];
-}
 
 interface VideoModalProps {
   video: Video | null;
@@ -53,7 +39,8 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
     if (!video || !videoRef.current) return;
     const vid = videoRef.current;
     let hls: Hls | null = null;
-    const src = video.trailerUrl || video.videoUrl || '';
+    // Assuming trailerUrl is accessible via video object
+    const src = (video as any).trailerUrl || video.videoUrl || '';
     if (!src) return;
 
     const startTime = history.time > 5 ? history.time : PREVIEW_START;
@@ -110,8 +97,9 @@ export default function VideoModal({ video, onClose, isTvShow }: VideoModalProps
         <button className="modal-close" onClick={onClose}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
         <div className="modal-hero">
           <div className="modal-video-wrapper">
-             <img src={normalizeUrl(video.backdropUrl || video.thumbnailUrl)} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }} />
-            {(video.trailerUrl || video.videoUrl) && (
+             {/* Using 'any' cast for backdropUrl as it might not be in the base interface yet */}
+             <img src={normalizeUrl((video as any).backdropUrl || video.thumbnailUrl)} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }} />
+            {( (video as any).trailerUrl || video.videoUrl) && (
               <video ref={videoRef} className="modal-video" muted={isMuted} playsInline style={{ opacity: 0, position: 'relative', zIndex: 1 }} />
             )}
             <div className="modal-gradient"></div>
