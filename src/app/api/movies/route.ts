@@ -1,240 +1,55 @@
-// app/api/movies/route.ts
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-
-    const {
-      contentId,
-      videoId,
-      cutVariant,
-      durationTotal,
-    } = body;
-
-    if (!contentId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "contentId is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    if (!videoId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "videoId is required.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    const movie = await prisma.movie.create({
-      data: {
-        content: {
-          connect: {
-            id: contentId,
-          },
-        },
-
-        video: {
-          connect: {
-            id: videoId,
-          },
-        },
-
-        cutVariant: cutVariant || "Theatrical",
-
-        durationTotal:
-          Number(durationTotal) || 0,
-      },
-
-      include: {
-        content: {
-          include: {
-            maturityRating: true,
-
-            categories: {
-              include: {
-                category: true,
-              },
-            },
-
-            images: true,
-
-            trailers: true,
-
-            cast: {
-              include: {
-                person: true,
-              },
-            },
-
-            crew: {
-              include: {
-                person: true,
-              },
-            },
-          },
-        },
-
-        video: {
-          include: {
-            sources: {
-              include: {
-                regions: true,
-              },
-            },
-
-            subtitles: {
-              include: {
-                language: true,
-              },
-            },
-
-            audioTracks: {
-              include: {
-                language: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      movie,
-    });
-  } catch (error: any) {
-    console.error(error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-      },
-      {
-        status: 500,
-      },
-    );
-  }
-}
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const movies = await prisma.movie.findMany({
-      orderBy: {
-        content: {
-          releaseYear: "desc",
-        },
-      },
-
+    const moviesRaw = await prisma.movie.findMany({
       include: {
         content: {
           include: {
-            maturityRating: true,
-
-            categories: {
-              include: {
-                category: true,
-              },
-            },
-
             images: {
-              orderBy: {
-                displayOrder: "asc",
-              },
-            },
-
-            trailers: true,
-
-            cast: {
-              include: {
-                person: true,
-              },
-              orderBy: {
-                displayOrder: "asc",
-              },
-            },
-
-            crew: {
-              include: {
-                person: true,
-              },
-            },
-
-            studios: {
-              include: {
-                studio: true,
-              },
-            },
-
-            productionCos: {
-              include: {
-                productionCompany: true,
-              },
-            },
-
-            countries: {
-              include: {
-                country: true,
-              },
-            },
-
-            languages: {
-              include: {
-                language: true,
-              },
+              where: { type: 'POSTER' },
+              take: 1,
             },
           },
         },
-
         video: {
           include: {
             sources: {
-              include: {
-                regions: true,
-              },
-            },
-
-            subtitles: {
-              include: {
-                language: true,
-              },
-            },
-
-            audioTracks: {
-              include: {
-                language: true,
-              },
+              where: { type: 'HLS' },
+              take: 1,
             },
           },
+        },
+      },
+      orderBy: {
+        content: {
+          createdAt: 'desc',
         },
       },
     });
 
-    return NextResponse.json(movies);
-  } catch (error: any) {
-    console.error(error);
+    const movies = moviesRaw.map((m) => {
+      // If there is no HLS source but there's a videoUrl in the video record, fallback to it
+      const hlsSource = m.video.sources[0]?.url || null;
+      const videoUrl = m.video.videoUrl || null; 
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: error.message,
-      },
-      {
-        status: 500,
-      },
-    );
+      return {
+        id: m.video.id,
+        title: m.content.title,
+        description: m.content.description,
+        thumbnailUrl: m.content.images[0]?.url || null,
+        videoUrl: videoUrl,
+        hlsManifestUrl: hlsSource,
+        releaseYear: m.content.releaseYear,
+      };
+    });
+
+    return NextResponse.json(movies);
+  } catch (error) {
+    console.error('Error fetching movies API:', error);
+    return NextResponse.json({ error: 'Failed to fetch movies' }, { status: 500 });
   }
 }

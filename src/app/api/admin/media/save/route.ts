@@ -1,169 +1,282 @@
-// src/app/api/admin/media/save/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma"; // Make sure your global prisma client imports from '@/app/generated/prisma'
+import { ContentStatus, VideoSourceType, VideoResolution, AssetType } from "@/app/generated/prisma";
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
+    const payload = await request.json();
     const {
-      type, // "MOVIE" | "SHOW"
+      type, // "MOVIE" or "SHOW"
       title,
       slug,
       description,
       storyline,
       releaseYear,
-      maturityRatingCode, // e.g., "TV-MA"
+      maturityRatingCode,
       tmdbId,
-      keywords,
-      images, // Array: { url, type: "POSTER"|"BACKDROP", displayOrder, langCode: "en" }
-      trailers, // Array: { title, hlsManifestUrl }
-      // Movie Variant Data
-      movieVideoId,
+      categories,      // e.g. ["Action", "Sci-Fi"]
+      images,          // Array of { url: string; type: "POSTER" | "BACKDROP"; displayOrder: number }
+      trailers,        // Array of { title: string; hlsManifestUrl: string }
+      movieVideoUrl,
       movieDuration,
-      // Show/Episode Data
       seasonNumber,
       episodeNumber,
       episodeTitle,
       episodeDescription,
-      episodeVideoId,
+      episodeVideoUrl,
       episodeDuration,
-    } = body;
+    } = payload;
 
-    // Hardcoded creator ID for auditing. Replace with session auth validation in production.
-    const systemUser = await prisma.user.findFirst({ where: { role: "SUPERADMIN" } });
-    if (!systemUser) throw new Error("A system SUPERADMIN user must exist to audit writes.");
+    if (!title || !slug) {
+      return NextResponse.json({ error: "Missing required core metadata identifiers." }, { status: 400 });
+    }
 
-    // Resolve or build Maturity Rating context
-    const ratingNode = await prisma.maturityRating.upsert({
-      where: { code: maturityRatingCode },
-      update: {},
-      create: { code: maturityRatingCode, system: "TVPG", severityRank: 40 },
-    });
-
-    // Default language relation container
-    const langRegistry = await prisma.languageRegistry.upsert({
+    // 1. Resolve Prerequisite Entities
+    const defaultLanguage = await prisma.languageRegistry.findFirst({
       where: { iso6391: "en" },
-      update: {},
-      create: { iso6391: "en", name: "English" },
+    });
+    
+    const maturityRating = await prisma.maturityRating.findFirst({
+      where: { code: maturityRatingCode || "TV-MA" },
     });
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Create base content metadata container
-      const content = await tx.content.create({
-        data: {
-          title,
-          slug,
-          description,
-          storyline,
-          releaseYear: parseInt(releaseYear),
-          maturityRatingId: ratingNode.id,
-          tmdbId: parseInt(tmdbId),
-          keywords: keywords || [],
-          createdById: systemUser.id,
-          updatedById: systemUser.id,
-          status: "READY",
-          images: {
-            create: images.map((img: any) => ({
-              url: img.url,
-              type: img.type,
-              displayOrder: img.displayOrder,
-              languageId: langRegistry.id,
-            })),
-          },
-          trailers: {
-            create: trailers.map((t: any) => ({
-              title: t.title,
-              hlsManifestUrl: t.hlsManifestUrl,
-            })),
-          },
-        },
-      });
+    const activeAdminUser = await prisma.user.findFirst({
+      where: { role: "ADMIN" },
+    });
 
-      // 2. Branch structural variant based on content type
-      if (type === "MOVIE") {
-        const videoNode = await tx.video.create({
-  data: {
-    durationSeconds: parseInt(movieDuration) || 0,
-    sources: {
-      create: [
-        {
-          type: "HLS",
-          url: `https://customer-media.cloudflarestream.com/${movieVideoId}/manifest/video.m3u8`,
-          codec: "hvc1",
-          audioCodec: "mp4a",
-          fps: 23.976,
-          aspectRatio: "16:9",
-        }
-      ],
-    },
-  },
-});
+    if (!defaultLanguage || !activeAdminUser || !maturityRating) {
+      return NextResponse.json(
+        { 
+          error: "Prerequisite database configuration missing. Ensure Language 'en', a Maturity Rating, and an Admin user exist." 
+        }, 
+        { status: 412 }
+      );
+    }
 
-        await tx.movie.create({
+    // 2. Map & Upsert Categories
+    const resolvedCategories = await Promise.all(
+      categories.map(async (name: string) => {
+        const normalizedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        return prisma.category.upsert({
+          where: { slug: normalizedSlug },
+          update: {},
+          create: { name, slug: normalizedSlug },
+        });
+      })
+    );
+
+    // =========================================================================
+    // MOVIE TRANSACTION PIPELINE
+    // =========================================================================
+    if (type === "MOVIE") {
+      const dbResult = await prisma.$transaction(async (tx) => {
+        // Create base Content node
+        const content = await tx.content.create({
           data: {
-            contentId: content.id,
-            durationTotal: parseInt(movieDuration) || 0,
-            videoId: videoNode.id,
-          },
-        });
-      } else if (type === "SHOW") {
-        const showNode = await tx.show.create({
-          data: { contentId: content.id },
-        });
-
-        const seasonNode = await tx.season.upsert({
-          where: {
-            showId_seasonNumber: {
-              showId: showNode.id,
-              seasonNumber: parseInt(seasonNumber),
+            title,
+            slug,
+            description,
+            storyline,
+            releaseYear: Number(releaseYear || 2026),
+            status: ContentStatus.READY,
+            maturityRatingId: maturityRating.id,
+            tmdbId: tmdbId ? Number(tmdbId) : null,
+            createdById: activeAdminUser.id,
+            updatedById: activeAdminUser.id,
+            categories: {
+              create: resolvedCategories.map((cat, idx) => ({
+                category: { connect: { id: cat.id } },
+                isPrimary: idx === 0,
+              })),
             },
           },
-          update: {},
-          create: {
-            showId: showNode.id,
-            seasonNumber: parseInt(seasonNumber),
-            slug: `${slug}-s${seasonNumber}`,
-          },
         });
 
-
-        const epVideoNode = await tx.video.create({
-  data: {
-    durationSeconds: parseInt(episodeDuration) || 0,
-    sources: {
-      // Changed from a single object to an array of objects
-      create: [
-        {
-          type: "HLS",
-          url: `https://customer-media.cloudflarestream.com/${episodeVideoId}/manifest/video.m3u8`,
-          codec: "hvc1",
-          audioCodec: "mp4a",
-          fps: 23.976,
-          aspectRatio: "16:9",
-        }
-      ],
-    },
-  },
-});
-
-        await tx.episode.create({
+        // Create Video Instance
+        const video = await tx.video.create({
           data: {
-            seasonId: seasonNode.id,
-            episodeNumber: parseInt(episodeNumber),
-            title: episodeTitle || `Episode ${episodeNumber}`,
-            slug: `${slug}-s${seasonNumber}-e${episodeNumber}`,
-            description: episodeDescription,
-            videoId: epVideoNode.id,
+            durationSeconds: Number(movieDuration || 7200),
           },
         });
-      }
 
-      return content;
-    });
+        // Add Video Source pointing to R2 URL
+        await tx.videoSource.create({
+          data: {
+            videoId: video.id,
+            url: movieVideoUrl,
+            type: VideoSourceType.MP4,
+            resolution: VideoResolution.P1080,
+            codec: "h264",
+            audioCodec: "aac",
+            fps: 24.0,
+            aspectRatio: "16:9",
+          },
+        });
 
-    return NextResponse.json({ success: true, contentId: result.id });
+        // Create Movie linked to the content container & video instance
+        const movie = await tx.movie.create({
+          data: {
+            contentId: content.id,
+            videoId: video.id,
+            durationTotal: Number(movieDuration || 7200),
+            cutVariant: "Theatrical",
+          },
+        });
+
+        // Add Multi-image assets to content node
+        if (images && images.length > 0) {
+          await tx.imageAsset.createMany({
+            data: images.map((img: any) => ({
+              url: img.url,
+              type: img.type as AssetType,
+              languageId: defaultLanguage.id,
+              contentId: content.id,
+              displayOrder: Number(img.displayOrder || 0),
+            })),
+          });
+        }
+
+        // Connect trailer items
+        if (trailers && trailers.length > 0) {
+          await tx.trailer.createMany({
+            data: trailers.map((tr: any) => ({
+              contentId: content.id,
+              title: tr.title,
+              hlsManifestUrl: tr.hlsManifestUrl,
+            })),
+          });
+        }
+
+        return { contentId: content.id, movieId: movie.id };
+      });
+
+      return NextResponse.json({ success: true, data: dbResult });
+    }
+
+    // =========================================================================
+    // SHOW EPISODE TRANSACTION PIPELINE
+    // =========================================================================
+    if (type === "SHOW") {
+      const dbResult = await prisma.$transaction(async (tx) => {
+        // Query or create top-level Content entity for the Show
+        let showContent = await tx.content.findUnique({
+          where: { slug },
+        });
+
+        if (!showContent) {
+          showContent = await tx.content.create({
+            data: {
+              title,
+              slug,
+              description,
+              storyline,
+              releaseYear: Number(releaseYear || 2026),
+              status: ContentStatus.READY,
+              maturityRatingId: maturityRating.id,
+              tmdbId: tmdbId ? Number(tmdbId) : null,
+              createdById: activeAdminUser.id,
+              updatedById: activeAdminUser.id,
+              categories: {
+                create: resolvedCategories.map((cat, idx) => ({
+                  category: { connect: { id: cat.id } },
+                  isPrimary: idx === 0,
+                })),
+              },
+            },
+          });
+
+          await tx.show.create({
+            data: {
+              contentId: showContent.id,
+            },
+          });
+        }
+
+        const show = await tx.show.findUniqueOrThrow({
+          where: { contentId: showContent.id },
+        });
+
+        // Find or create structural Season relation
+        let season = await tx.season.findFirst({
+          where: { showId: show.id, seasonNumber: Number(seasonNumber || 1) },
+        });
+
+        if (!season) {
+          season = await tx.season.create({
+            data: {
+              showId: show.id,
+              seasonNumber: Number(seasonNumber || 1),
+              title: `Season ${seasonNumber || 1}`,
+              slug: `${slug}-season-${seasonNumber || 1}`,
+            },
+          });
+        }
+
+        // Create Video representation resource
+        const video = await tx.video.create({
+          data: {
+            durationSeconds: Number(episodeDuration || 2700),
+          },
+        });
+
+        await tx.videoSource.create({
+          data: {
+            videoId: video.id,
+            url: episodeVideoUrl,
+            type: VideoSourceType.MP4,
+            resolution: VideoResolution.P1080,
+            codec: "h264",
+            audioCodec: "aac",
+            fps: 24.0,
+            aspectRatio: "16:9",
+          },
+        });
+
+        // Save Custom Episode details
+        const finalEpisodeTitle = episodeTitle || `${title} - Season ${seasonNumber} Episode ${episodeNumber}`;
+        const episode = await tx.episode.create({
+          data: {
+            seasonId: season.id,
+            videoId: video.id,
+            episodeNumber: Number(episodeNumber || 1),
+            title: finalEpisodeTitle,
+            slug: `${slug}-s${seasonNumber}-e${episodeNumber}`,
+            description: episodeDescription || description,
+          },
+        });
+
+        // Link images and trailers to the master Content node
+        if (images && images.length > 0) {
+          await tx.imageAsset.createMany({
+            data: images.map((img: any) => ({
+              url: img.url,
+              type: img.type as AssetType,
+              languageId: defaultLanguage.id,
+              contentId: showContent!.id,
+              displayOrder: Number(img.displayOrder || 0),
+            })),
+          });
+        }
+
+        if (trailers && trailers.length > 0) {
+          await tx.trailer.createMany({
+            data: trailers.map((tr: any) => ({
+              contentId: showContent!.id,
+              title: tr.title,
+              hlsManifestUrl: tr.hlsManifestUrl,
+            })),
+          });
+        }
+
+        return { contentId: showContent.id, episodeId: episode.id };
+      });
+
+      return NextResponse.json({ success: true, data: dbResult });
+    }
+
+    return NextResponse.json({ error: "Invalid media type format selected." }, { status: 400 });
   } catch (error: any) {
-    console.error("Database Transaction Failure:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Content metadata transaction failed:", error);
+    return NextResponse.json({ error: error.message || "An error occurred writing to db." }, { status: 500 });
   }
 }

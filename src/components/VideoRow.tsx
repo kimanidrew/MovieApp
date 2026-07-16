@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import VideoModal from "./VideoModal";
+import VideoModal from "./Modals/VideoModal";
 import Hls from "hls.js";
 import Image from "next/image";
 import { normalizeUrl } from "@/utils/normalizeUrl";

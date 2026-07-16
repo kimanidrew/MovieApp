@@ -1,9 +1,22 @@
-// src/app/admin/upload/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
-import * as tus from "tus-js-client";
-import { Film, Tv, Search, UploadCloud, Loader2, CheckCircle, Info, FileText, Trash2, Link, ImageIcon, Plus, X, Tag } from "lucide-react";
+import { 
+  Film, 
+  Tv, 
+  Search, 
+  UploadCloud, 
+  Loader2, 
+  CheckCircle, 
+  Info, 
+  FileText, 
+  Trash2, 
+  Link, 
+  ImageIcon, 
+  Plus, 
+  X, 
+  Tag 
+} from "lucide-react";
 
 interface TmdbSearchResult {
   id: number;
@@ -35,11 +48,11 @@ export default function AdminUploadPanel() {
     keywords: [] as string[],
   });
 
-  // Multiple Categories State (Supports adding more than one)
+  // Multiple Categories State
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategoryInput, setNewCategoryInput] = useState("");
 
-  // Multiple Media Asset Arrays (can contain both TMDB urls and Cloudflare urls)
+  // Multiple Media Asset Arrays (supports TMDB URLs & Cloudflare R2 URLs)
   const [imageAssets, setImageAssets] = useState<Array<{ url: string; type: "POSTER" | "BACKDROP"; displayOrder: number }>>([]);
   const [trailerTracks, setTrailerTracks] = useState<Array<{ title: string; hlsManifestUrl: string }>>([]);
 
@@ -56,10 +69,10 @@ export default function AdminUploadPanel() {
     episodeDescription: "",
   });
 
-  // Active Upload Tracking States (Main Feature Video)
+  // Active Upload Tracking States (Main Feature Video to R2)
   const [mainVideoFile, setMainVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedVideoId, setUploadedVideoId] = useState("");
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState("");
   const [uploadStatusText, setUploadStatusText] = useState("");
 
   // Debounced TMDB Live Search Hook
@@ -71,9 +84,14 @@ export default function AdminUploadPanel() {
     }
 
     const delayDebounceFn = setTimeout(async () => {
+      const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+      if (!apiKey) {
+        console.warn("TMDB Live Search skipped: NEXT_PUBLIC_TMDB_API_KEY is not defined in your environment.");
+        return;
+      }
+
       setSearching(true);
       try {
-        const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
         const typePath = activeTab === "MOVIE" ? "movie" : "tv";
         const res = await fetch(
           `https://api.themoviedb.org/3/search/${typePath}?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}`
@@ -113,8 +131,12 @@ export default function AdminUploadPanel() {
 
     try {
       const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-      const typePath = activeTab === "MOVIE" ? "movie" : "tv";
+      if (!apiKey) {
+        alert("Please set up NEXT_PUBLIC_TMDB_API_KEY to fetch details.");
+        return;
+      }
 
+      const typePath = activeTab === "MOVIE" ? "movie" : "tv";
       const detailsRes = await fetch(
         `https://api.themoviedb.org/3/${typePath}/${result.id}?api_key=${apiKey}&append_to_response=videos,keywords,images,genres`
       );
@@ -132,13 +154,11 @@ export default function AdminUploadPanel() {
         keywords: detail.keywords?.keywords?.map((k: any) => k.name) || detail.keywords?.results?.map((k: any) => k.name) || [],
       });
 
-      // Extract TMDB Genres and set them as default selection categories
       if (detail.genres && Array.isArray(detail.genres)) {
         const genres = detail.genres.map((g: any) => g.name);
         setCategories(genres);
       }
 
-      // DIRECTLY capture TMDB original image URLs without routing/uploading to Cloudflare
       const posters = (detail.images?.posters || [])
         .slice(0, 2)
         .map((img: any, i: number) => ({
@@ -157,7 +177,6 @@ export default function AdminUploadPanel() {
 
       setImageAssets([...posters, ...backdrops]);
 
-      // DIRECTLY capture YouTube URLs from TMDB without compiling to HLS/Cloudflare Stream
       const trailers = (detail.videos?.results || [])
         .filter((v: any) => v.type === "Trailer" && v.site === "YouTube")
         .slice(0, 2)
@@ -174,38 +193,72 @@ export default function AdminUploadPanel() {
     }
   };
 
-  // Direct Device Upload worker for Cloudflare Images
+  /**
+   * Helper function to manage direct secure PUT uploads to R2 with live progress
+   */
+  const uploadToR2 = (
+    file: File,
+    assetType: "POSTER" | "BACKDROP" | "VIDEO" | "TRAILER",
+    onProgress: (percent: number) => void
+  ): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const ticketRes = await fetch("/api/admin/media/r2-ticket", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: file.type,
+            assetType,
+          }),
+        });
+
+        if (!ticketRes.ok) {
+          const errData = await ticketRes.json();
+          return reject(new Error(errData.error || "Failed to obtain upload ticket."));
+        }
+
+        const { uploadUrl, publicUrl } = await ticketRes.json();
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl, true);
+        xhr.setRequestHeader("Content-Type", file.type);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentage = Math.round((event.loaded / event.total) * 100);
+            onProgress(percentage);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve(publicUrl);
+          } else {
+            reject(new Error(`R2 upload rejected. Status: ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Network upload error."));
+        xhr.send(file);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  };
+
+  // Direct Device Upload worker for Cloudflare R2 Images
   const handleDeviceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetType: "POSTER" | "BACKDROP") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setImageUploading(true);
     try {
-      // 1. Get a direct one-time authenticated upload URL from your server router
-      const tokenRes = await fetch("/api/admin/media/image-upload-token", { method: "POST" });
-      const { uploadUrl, fallbackDirectUrl } = await tokenRes.json();
-
-      // 2. Direct upload to Cloudflare Images via standard FormData
-      const uploadData = new FormData();
-      uploadData.append("file", file);
-
-      const cfRes = await fetch(uploadUrl || fallbackDirectUrl, {
-        method: "POST",
-        body: uploadData,
-      });
-      const cfData = await cfRes.json();
-
-      if (!cfRes.ok || !cfData.result?.variants?.[0]) throw new Error("Cloudflare Images upload rejected.");
-
-      // 3. Extract your delivered variant image production URL
-      const deliveryUrl = cfData.result.variants[0];
-
-      // Add to list, calculating the correct slot order
+      const publicUrl = await uploadToR2(file, targetType, () => {});
       const currentCount = imageAssets.filter(img => img.type === targetType).length;
-      setImageAssets([...imageAssets, { url: deliveryUrl, type: targetType, displayOrder: currentCount }]);
-    } catch (err) {
-      console.error("Image file upload failed:", err);
-      alert("Could not complete direct image upload to Cloudflare Cloud Storage.");
+      setImageAssets([...imageAssets, { url: publicUrl, type: targetType, displayOrder: currentCount }]);
+    } catch (err: any) {
+      alert(`Image R2 upload failed: ${err.message}`);
     } finally {
       setImageUploading(false);
     }
@@ -215,7 +268,7 @@ export default function AdminUploadPanel() {
     setImageAssets(imageAssets.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Direct Device Upload worker for Trailer Videos via Cloudflare Stream (Tus protocol)
+  // Direct Device Upload worker for Trailer Videos directly to R2
   const handleDeviceTrailerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -224,36 +277,12 @@ export default function AdminUploadPanel() {
     setTrailerUploading(true);
 
     try {
-      const ticketRes = await fetch("/api/admin/media/upload-ticket", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, sizeInBytes: file.size }),
-      });
-      const ticket = await ticketRes.json();
-
-      if (ticket.error) throw new Error(ticket.error);
-
-      // 2. Run background Tus assembler worker
-      const uploadWorker = new tus.Upload(file, {
-        endpoint: ticket.uploadUrl,
-        uploadUrl: ticket.uploadUrl,
-        chunkSize: 30 * 1024 * 1024,
-        metadata: { filename: file.name },
-        onError: (err) => {
-          alert(`Trailer upload error: ${err.message}`);
-          setTrailerUploading(false);
-        },
-        onSuccess: () => {
-          const dynamicHlsUrl = `https://customer-f3w.cloudflarestream.com/${ticket.videoId}/manifest/video.m3u8`;
-          setTrailerTracks([...trailerTracks, { title: trackName, hlsManifestUrl: dynamicHlsUrl }]);
-          setManualTrailerTitle("");
-          setTrailerUploading(false);
-        },
-      });
-
-      uploadWorker.start();
+      const publicUrl = await uploadToR2(file, "TRAILER", () => {});
+      setTrailerTracks([...trailerTracks, { title: trackName, hlsManifestUrl: publicUrl }]);
+      setManualTrailerTitle("");
     } catch (err: any) {
-      alert(`Trailer init engine failure: ${err.message}`);
+      alert(`Trailer R2 upload failed: ${err.message}`);
+    } finally {
       setTrailerUploading(false);
     }
   };
@@ -262,44 +291,22 @@ export default function AdminUploadPanel() {
     setTrailerTracks(trailerTracks.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Direct-to-Cloudflare Stream Tus Worker Implementation (Feature Presentation Video)
-  const startChunkedVideoUpload = async () => {
+  // Direct Presentation Video Upload to R2
+  const startR2VideoUpload = async () => {
     if (!mainVideoFile) return;
     setUploadProgress(1);
-    setUploadStatusText("Connecting to upload server...");
+    setUploadStatusText("Acquiring upload authorization ticket...");
 
     try {
-      const ticketRes = await fetch("/api/admin/media/upload-ticket", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: mainVideoFile.name, sizeInBytes: mainVideoFile.size }),
-      });
-      const ticket = await ticketRes.json();
-
-      if (ticket.error) throw new Error(ticket.error);
-
-      setUploadStatusText("Uploading video segments...");
-
-      const uploadWorker = new tus.Upload(mainVideoFile, {
-        endpoint: ticket.uploadUrl,
-        uploadUrl: ticket.uploadUrl,
-        chunkSize: 50 * 1024 * 1024,
-        retryDelays: [0, 3000, 5000, 10000],
-        metadata: { filename: mainVideoFile.name, filetype: mainVideoFile.type },
-        onError: (err) => { setUploadStatusText(`Upload paused: ${err.message}`); },
-        onProgress: (bytesUploaded, bytesTotal) => {
-          const pct = Math.round((bytesUploaded / bytesTotal) * 100);
-          setUploadProgress(pct);
-        },
-        onSuccess: () => {
-          setUploadedVideoId(ticket.videoId);
-          setUploadStatusText("Upload complete!");
-        },
+      const publicUrl = await uploadToR2(mainVideoFile, "VIDEO", (pct) => {
+        setUploadProgress(pct);
+        setUploadStatusText(pct === 100 ? "Finalizing storage writes..." : "Pushing video segments directly to R2...");
       });
 
-      uploadWorker.start();
+      setUploadedVideoUrl(publicUrl);
+      setUploadStatusText("Upload complete!");
     } catch (err: any) {
-      setUploadStatusText(`Upload initialization failed: ${err.message}`);
+      setUploadStatusText(`Upload aborted: ${err.message}`);
     }
   };
 
@@ -310,13 +317,13 @@ export default function AdminUploadPanel() {
       const payload = {
         ...formData,
         type: activeTab,
-        categories, // Passes array of selected Category strings
+        categories,
         images: imageAssets, 
         trailers: trailerTracks, 
-        movieVideoId: activeTab === "MOVIE" ? uploadedVideoId : undefined,
+        movieVideoUrl: activeTab === "MOVIE" ? uploadedVideoUrl : undefined,
         movieDuration: activeTab === "MOVIE" ? "7200" : undefined,
         ...showConfig,
-        episodeVideoId: activeTab === "SHOW" ? uploadedVideoId : undefined,
+        episodeVideoUrl: activeTab === "SHOW" ? uploadedVideoUrl : undefined,
         episodeDuration: activeTab === "SHOW" ? "2700" : undefined,
       };
 
@@ -330,6 +337,24 @@ export default function AdminUploadPanel() {
       if (!saveRes.ok) throw new Error(resData.error);
 
       alert("Content added to library successfully!");
+      
+      // Clean up states after successful save
+      setMainVideoFile(null);
+      setUploadedVideoUrl("");
+      setUploadProgress(0);
+      setImageAssets([]);
+      setTrailerTracks([]);
+      setCategories([]);
+      setFormData({
+        title: "",
+        slug: "",
+        description: "",
+        storyline: "",
+        releaseYear: "2026",
+        maturityRatingCode: "TV-MA",
+        tmdbId: "",
+        keywords: [],
+      });
     } catch (err: any) {
       alert(`Could not save title: ${err.message}`);
     } finally {
@@ -340,6 +365,9 @@ export default function AdminUploadPanel() {
   return (
     <div className="workspace-container">
       <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .workspace-container {
           margin-top: 40px;
           background-color: #09090b;
@@ -420,7 +448,6 @@ export default function AdminUploadPanel() {
       ` }} />
 
       <div className="layout-max-wrapper">
-        
         {/* Header Controller */}
         <div className="header-bar">
           <div>
@@ -443,7 +470,7 @@ export default function AdminUploadPanel() {
           </div>
         </div>
 
-        {/* Step 1: Dynamic Suggestion Search Dropdown Wrapper */}
+        {/* Step 1: Suggestion Search Dropdown Wrapper */}
         <div className="search-automation-panel">
           <h2 style={{ fontSize: "0.9rem", fontWeight: 600, margin: 0, display: "flex", alignItems: "center" }}>
             <span className="step-number-badge">1</span> Search TMDB Suggestion Library (Optional)
@@ -466,7 +493,6 @@ export default function AdminUploadPanel() {
             )}
           </div>
 
-          {/* Dynamic Popup Suggestion Dropdown */}
           {showDropdown && searchResults.length > 0 && (
             <div className="search-results-dropdown">
               {searchResults.map((result) => {
@@ -530,7 +556,6 @@ export default function AdminUploadPanel() {
                   </div>
                 </div>
 
-                {/* Multiple Categories Segment (Added/Autofilled from TMDB) */}
                 <div className="grid-col-full">
                   <div className="input-group-wrapper">
                     <label><Tag style={{ width: "0.85rem", height: "0.85rem" }} /> Catalog Categories / Genres (Add Multiple)</label>
@@ -540,7 +565,7 @@ export default function AdminUploadPanel() {
                         value={newCategoryInput} 
                         onChange={(e) => setNewCategoryInput(e.target.value)} 
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
-                        placeholder="Type category (e.g. Action) and press Enter or plus button..." 
+                        placeholder="Type category (e.g. Action) and press Enter..." 
                         className="input-text-field" 
                       />
                       <button type="button" onClick={handleAddCategory} className="btn-category-append" title="Add Category">
@@ -603,64 +628,67 @@ export default function AdminUploadPanel() {
               </div>
             )}
 
-            {/* Cloudflare Storage Direct Image Uploader */}
+            {/* Direct Image Uploader */}
             <div className="panel-card-glass">
               <h3 style={{ fontSize: "0.8rem", color: "#a1a1aa", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 0.5rem 0" }}>Graphic Assets & Mockups</h3>
-              <p style={{ fontSize: "0.75rem", color: "#71717a", margin: "0 0 1rem 0" }}>TMDB image URLs populate instantly. Upload files here to replace them with custom Cloudflare CDN targets instead.</p>
+              <p style={{ fontSize: "0.75rem", color: "#71717a", margin: "0 0 1rem 0" }}>TMDB image URLs populate instantly. Upload files here to replace them with custom secure R2 bucket variants.</p>
               
               <div className="image-uploader-grid">
                 <div className="mini-device-uploader">
                   <input type="file" accept="image/*" disabled={imageUploading} onChange={(e) => handleDeviceImageUpload(e, "POSTER")} className="hidden-native-input" />
                   <ImageIcon style={{ width: "1.25rem", height: "1.25rem", color: "#38bdf8", marginBottom: "0.25rem" }} />
-                  <div style={{ fontSize: "0.8rem", fontWeight: 500 }}>Upload Poster File</div>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 500 }}>Upload Poster to R2</div>
                 </div>
                 
                 <div className="mini-device-uploader">
                   <input type="file" accept="image/*" disabled={imageUploading} onChange={(e) => handleDeviceImageUpload(e, "BACKDROP")} className="hidden-native-input" />
                   <ImageIcon style={{ width: "1.25rem", height: "1.25rem", color: "#c084fc", marginBottom: "0.25rem" }} />
-                  <div style={{ fontSize: "0.8rem", fontWeight: 500 }}>Upload Backdrop File</div>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 500 }}>Upload Backdrop to R2</div>
                 </div>
               </div>
 
               {imageUploading && (
                 <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", fontSize: "0.75rem", color: "#a1a1aa", marginTop: "1rem" }}>
                   <Loader2 style={{ width: "0.9rem", height: "0.9rem", animation: "spin 1s linear infinite" }} />
-                  Uploading and configuring Cloudflare Image variant...
+                  Signing and uploading secure media block to Cloudflare R2...
                 </div>
               )}
 
               {imageAssets.length > 0 && (
                 <div className="gallery-display-matrix">
-                  {imageAssets.map((img, i) => (
-                    <div key={i} className="gallery-card-item">
-                      <img src={img.url} className="asset-preview-render" alt="Preview item" />
-                      <button type="button" onClick={() => handleRemoveImage(i)} className="delete-overlay" title="Delete Image">
-                        <Trash2 style={{ width: "0.85rem", height: "0.85rem" }} />
-                      </button>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "0.65rem", color: "#a1a1aa", marginTop: "4px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span style={{ color: img.type === "POSTER" ? "#38bdf8" : "#c084fc", fontWeight: 600 }}>{img.type}</span>
-                          <span>Slot {img.displayOrder}</span>
+                  {imageAssets.map((img, i) => {
+                    const isR2 = !img.url.includes("tmdb.org");
+                    return (
+                      <div key={i} className="gallery-card-item">
+                        <img src={img.url} className="asset-preview-render" alt="Preview item" />
+                        <button type="button" onClick={() => handleRemoveImage(i)} className="delete-overlay" title="Delete Image">
+                          <Trash2 style={{ width: "0.85rem", height: "0.85rem" }} />
+                        </button>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", fontSize: "0.65rem", color: "#a1a1aa", marginTop: "4px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: img.type === "POSTER" ? "#38bdf8" : "#c084fc", fontWeight: 600 }}>{img.type}</span>
+                            <span>Slot {img.displayOrder}</span>
+                          </div>
+                          <span style={{ 
+                            color: isR2 ? "#10b981" : "#f59e0b",
+                            fontSize: "0.65rem",
+                            textTransform: "uppercase",
+                            fontWeight: 700 
+                          }}>
+                            {isR2 ? "Cloudflare R2" : "TMDB Direct"}
+                          </span>
                         </div>
-                        <span style={{ 
-                          color: img.url.includes("cloudflare") ? "#10b981" : "#f59e0b",
-                          fontSize: "0.65rem",
-                          textTransform: "uppercase",
-                          fontWeight: 700 
-                        }}>
-                          {img.url.includes("cloudflare") ? "Cloudflare Storage" : "TMDB Direct"}
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Cloudflare Stream Trailer Uploader */}
+            {/* Direct Trailer Uploader */}
             <div className="panel-card-glass">
               <h3 style={{ fontSize: "0.8rem", color: "#a1a1aa", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 1rem 0" }}>Trailers & Extra Promotional Tracks</h3>
-              <p style={{ fontSize: "0.75rem", color: "#71717a", margin: "-0.5rem 0 1rem 0" }}>Shows YouTube trailers by default. Upload video files to output high-performance HLS streams from Cloudflare.</p>
+              <p style={{ fontSize: "0.75rem", color: "#71717a", margin: "-0.5rem 0 1rem 0" }}>Shows YouTube trailers by default. Upload video files to output secure R2 stream resources directly.</p>
               
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 <div className="input-group-wrapper">
@@ -678,7 +706,7 @@ export default function AdminUploadPanel() {
                   <input type="file" accept="video/*" disabled={trailerUploading} onChange={handleDeviceTrailerUpload} className="hidden-native-input" />
                   <UploadCloud style={{ width: "1.5rem", height: "1.5rem", color: "#e11d48", marginBottom: "0.25rem" }} />
                   <p style={{ fontSize: "0.8rem", color: "#ffffff", margin: 0, fontWeight: 500 }}>
-                    {trailerUploading ? "Uploading video clip file..." : "Click or drop a trailer video clip file to upload directly"}
+                    {trailerUploading ? "Uploading video clip file directly to R2..." : "Click or drop a trailer video clip file to upload directly to R2"}
                   </p>
                 </div>
               </div>
@@ -686,11 +714,11 @@ export default function AdminUploadPanel() {
               {trailerTracks.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
                   {trailerTracks.map((tr, i) => {
-                    const isCloudflare = tr.hlsManifestUrl.includes("cloudflare");
+                    const isR2 = !tr.hlsManifestUrl.includes("youtube.com") && !tr.hlsManifestUrl.includes("youtu.be");
                     return (
                       <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.5rem 0.75rem", backgroundColor: "#09090b", border: "1px solid #27272a", borderRadius: "0.375rem" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", overflow: "hidden", width: "100%" }}>
-                          <Link style={{ width: "0.85rem", height: "0.85rem", color: isCloudflare ? "#10b981" : "#f59e0b", flexShrink: 0 }} />
+                          <Link style={{ width: "0.85rem", height: "0.85rem", color: isR2 ? "#10b981" : "#f59e0b", flexShrink: 0 }} />
                           <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             <span style={{ fontSize: "0.85rem", color: "#fafafa", fontWeight: 500 }}>{tr.title}</span>
                             <span style={{ fontSize: "0.75rem", color: "#71717a", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{tr.hlsManifestUrl}</span>
@@ -702,10 +730,10 @@ export default function AdminUploadPanel() {
                             padding: "0.15rem 0.35rem", 
                             borderRadius: "0.25rem",
                             fontWeight: 700,
-                            backgroundColor: isCloudflare ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                            color: isCloudflare ? "#10b981" : "#f59e0b"
+                            backgroundColor: isR2 ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                            color: isR2 ? "#10b981" : "#f59e0b"
                           }}>
-                            {isCloudflare ? "HLS" : "YouTube"}
+                            {isR2 ? "R2 Video" : "YouTube"}
                           </span>
                           <button type="button" onClick={() => handleRemoveTrailer(i)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#71717a" }} title="Remove Trailer">
                             <Trash2 style={{ width: "0.95rem", height: "0.95rem" }} />
@@ -732,12 +760,12 @@ export default function AdminUploadPanel() {
                 <p style={{ fontSize: "0.85rem", color: "#ffffff", margin: 0, fontWeight: 500 }}>
                   {mainVideoFile ? mainVideoFile.name : "Select master source video file"}
                 </p>
-                <p className="input-help-tip">Supports .mp4, .mkv, .mov up to 4K resolution</p>
+                <p className="input-help-tip">Supports .mp4, .mkv, .mov files</p>
               </div>
 
-              {mainVideoFile && !uploadedVideoId && (
-                <button onClick={startChunkedVideoUpload} className="btn-execution-commit" style={{ backgroundColor: "#e11d48", color: "#ffffff" }}>
-                  Start Uploading Video File
+              {mainVideoFile && !uploadedVideoUrl && (
+                <button onClick={startR2VideoUpload} className="btn-execution-commit" style={{ backgroundColor: "#e11d48", color: "#ffffff" }}>
+                  Start Direct R2 Upload
                 </button>
               )}
 
@@ -753,10 +781,10 @@ export default function AdminUploadPanel() {
                 </div>
               )}
 
-              {uploadedVideoId && (
+              {uploadedVideoUrl && (
                 <div style={{ backgroundColor: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "0.75rem 1rem", borderRadius: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
                   <CheckCircle style={{ width: "1.25rem", height: "1.25rem", color: "#10b981", flexShrink: 0 }} />
-                  <p style={{ fontSize: "0.85rem", fontWeight: 500, color: "#10b981", margin: 0 }}>Ready to link to network stream</p>
+                  <p style={{ fontSize: "0.85rem", fontWeight: 500, color: "#10b981", margin: 0 }}>Linked to direct R2 public resource</p>
                 </div>
               )}
 
@@ -764,13 +792,13 @@ export default function AdminUploadPanel() {
               <div style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid #27272a" }}>
                 <button
                   onClick={commitCompleteAssetToDb}
-                  disabled={saving || !formData.title || !uploadedVideoId}
+                  disabled={saving || !formData.title || !uploadedVideoUrl}
                   className="btn-execution-commit"
                 >
                   {saving ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> : "Save Complete Title to Catalog"}
                 </button>
                 
-                {(!formData.title || !uploadedVideoId) && (
+                {(!formData.title || !uploadedVideoUrl) && (
                   <p style={{ display: "flex", gap: "0.35rem", fontSize: "0.75rem", color: "#71717a", marginTop: "0.75rem", lineHeight: "1.3" }}>
                     <Info style={{ width: "0.85rem", height: "0.85rem", flexShrink: 0, color: "#a1a1aa" }} />
                     Please ensure you have filled out the Title Name and completed your Video Upload before submitting.

@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
     qualities: [70, 75, 90], // 👈 Authorize quality 90 here
     remotePatterns: [
       {
+        protocol: 'https',
+        hostname: 'image.tmdb.org',
+        port: '',
+        pathname: '/t/p/**',
+      },
+      {
         protocol: "https",
         hostname: "**.r2.dev",
       },

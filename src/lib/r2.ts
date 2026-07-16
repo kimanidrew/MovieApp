@@ -1,28 +1,58 @@
-import { S3Client } from "@aws-sdk/client-s3";
+// src/lib/r2.ts
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-export const r2 = new S3Client({
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME!;
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID!;
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
+const R2_PUBLIC_DOMAIN = process.env.NEXT_PUBLIC_R2_DOMAIN || ""; // e.g. "https://media.mydomain.com" or "https://pub-xxxx.r2.dev"
+
+// Initialize S3-compatible R2 Client
+export const r2Client = new S3Client({
   region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY!,
-    secretAccessKey: process.env.R2_SECRET_KEY!,
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
   },
 });
 
-// 🔥 CRITICAL: disable checksum middleware for R2 multipart uploads
-// @ts-ignore
-r2.middlewareStack.remove("flexibleChecksumsMiddleware");
+/**
+ * Normalizes filenames into a URL-friendly and unique format
+ */
+const sanitizeFilename = (filename: string): string => {
+  const clean = filename
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return `${Date.now()}-${clean}`;
+};
 
-// ALSO disable optional checksum behavior globally
-r2.middlewareStack.add(
-  (next) => async (args: any) => {
-    delete args.request.headers["x-amz-checksum-crc32"];
-    delete args.request.headers["x-amz-checksum-sha1"];
-    delete args.request.headers["x-amz-checksum-sha256"];
-    return next(args);
-  },
-  {
-    step: "build",
-    name: "stripChecksumHeaders",
-  }
-);
+// Specialized path builders for catalog organization
+export const buildVideoKey = (filename: string) => `videos/master/${sanitizeFilename(filename)}`;
+export const buildPosterKey = (filename: string) => `graphics/posters/${sanitizeFilename(filename)}`;
+export const buildBackdropKey = (filename: string) => `graphics/backdrops/${sanitizeFilename(filename)}`;
+export const buildLogoKey = (filename: string) => `graphics/logos/${sanitizeFilename(filename)}`;
+export const buildTrailerKey = (filename: string) => `videos/trailers/${sanitizeFilename(filename)}`;
+
+/**
+ * Builds the permanent, public URL of an uploaded asset
+ */
+export const buildPublicUrl = (key: string): string => {
+  const domain = R2_PUBLIC_DOMAIN.replace(/\/$/, "");
+  return `${domain}/${key}`;
+};
+
+/**
+ * Generates a direct secure PUT upload URL valid for 15 minutes
+ */
+export const createUploadUrl = async (key: string, contentType: string): Promise<string> => {
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  return await getSignedUrl(r2Client, command, { expiresIn: 900 }); // 15 minutes
+};
