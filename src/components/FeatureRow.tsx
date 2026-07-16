@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import VideoModal from "./VideoModal";
+import VideoModal from "./Modals/VideoModal";
 import FeatureCard from "./FeatureCard";
 
 interface Video {
