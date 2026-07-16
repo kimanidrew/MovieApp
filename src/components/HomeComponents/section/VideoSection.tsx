@@ -10,5 +10,15 @@ export default function VideoSection({
   title: string;
   videos: Video[];
 }) {
-  return <VideoRow title={title} videos={videos} />;
+  // Sanitize data: Ensure thumbnailUrl is null if undefined
+  const sanitizedVideos: Video[] = videos.map((v) => ({
+    ...v,
+    thumbnailUrl: v.thumbnailUrl ?? null,
+    description: v.description ?? null,
+    videoUrl: v.videoUrl ?? null,
+    hlsManifestUrl: v.hlsManifestUrl ?? null,
+    releaseYear: v.releaseYear ?? null,
+  }));
+
+  return <VideoRow title={title} videos={sanitizedVideos} />;
 }
