@@ -21,7 +21,9 @@ export function middleware(request: NextRequest) {
   const adminToken = cookies.get("admin_token")?.value;
   const profileId = cookies.get("profile_id")?.value; // 👈 Read the active profile cookie
 
-  const isAdminSpace = pathname.startsWith("/admin");
+  const isAdminSpace =
+  pathname.startsWith("/admin") ||
+  pathname.startsWith("/api/admin");
   const currentSpaceToken = isAdminSpace ? adminToken : consumerToken;
 
   // 2. Secure Route Guard (Unauthenticated redirects)
