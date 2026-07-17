@@ -90,7 +90,7 @@ export default function VideoModal({ video, videos, onClose }: VideoModalProps) 
      
       <style jsx>{`
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; justify-content: center; align-items: flex-start; padding: 2rem 0; overflow-y: auto; backdrop-filter: blur(8px); }
-        .modal-content { background: #181818; width: 90%; max-width: 850px; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); margin: auto; }
+        .modal-content { background: #000; width: 90%; max-width: 850px; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); margin: auto; }
         .modal-hero { position: relative; height: 450px; }
         .hero-img, .modal-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         .modal-gradient { position: absolute; inset: 0; background: linear-gradient(to top, #181818 10%, transparent 80%); }
