@@ -93,7 +93,7 @@ export default function VideoModal({ video, videos, onClose }: VideoModalProps) 
         .modal-content { background: #000; width: 90%; max-width: 850px; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); margin: auto; }
         .modal-hero { position: relative; height: 450px; }
         .hero-img, .modal-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .modal-gradient { position: absolute; inset: 0; background: linear-gradient(to top, #181818 10%, transparent 80%); }
+        .modal-gradient { position: absolute; inset: 0; background: linear-gradient(to top, #000 10%, transparent 80%); }
         .modal-hero-content { position: absolute; bottom: 3rem; left: 3rem; }
         .modal-title { font-size: 3rem; color: #fff; margin-bottom: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         
