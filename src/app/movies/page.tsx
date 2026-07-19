@@ -207,7 +207,7 @@ export default async function MoviesPage() {
         categories={categories}
       />
 
-      <Footer />
+     
     </main>
   );
 }

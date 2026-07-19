@@ -70,7 +70,7 @@ export default function CategoryFilter({
 
   border: 0px solid rgba(255,255,255,.04);
 
-  border-radius: 22px;
+  border-radius: 0px;
 
   /* Ambient shadow on ALL SIDES */
   box-shadow:
