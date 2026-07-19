@@ -113,7 +113,7 @@ export default function PageHeader({
       </div>
 
       <style jsx>{`
-        .headerContainer { display: flex; align-items: flex-center; gap: 60px; margin-bottom: 60px; flex-wrap: wrap; }
+        .headerContainer { display: flex; align-items: flex-center; gap: 60px; margin-bottom: 20px; flex-wrap: wrap; }
         .titleSection { display: flex; align-items: center; gap: 24px; min-width: 300px; }
         .pageLabel { color: #E50914; text-transform: uppercase; letter-spacing: 4px; font-size: .8rem; font-weight: 700; }
         .pageTitle { margin: 8px 0 0; color: white; font-size: 3.8rem; font-weight: 800; line-height: 1; }

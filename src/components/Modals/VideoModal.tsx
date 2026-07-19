@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
-import ReactDOM from 'react-dom';
-import Link from 'next/link';
+import React, { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
+import Link from "next/link";
 import { normalizeUrl } from "@/utils/normalizeUrl";
 import { Video } from "@/types/video";
 
@@ -12,114 +12,1125 @@ interface VideoModalProps {
   onClose: () => void;
 }
 
-export default function VideoModal({ video, videos, onClose }: VideoModalProps) {
+export default function VideoModal({
+  video,
+  videos,
+  onClose,
+}: VideoModalProps) {
   const [inMyList, setInMyList] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [mounted, setMounted] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // SCROLL LOCK EFFECT
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
+    setMounted(true);
+
+    document.body.style.overflow = "hidden";
+
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "";
     };
   }, []);
 
   useEffect(() => {
     if (!video) return;
-    const list = JSON.parse(localStorage.getItem('movieflix-mylist') || '[]');
+
+    const list = JSON.parse(
+      localStorage.getItem("movieflix-mylist") || "[]"
+    );
+
     setInMyList(list.includes(video.id));
   }, [video]);
 
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    videoRef.current.muted = isMuted;
+  }, [isMuted]);
+
   const toggleMyList = () => {
-    let list = JSON.parse(localStorage.getItem('movieflix-mylist') || '[]');
-    if (inMyList) list = list.filter((id: string) => id !== video?.id);
-    else list.push(video?.id);
-    localStorage.setItem('movieflix-mylist', JSON.stringify(list));
+    if (!video) return;
+
+    let list = JSON.parse(
+      localStorage.getItem("movieflix-mylist") || "[]"
+    );
+
+    if (inMyList) {
+      list = list.filter((id: string) => id !== video.id);
+    } else {
+      list.push(video.id);
+    }
+
+    localStorage.setItem(
+      "movieflix-mylist",
+      JSON.stringify(list)
+    );
+
     setInMyList(!inMyList);
   };
 
-  if (!video) return null;
+  if (!mounted || !video) return null;
+
+  const relatedVideos = videos
+    .filter((v) => v.id !== video.id)
+    .slice(0, 6);
 
   const modal = (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose}>✕</button>
-        
-        <div className="modal-hero">
-          <img src={normalizeUrl((video as any).backdropUrl || video.thumbnailUrl)} className="hero-img" />
-          <video ref={videoRef} className="modal-video" muted={isMuted} autoPlay loop playsInline />
-          <div className="modal-gradient"></div>
-          
-          <div className="modal-hero-content">
-            <h1 className="modal-title">{video.title}</h1>
-            <div className="modal-controls">
-              <Link href={`/watch/${video.id}`} className="btn-play">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                <span>Play</span>
-              </Link>
-              <button className="btn-circle" onClick={toggleMyList}>{inMyList ? <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" /></svg> : <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>}</button>
-              <button className="btn-circle" onClick={() => setIsMuted(!isMuted)}>{isMuted ? <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71z" /></svg> : <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" /></svg>}</button>
-            </div>
-          </div>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+    >
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+
+        <button
+          className="close-btn"
+          onClick={onClose}
+        >
+          ✕
+        </button>
+
+        {/* HERO */}
+
+        <section className="hero">
+
+          <img
+            className="hero-image"
+            src={normalizeUrl(
+              (video as any).backdropUrl ||
+                video.thumbnailUrl
+            )}
+            alt={video.title}
+          />
+
+          <video
+            ref={videoRef}
+            className="hero-video"
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+          />
+
+          <div className="hero-overlay" />
+
+          <div className="hero-vignette" />
+
+          {/* HERO CONTENT STARTS HERE */}
+          <div className="hero-content">
+
+  <div className="logo-area">
+
+    <span className="netflix-badge">
+      MOVIEFLIX
+    </span>
+
+    <h1 className="title">
+      {video.title}
+    </h1>
+
+    <div className="meta">
+
+      <span>
+        {video.releaseYear}
+      </span>
+
+      <span className="rating">
+        {video.maturityRating}
+      </span>
+
+      <span className="quality">
+        HD
+      </span>
+
+      <span className="quality">
+        5.1
+      </span>
+
+    </div>
+
+  </div>
+
+</div>
+
+</section>
+
+<section className="content">
+
+  {/* Controls below HD labels */}
+  <div className="hero-buttons" style={{ marginBottom: '25px' }}>
+
+    <Link
+      href={`/watch/${video.id}`}
+      className="play-btn"
+    >
+      <svg
+        width="26"
+        height="26"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+      >
+        <path d="M8 5v14l11-7z" />
+      </svg>
+
+      <span>Play</span>
+
+    </Link>
+
+    <button
+      className="circle-btn"
+      onClick={toggleMyList}
+    >
+      {inMyList ? (
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />
+        </svg>
+      ) : (
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z" />
+        </svg>
+      )}
+    </button>
+
+    <button
+      className="circle-btn"
+      onClick={() => setIsMuted(!isMuted)}
+    >
+      {isMuted ? (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71z" />
+        </svg>
+      ) : (
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+        </svg>
+      )}
+    </button>
+
+  </div>
+
+  <div className="details-grid">
+
+    <div>
+
+      {video.categories?.length ? (
+        <div className="genres" style={{ marginBottom: '15px' }}>
+
+          {video.categories.map((genre) => (
+            <span
+              key={genre}
+              className="genre-chip"
+            >
+              {genre}
+            </span>
+          ))}
+
+        </div>
+      ) : null}
+
+      <p className="description">
+        {video.description}
+      </p>
+
+    </div>
+
+    <div className="side-info">
+
+      <p>
+        <span>Cast:</span>
+        {" "}
+        Coming Soon
+      </p>
+
+      <p>
+        <span>Director:</span>
+        {" "}
+        Unknown
+      </p>
+
+      <p>
+        <span>Language:</span>
+        {" "}
+        English
+      </p>
+
+      <p>
+        <span>Available:</span>
+        {" "}
+        HD • Full HD
+      </p>
+
+    </div>
+
+  </div>
+  </section>
+        <section className="recommendations" style={{ padding: '0 55px 45px' }}>
+
+        <div className="section-header">
+          <h2>More Like This</h2>
+          <span>{relatedVideos.length} recommendations</span>
         </div>
 
-        <div className="modal-details">
-          <div className="modal-meta-row">
-            <span className="match">98% Match</span>
-            <span>{video.releaseYear}</span>
-            <span className="rating">{video.maturityRating}</span>
-          </div>
-          <p className="categories"><strong>Genres:</strong> {video.categories?.join(", ")}</p>
-          <p className="description">{video.description}</p>
-        </div>
+        <div className="recommend-grid">
 
-        <div className="more-like-this">
-          <h3>More Like This</h3>
-          <div className="grid">
-            {videos.filter(v => v.id !== video.id).slice(0, 6).map((v) => (
-              <div key={v.id} className="grid-item">
-                <img src={normalizeUrl(v.thumbnailUrl || '')} alt={v.title} />
-                <p>{v.title}</p>
+          {relatedVideos.map((item) => (
+            <Link
+              href={`/watch/${item.id}`}
+              key={item.id}
+              className="recommend-card"
+            >
+              <div className="recommend-image-wrapper">
+
+                <img
+                  src={normalizeUrl(
+                    (item as any).backdropUrl ||
+                      item.thumbnailUrl ||
+                      ""
+                  )}
+                  alt={item.title}
+                  className="recommend-image"
+                />
+
+                <div className="recommend-gradient" />
+
+                <div className="recommend-play">
+
+                  <svg
+                    width="34"
+                    height="34"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+
+                </div>
+
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-     
-      <style jsx>{`
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; justify-content: center; align-items: flex-start; padding: 2rem 0; overflow-y: auto; backdrop-filter: blur(8px); }
-        .modal-content { background: #000; width: 90%; max-width: 850px; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); margin: auto; }
-        .modal-hero { position: relative; height: 450px; }
-        .hero-img, .modal-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-        .modal-gradient { position: absolute; inset: 0; background: linear-gradient(to top, #000 10%, transparent 80%); }
-        .modal-hero-content { position: absolute; bottom: 3rem; left: 3rem; }
-        .modal-title { font-size: 3rem; color: #fff; margin-bottom: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        
-        .modal-controls { display: flex; align-items: center; gap: 1rem; }
-        
-        :global(.btn-play) { background: #fff !important; color: #000 !important; padding: 0.8rem 2.5rem !important; border-radius: 4px !important; display: flex !important; align-items: center !important; gap: 0.5rem !important; font-weight: 700 !important; text-decoration: none !important; transition: transform 0.2s, background 0.2s !important; }
-        :global(.btn-play:hover) { background: #e6e6e6 !important; transform: scale(1.05); }
-        
-        .btn-circle { background: rgba(42,42,42,0.6); border: 2px solid rgba(255,255,255,0.2); color: white; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; transition: border 0.2s; display: flex; align-items: center; justify-content: center; }
-        .btn-circle:hover { border: 2px solid white; }
-        
-        .modal-details { padding: 2rem 3rem; color: #fff; }
-        .modal-meta-row { display: flex; gap: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; }
-        .match { color: #46d369; }
-        .rating { border: 1px solid #777; padding: 0 0.4rem; border-radius: 2px; }
-        .description { width: 75%; font-size: 1.1rem; line-height: 1.6; color: #d2d2d2; }
-        
-        .more-like-this { padding: 2rem 3rem; border-top: 1px solid #333; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1.5rem; }
-        .grid-item { background: #2f2f2f; border-radius: 8px; overflow: hidden; padding-bottom: 0.5rem; }
-        .grid-item img { width: 100%; height: 140px; object-fit: cover; }
-        .grid-item p { padding: 0.5rem; font-size: 0.9rem; font-weight: 500; }
-        
-        .modal-close { position: absolute; top: 1.5rem; right: 1.5rem; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; z-index: 20; font-size: 1.2rem; }
-      `}</style>
+              <div className="recommend-content">
+
+                <div className="recommend-top">
+
+                  <span className="recommend-year">
+                    {item.releaseYear}
+                  </span>
+
+                </div>
+
+                <h4 className="recommend-title">
+                  {item.title}
+                </h4>
+
+                <div className="recommend-tags">
+
+                  {item.categories
+                    ?.slice(0, 3)
+                    .map((genre) => (
+                      <span
+                        key={genre}
+                        className="recommend-tag"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+
+                </div>
+
+              </div>
+
+            </Link>
+          ))}
+
+        </div>
+
+      </section>
+
+    </div>
+
+    <style jsx>{`
+    .modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+
+  overflow-y:auto;
+
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+
+  padding:20px 0;
+
+  background:
+    radial-gradient(circle at top,
+      rgba(255,255,255,.05),
+      transparent 40%),
+    rgba(0,0,0,.82);
+
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+
+  animation:fadeIn .25s ease;
+}
+
+.modal{
+
+  width:min(920px,92vw);
+
+  background:#141414;
+
+  border-radius:22px;
+
+  overflow:hidden;
+
+  position:relative;
+
+  border:1px solid rgba(255,255,255,.05);
+
+  box-shadow:
+      0 0 0 1px rgba(255,255,255,.02),
+      0 30px 90px rgba(0,0,0,.65),
+      0 80px 140px rgba(0,0,0,.85);
+
+  animation:modalEnter .35s cubic-bezier(.2,.8,.2,1);
+}
+
+.close-btn{
+
+  position:absolute;
+  top:22px;
+  right:22px;
+
+  width:46px;
+  height:46px;
+
+  border-radius:50%;
+  border:none;
+
+  cursor:pointer;
+
+  color:#fff;
+  font-size:20px;
+
+  background:rgba(0,0,0,.55);
+
+  backdrop-filter:blur(10px);
+
+  transition:.25s;
+
+  z-index:50;
+}
+
+.close-btn:hover{
+
+  transform:rotate(90deg) scale(1.05);
+
+  background:#fff;
+
+  color:#000;
+}
+
+.hero{
+
+  position:relative;
+
+  height:520px;
+
+  overflow:hidden;
+}
+
+.hero-image,
+.hero-video{
+
+  position:absolute;
+  inset:0;
+
+  width:100%;
+  height:100%;
+
+  object-fit:cover;
+}
+
+.hero-video{
+
+  opacity:.9;
+}
+
+.hero-overlay{
+
+  position:absolute;
+  inset:0;
+
+  background:
+      linear-gradient(
+          to top,
+          #141414 8%,
+          rgba(20,20,20,.75) 30%,
+          rgba(20,20,20,.2) 58%,
+          transparent
+      );
+}
+
+.hero-vignette{
+
+  position:absolute;
+  inset:0;
+
+  background:
+      radial-gradient(circle at center,
+          transparent 45%,
+          rgba(0,0,0,.45) 100%);
+}
+
+.hero-content{
+
+  position:absolute;
+
+  left:55px;
+  bottom:0px;
+  right:55px;
+
+  z-index:5;
+
+  display:flex;
+
+  justify-content:space-between;
+
+  align-items:flex-end;
+}
+
+.netflix-badge{
+
+  display:inline-flex;
+
+  padding:6px 12px;
+
+  border-radius:999px;
+
+  background:#e50914;
+
+  color:white;
+
+  font-weight:700;
+
+  letter-spacing:.12em;
+
+  font-size:.72rem;
+
+  margin-bottom:18px;
+}
+
+.title{
+
+  margin:0;
+
+  color:white;
+
+  font-size:3.6rem;
+
+  font-weight:900;
+
+  line-height:1.02;
+
+  text-shadow:
+      0 5px 18px rgba(0,0,0,.6);
+}
+
+.meta{
+
+  margin-top:20px;
+
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+
+  align-items:center;
+
+  color:#d5d5d5;
+
+  font-size:.95rem;
+
+  font-weight:600;
+}
+
+.rating{
+
+  border:1px solid rgba(255,255,255,.45);
+
+  padding:3px 8px;
+
+  border-radius:5px;
+}
+
+.quality{
+
+  background:#2a2a2a;
+
+  padding:3px 10px;
+
+  border-radius:5px;
+
+  color:#e8e8e8;
+}
+
+.hero-buttons{
+
+  display:flex;
+
+  gap:14px;
+
+  align-items:center;
+}
+
+:global(.play-btn){
+
+  display:flex!important;
+
+  align-items:center!important;
+
+  gap:12px!important;
+
+  text-decoration:none!important;
+
+  padding:15px 34px!important;
+
+  border-radius:10px!important;
+
+  background:white!important;
+
+  color:black!important;
+
+  font-weight:800!important;
+
+  font-size:1rem!important;
+
+  transition:.25s!important;
+
+  box-shadow:
+      0 8px 25px rgba(255,255,255,.18)!important;
+}
+
+:global(.play-btn:hover){
+
+  transform:translateY(-3px) scale(1.03)!important;
+
+  background:#ececec!important;
+}
+
+.circle-btn{
+
+  width:54px;
+  height:54px;
+
+  border-radius:50%;
+
+  border:2px solid rgba(255,255,255,.35);
+
+  background:rgba(42,42,42,.55);
+
+  color:white;
+
+  display:flex;
+
+  justify-content:center;
+
+  align-items:center;
+
+  cursor:pointer;
+
+  transition:.25s;
+
+  backdrop-filter:blur(8px);
+}
+
+.circle-btn:hover{
+
+  transform:translateY(-3px);
+
+  border-color:white;
+
+  background:rgba(255,255,255,.14);
+}
+
+.content{
+
+  padding:45px 55px;
+}
+
+.details-grid{
+
+  display:grid;
+
+  grid-template-columns:2fr 1fr;
+
+  gap:55px;
+}
+
+.description{
+
+  color:#d2d2d2;
+
+  line-height:1.85;
+
+  font-size:1.05rem;
+
+  margin-bottom:28px;
+}
+
+.genres{
+
+  display:flex;
+
+  flex-wrap:wrap;
+
+  gap:10px;
+}
+
+.genre-chip{
+
+  padding:8px 16px;
+
+  border-radius:999px;
+
+  background:#232323;
+
+  color:#f0f0f0;
+
+  font-size:.85rem;
+
+  transition:.25s;
+}
+
+.genre-chip:hover{
+
+  background:#e50914;
+
+  transform:translateY(-2px);
+}
+
+.side-info{
+
+  display:flex;
+
+  flex-direction:column;
+
+  gap:18px;
+
+  color:#bfbfbf;
+
+  font-size:.95rem;
+}
+
+.side-info span{
+
+  color:#888;
+
+  font-weight:700;
+}
+
+.recommendations{
+
+  margin-top:60px;
+}
+
+.section-header{
+
+  display:flex;
+
+  justify-content:space-between;
+
+  align-items:center;
+
+  margin-bottom:25px;
+}
+
+.section-header h2{
+
+  margin:0;
+
+  color:white;
+
+  font-size:1.7rem;
+}
+
+.section-header span{
+
+  color:#777;
+}
+  .recommend-grid{
+
+  display:grid;
+
+  grid-template-columns:repeat(3,1fr);
+
+  gap:22px;
+}
+
+.recommend-card{
+
+  display:block;
+
+  text-decoration:none;
+
+  color:inherit;
+
+  overflow:hidden;
+
+  border-radius:16px;
+
+  background:#1b1b1b;
+
+  border:1px solid rgba(255,255,255,.05);
+
+  transition:
+      transform .35s,
+      box-shadow .35s,
+      border-color .35s;
+
+  box-shadow:
+      0 12px 28px rgba(0,0,0,.28);
+}
+
+.recommend-card:hover{
+
+  transform:
+      translateY(-8px)
+      scale(1.03);
+
+  border-color:rgba(255,255,255,.15);
+
+  box-shadow:
+      0 28px 60px rgba(0,0,0,.5);
+}
+
+.recommend-image-wrapper{
+
+  position:relative;
+
+  overflow:hidden;
+
+  aspect-ratio:16/9;
+}
+
+.recommend-image{
+
+  width:100%;
+  height:100%;
+
+  object-fit:cover;
+
+  transition:
+      transform .45s ease;
+}
+
+.recommend-card:hover
+.recommend-image{
+
+  transform:scale(1.08);
+}
+
+.recommend-gradient{
+
+  position:absolute;
+
+  inset:0;
+
+  background:
+      linear-gradient(
+          to top,
+          rgba(0,0,0,.75),
+          transparent 55%);
+}
+
+.recommend-play{
+
+  position:absolute;
+
+  left:50%;
+  top:50%;
+
+  transform:
+      translate(-50%,-50%)
+      scale(.85);
+
+  width:70px;
+  height:70px;
+
+  border-radius:50%;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  color:white;
+
+  background:
+      rgba(0,0,0,.55);
+
+  backdrop-filter:blur(8px);
+
+  opacity:0;
+
+  transition:
+      .35s;
+}
+
+.recommend-card:hover
+.recommend-play{
+
+  opacity:1;
+
+  transform:
+      translate(-50%,-50%)
+      scale(1);
+}
+
+.recommend-content{
+
+  padding:18px;
+}
+
+.recommend-top{
+
+  display:flex;
+
+  justify-content:space-between;
+
+  align-items:center;
+
+  margin-bottom:10px;
+}
+
+.recommend-year{
+
+  color:#9c9c9c;
+
+  font-size:.82rem;
+}
+
+.recommend-title{
+
+  margin:0;
+
+  color:white;
+
+  font-size:1rem;
+
+  line-height:1.35;
+}
+
+.recommend-tags{
+
+  display:flex;
+
+  flex-wrap:wrap;
+
+  gap:8px;
+
+  margin-top:14px;
+}
+
+.recommend-tag{
+
+  padding:5px 10px;
+
+  border-radius:999px;
+
+  background:#262626;
+
+  color:#d7d7d7;
+
+  font-size:.72rem;
+}
+
+@media (max-width:900px){
+
+.hero{
+
+height:420px;
+
+}
+
+.hero-content{
+
+left:30px;
+right:30px;
+bottom:30px;
+
+flex-direction:column;
+align-items:flex-start;
+
+gap:25px;
+
+}
+
+.title{
+
+font-size:2.5rem;
+
+}
+
+.content{
+
+padding:35px 30px;
+
+}
+
+.details-grid{
+
+grid-template-columns:1fr;
+
+gap:35px;
+
+}
+
+.recommend-grid{
+
+grid-template-columns:repeat(2,1fr);
+
+}
+
+}
+
+@media (max-width:640px){
+
+.modal{
+
+width:96vw;
+
+border-radius:16px;
+
+}
+
+.hero{
+
+height:320px;
+
+}
+
+.title{
+
+font-size:2rem;
+
+}
+
+.meta{
+
+font-size:.82rem;
+
+gap:8px;
+
+}
+
+:global(.play-btn){
+
+padding:13px 24px!important;
+
+}
+
+.circle-btn{
+
+width:48px;
+height:48px;
+
+}
+
+.recommend-grid{
+
+grid-template-columns:1fr;
+
+}
+
+.content{
+
+padding:28px 22px;
+
+}
+
+.section-header{
+
+flex-direction:column;
+
+align-items:flex-start;
+
+gap:8px;
+
+}
+
+}
+
+@keyframes fadeIn{
+
+from{
+
+opacity:0;
+
+}
+
+to{
+
+opacity:1;
+
+}
+
+}
+
+@keyframes modalEnter{
+
+from{
+
+opacity:0;
+
+transform:
+translateY(40px)
+scale(.95);
+
+}
+
+to{
+
+opacity:1;
+
+transform:
+translateY(0)
+scale(1);
+
+}
+
+}
+    `}</style>
     </div>
   );
-  return ReactDOM.createPortal(modal, document.body);
+
+  return ReactDOM.createPortal(
+    modal,
+    document.body
+  );
 }

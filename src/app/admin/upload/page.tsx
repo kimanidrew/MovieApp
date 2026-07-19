@@ -35,6 +35,15 @@ export default function AdminUploadPanel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<TmdbSearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [maturityOptions, setMaturityOptions] = useState<any[]>([]);
+
+// ... add this effect to load ratings on mount
+useEffect(() => {
+  fetch("/api/admin/metadata/ratings")
+    .then((res) => res.json())
+    .then((data) => setMaturityOptions(data))
+    .catch(console.error);
+}, []);
 
   // TMDB Metadata Form Hooks
   const [formData, setFormData] = useState({
@@ -549,12 +558,20 @@ export default function AdminUploadPanel() {
                     <input type="text" value={formData.releaseYear} onChange={(e) => setFormData({ ...formData, releaseYear: e.target.value })} className="input-text-field" />
                   </div>
                 </div>
-                <div>
-                  <div className="input-group-wrapper">
-                    <label>Maturity Rating</label>
-                    <input type="text" value={formData.maturityRatingCode} onChange={(e) => setFormData({ ...formData, maturityRatingCode: e.target.value })} className="input-text-field" />
-                  </div>
-                </div>
+                <div className="input-group-wrapper">
+  <label>Maturity Rating</label>
+  <select 
+    value={formData.maturityRatingCode} 
+    onChange={(e) => setFormData({ ...formData, maturityRatingCode: e.target.value })} 
+    className="input-text-field"
+  >
+    {maturityOptions.map((rating) => (
+      <option key={rating.id} value={rating.code}>
+        {rating.code} - {rating.description}
+      </option>
+    ))}
+  </select>
+</div>
 
                 <div className="grid-col-full">
                   <div className="input-group-wrapper">
