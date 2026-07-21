@@ -1,33 +1,29 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState } from "react"; // Added useEffect
 import VideoModal from "../Modals/VideoModal";
 import VideoCard from "../Cards/VideoCard";
+import { Video } from "@/types/video";
 
-// FIX: Added isTvPage to the interface
 interface VideoGridProps {
-  videos: any[];
-  isTvPage?: boolean;
+  videos: Video[];
+  type?: "movie" | "tv";
 }
 
-export default function VideoGrid({ videos, isTvPage }: VideoGridProps) {
-  const [selectedVideo, setSelectedVideo] = useState<any | null>(null);
+export default function VideoGrid({ videos, type = "movie" }: VideoGridProps) {
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
 
-  const videoList = useMemo(() => {
-    return videos.map((v) => ({
-      ...v,
-      images: v.images || v.content?.images || [], 
-      releaseYear: v.content?.releaseYear || 2026,
-      trailerUrl: v.trailerUrl || v.content?.trailers?.[0]?.hlsManifestUrl || null,
-      videoSource: v.videoSource || v.videoSources?.[0]?.url || null,
-      categories: v.categories || [],
-    }));
-  }, [videos]);
+  // Add this useEffect to log the data whenever a video is selected
+  useEffect(() => {
+    if (selectedVideo) {
+      console.log("Selected video data:", selectedVideo);
+    }
+  }, [selectedVideo]);
 
   return (
     <>
       <div className="grid-layout">
-        {videoList.map((video) => (
+        {videos.map((video) => (
           <VideoCard 
             key={video.id} 
             video={video} 
@@ -39,7 +35,8 @@ export default function VideoGrid({ videos, isTvPage }: VideoGridProps) {
       {selectedVideo && (
         <VideoModal 
           video={selectedVideo} 
-          videos={videoList}
+          videos={videos}
+          type={type}
           onClose={() => setSelectedVideo(null)} 
         />
       )}
@@ -47,7 +44,7 @@ export default function VideoGrid({ videos, isTvPage }: VideoGridProps) {
       <style jsx>{`
         .grid-layout { 
           display: grid; 
-          grid-template-columns: repeat(3, 1fr); 
+          grid-template-columns: repeat(4, 1fr); 
           gap: 1rem; 
         }
 

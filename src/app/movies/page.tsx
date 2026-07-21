@@ -1,14 +1,13 @@
 import React from "react";
 import prisma from "@/lib/prisma";
-import Footer from "@/components/Footer";
 import PageBackground from "@/components/PageBackground";
-import MoviesPageClient from "@/components/MoviesPageClient";
-
+import ContentPageClient from "@/components/ContentPageClient";
+import { Video } from "@/types/video";
 
 export const dynamic = "force-dynamic";
 
 export default async function MoviesPage() {
-  let movies: any[] = [];
+  let movies: Video[] = [];
   let categories: string[] = [];
 
   try {
@@ -19,195 +18,65 @@ export default async function MoviesPage() {
             images: true,
             trailers: true,
             maturityRating: true,
-
-            categories: {
-              include: {
-                category: true,
-              },
-            },
-
-            languages: {
-              include: {
-                language: true,
-              },
-            },
-
-            studios: {
-              include: {
-                studio: true,
-              },
-            },
-
-            productionCos: {
-              include: {
-                productionCompany: true,
-              },
-            },
-
-            countries: {
-              include: {
-                country: true,
-              },
-            },
-
-            awards: true,
-
-            cast: {
-              include: {
-                person: true,
-              },
-              orderBy: {
-                displayOrder: "asc",
-              },
-            },
-
-            crew: {
-              include: {
-                person: true,
-              },
-            },
+            categories: { include: { category: true } },
+            cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
           },
         },
-
         video: {
           include: {
             sources: true,
-
-            subtitles: {
-              include: {
-                language: true,
-              },
-            },
-
-            audioTracks: {
-              include: {
-                language: true,
-              },
-            },
           },
         },
       },
-
-      orderBy: {
-        content: {
-          createdAt: "desc",
-        },
-      },
+      orderBy: { content: { createdAt: "desc" } },
     });
 
-    movies = rawMovies.map((movie) => {
+    movies = rawMovies.map((movie): Video => {
       const content = movie.content;
       const video = movie.video;
 
-      const images = content.images;
-
       const randomImage = (type: string) => {
-        const filtered = images.filter((i) => i.type === type);
-
-        if (!filtered.length) return null;
-
-        return filtered[
-          Math.floor(Math.random() * filtered.length)
-        ].url;
+        const filtered = content.images.filter((i) => i.type === type);
+        return filtered.length > 0 
+          ? filtered[Math.floor(Math.random() * filtered.length)].url 
+          : "";
       };
 
       return {
-        ...movie,
-
+        id: movie.id,
         title: content.title,
-
-        description: content.description,
-
-        releaseYear: content.releaseYear,
-
-        storyline: content.storyline,
-
+        description: content.description || "",
+        releaseYear: content.releaseYear || 0,
         thumbnailUrl: randomImage("POSTER"),
-
         backdropUrl: randomImage("BACKDROP"),
-
-        maturityRating: content.maturityRating.code,
-
-        trailerUrl:
-          content.trailers[0]?.hlsManifestUrl ?? null,
-
-        categories: content.categories.map(
-          (x) => x.category.name
-        ),
-
-        languages: content.languages.map(
-          (x) => x.language.name
-        ),
-
-        studios: content.studios.map(
-          (x) => x.studio.name
-        ),
-
-        productionCompanies:
-          content.productionCos.map(
-            (x) => x.productionCompany.name
-          ),
-
-        countries: content.countries.map(
-          (x) => x.country.name
-        ),
-
+        maturityRating: content.maturityRating?.code || "NR",
+        trailerUrl: content.trailers[0]?.hlsManifestUrl ?? null,
+        categories: content.categories.map((x) => x.category.name),
         cast: content.cast.map((c) => ({
           name: c.person.name,
           character: c.character,
         })),
-
-        crew: content.crew.map((c) => ({
-          name: c.person.name,
-          job: c.job,
+        videoSources: video.sources.map((s) => ({
+          url: s.url,
+          // Map the Prisma enum/string to the quality string expected by the interface
+          quality: s.resolution || "1080p",
         })),
-
-        awards: content.awards,
-
-        videoSources: video.sources,
-
-        subtitles: video.subtitles,
-
-        audioTracks: video.audioTracks,
       };
     });
 
-    categories = [
-      ...new Set(
-        movies.flatMap((m) => m.categories)
-      ),
-    ].sort();
-
-    console.log(
-      JSON.stringify(
-        movies,
-        (_, value) =>
-          typeof value === "bigint"
-            ? value.toString()
-            : value,
-        2
-      )
-    );
+    categories = Array.from(new Set(movies.flatMap((m) => m.categories))).sort();
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching movies:", err);
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <PageBackground overlayOpacity={0.82} />
-
-      <MoviesPageClient
-        movies={movies}
-        categories={categories}
+      <ContentPageClient 
+        items={movies} 
+        categories={categories} 
+        type="movie" 
       />
-
-     
     </main>
   );
 }

@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.b-cdn.net",
       },
+      {
+       protocol: "https",
+       hostname: "unsplash.com",
+      },
     ],
   },
 };

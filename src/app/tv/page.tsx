@@ -1,82 +1,91 @@
-import React from 'react';
-import Footer from '@/components/Footer';
-import getBaseUrl from '@/lib/getBaseUrl';
-import Link from 'next/link';
-import prisma from '@/lib/prisma';
-import VideoGrid from "@/components/Grids/VideoGrid";
+import React from "react";
+import prisma from "@/lib/prisma";
+import PageBackground from "@/components/PageBackground";
+import ContentPageClient from "@/components/ContentPageClient";
+import { Video } from "@/types/video";
 
-export const metadata = {
-  title: 'TV Shows - MovieFlix',
-  description: 'Explore the vast TV catalog hosted in your personalized MovieFlix DB.',
-};
+export const dynamic = "force-dynamic";
 
-export const dynamic = 'force-dynamic';
+export default async function TVShowsPage() {
+  let shows: Video[] = [];
+  let categories: string[] = [];
 
-export default async function TvShowsPage() {
-  const showsRaw = await prisma.show.findMany({
-    include: {
-      content: {
-        include: {
-          images: {
-            where: { type: 'POSTER' },
-            take: 1
-          }
-        }
+  try {
+    const rawShows = await prisma.show.findMany({
+      include: {
+        content: {
+          include: {
+            images: true,
+            trailers: true,
+            maturityRating: true,
+            categories: { include: { category: true } },
+            cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
+          },
+        },
+        seasons: {
+          orderBy: { seasonNumber: "asc" },
+          include: {
+            episodes: {
+              orderBy: { episodeNumber: "asc" },
+              include: {
+                video: { include: { sources: true } },
+              },
+            },
+          },
+        },
       },
-      seasons: {
-        include: {
-          episodes: {
-            include: {
-              video: {
-                include: {
-                  sources: {
-                    where: { type: 'HLS' },
-                    take: 1
-                  }
-                }
-              }
-            },
-            orderBy: {
-              episodeNumber: 'asc'
-            },
-            take: 1
-          }
-        },
-        orderBy: {
-          seasonNumber: 'asc'
-        },
-        take: 1
-      }
-    },
-    orderBy: {
-      content: {
-        createdAt: 'desc'
-      }
-    }
-  });
+      orderBy: { content: { createdAt: "desc" } },
+    });
 
-  const shows = showsRaw.map(s => {
-    const firstEpisode = s.seasons[0]?.episodes[0];
-    return {
-      id: firstEpisode?.video?.id || s.content.id,
-      title: s.content.title,
-      description: s.content.description,
-      thumbnailUrl: s.content.images[0]?.url || null,
-      hlsManifestUrl: firstEpisode?.video?.sources[0]?.url || null,
-      releaseYear: s.content.releaseYear
-    };
-  });
+    shows = rawShows.map((show): Video => {
+      const content = show.content;
+
+      const randomImage = (type: string) => {
+        const filtered = content.images.filter((i) => i.type === type);
+        return filtered.length > 0
+          ? filtered[Math.floor(Math.random() * filtered.length)].url
+          : "";
+      };
+
+      return {
+        id: show.id,
+        title: content.title,
+        description: content.description || "",
+        releaseYear: content.releaseYear || 0,
+        thumbnailUrl: randomImage("POSTER"),
+        backdropUrl: randomImage("BACKDROP"),
+        maturityRating: content.maturityRating.code,
+        trailerUrl: content.trailers[0]?.hlsManifestUrl ?? null,
+        categories: content.categories.map((x) => x.category.name),
+        cast: content.cast.map((c) => ({
+          name: c.person.name,
+          character: c.character,
+        })),
+        seasonCount: show.seasons.length,
+        totalEpisodes: show.seasons.reduce((acc, s) => acc + s.episodes.length, 0),
+        seasons: show.seasons.map((season) => ({
+          id: season.id,
+          seasonNumber: season.seasonNumber,
+          episodes: season.episodes.map((ep) => ({
+            id: ep.id,
+            episodeNumber: ep.episodeNumber,
+            title: ep.title,
+            description: ep.description || "",
+            videoUrl: ep.video?.sources[0]?.url || "",
+          })),
+        })),
+      };
+    });
+
+    categories = Array.from(new Set(shows.flatMap((s) => s.categories))).sort();
+  } catch (err) {
+    console.error("Error fetching TV shows:", err);
+  }
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#141414', color: '#fff' }}>
-      
-      
-      <div className="animate-in" style={{ flex: 1, padding: '10rem 4% 4rem' }}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '3rem', fontWeight: 700 }}>TV Shows</h1>
-        <VideoGrid videos={shows} isTvPage={true} />
-      </div>
-
-      <Footer />
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <PageBackground overlayOpacity={0.82} />
+      <ContentPageClient items={shows} categories={categories} type="tv" />
     </main>
   );
 }

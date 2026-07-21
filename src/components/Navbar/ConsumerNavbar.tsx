@@ -54,7 +54,7 @@ export default function ConsumerNavbar() {
                 <>
                   <li><Link href="/tv" className={isActive("/tv") ? "active" : ""}>TV Shows</Link></li>
                   <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Movies</Link></li>
-                  <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My Collection</Link></li>
+                  <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My List</Link></li>
                 </>
               ) : (
                 <li><Link href="/profiles" className="profile-reminder">Select Profile</Link></li>

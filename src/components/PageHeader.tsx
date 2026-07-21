@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Film, ChevronLeft, ChevronRight } from "lucide-react";
+import { usePathname } from "next/navigation"; // Import usePathname
+import { Search, Film, Tv, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PageHeaderProps {
   title: string;
@@ -18,6 +19,11 @@ export default function PageHeader({
   onSearch,
   searchValue,
 }: PageHeaderProps) {
+  const pathname = usePathname(); // Get current path
+  
+  // Automatically determine type based on the URL path
+  const isTvPage = pathname.includes("/tv") || pathname.includes("/shows");
+  
   const tabs = [
     "Trending Now", "Must-Binge Series", "Weekend Marathons", 
     "Short & Sweet", "Hidden Gems", "Critics' Choice", 
@@ -62,7 +68,12 @@ export default function PageHeader({
   return (
     <div className="headerContainer">
       <div className="titleSection">
-        <Film size={80} strokeWidth={1.5} className="movieIcon" />
+        {/* Dynamic Icon based on path */}
+        {isTvPage ? (
+          <Tv size={80} strokeWidth={2} />
+        ) : (
+          <Film size={80} strokeWidth={2} className="movieIcon" />
+        )}
         <div>
           <h1 className="pageTitle">{title}</h1>
         </div>
@@ -74,7 +85,7 @@ export default function PageHeader({
           <input
             type="text"
             value={searchValue}
-            placeholder="Looking for something to watch?"
+            placeholder={searchPlaceholder}
             onChange={(e) => onSearch(e.target.value)}
           />
         </div>
@@ -115,35 +126,21 @@ export default function PageHeader({
       <style jsx>{`
         .headerContainer { display: flex; align-items: flex-center; gap: 60px; margin-bottom: 20px; flex-wrap: wrap; }
         .titleSection { display: flex; align-items: center; gap: 24px; min-width: 300px; }
-        .pageLabel { color: #E50914; text-transform: uppercase; letter-spacing: 4px; font-size: .8rem; font-weight: 700; }
         .pageTitle { margin: 8px 0 0; color: white; font-size: 3.8rem; font-weight: 800; line-height: 1; }
         .pageSubtitle { margin-top: 14px; color: #9ca3af; font-size: 1rem; line-height: 1.7; max-width: 400px; }
         .rightSection { display: flex; flex-direction: column; flex: 1; min-width: 300px; padding-top: 10px; }
-        
         .searchBox { position: relative; width: 100%; margin-bottom: 20px; }
         .iconWrapper { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #8b8b8b; pointer-events: none; z-index: 5; }
-        .searchBox input { 
-          width: 100%; height: 50px; padding-left: 55px; padding-bottom: 3px; border-radius: 999px; 
-          border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.05); 
-          color: white; font-size: 15px; font-weight: 600; transition: 0.3s; 
-        }
+        .searchBox input { width: 100%; height: 50px; padding-left: 55px; padding-bottom: 3px; border-radius: 999px; border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.05); color: white; font-size: 15px; font-weight: 600; transition: 0.3s; }
         .searchBox input:focus { border-color: #E50914; outline: none; }
-
         .tabsWrapper { position: relative; display: flex; align-items: center; gap: 15px; }
         .tabsContainer { position: relative; display: flex; gap: 30px; flex: 1; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
         .tabsContainer::-webkit-scrollbar { display: none; }
-        
         .tab { background: none; border: none; cursor: pointer; padding: 0; }
         .tab span { color: #8b8b8b; font-size: 1rem; font-weight: 500; padding-bottom: 8px; transition: .3s; white-space: nowrap; display: block; }
         .tab.active span { color: white; }
-        
-        .scrollBtn { 
-          background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0; margin-bottom: 20px; transition: 0.3s;
-        }
+        .scrollBtn { background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-bottom: 20px; transition: 0.3s; }
         .scrollBtn.inactive { opacity: 0.6; cursor: default; }
-        
         .tabIndicator { position: absolute; bottom: 0; height: 3px; background: #E50914; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px; }
       `}</style>
     </div>

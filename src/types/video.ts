@@ -1,33 +1,53 @@
 /**
- * Unified Video Type Definition
- * This maps to the Content, Movie/Episode, and related relational models
- * defined in your Prisma schema.
+ * Represents the unified Video metadata structure used across the frontend.
+ * This interface bridges the gap between the Prisma Content/Movie/Show models 
+ * and the requirements of the VideoPlayer and VideoModal components.
  */
 
-export interface CastMember {
-  name: string;
-  character: string;
-}
-
 export interface Video {
-  // Core Content Metadata
+  // Core Identity
   id: string;
   title: string;
-  description: string | null;
-  releaseYear: number | null;
+  description: string;
+  releaseYear: number;
+  maturityRating: string;
   
-  // Relations
-  categories: string[]; // Mapping from ContentCategory
-  maturityRating: string; // From MaturityRating model
-  cast: CastMember[]; // Mapping from Cast model
-  productionCompanies: string[]; // Mapping from ContentProductionCompany
+  // Media Assets
+  thumbnailUrl: string;
+  backdropUrl: string;
+  trailerUrl?: string | null;
   
-  // Playback & Resource Metadata
-  // In your schema, Movies/Episodes link to a Video model
-  videoUrl?: string | null;      // From VideoSource
-  hlsManifestUrl?: string | null; // From VideoSource
-  thumbnailUrl?: string | null;   // From ImageAsset
+  // Taxonomies
+  categories: string[];
   
-  // Additional runtime data
-  durationSeconds?: number;
+  // Personnel
+  cast: {
+    name: string;
+    character: string;
+  }[];
+
+  // Structural Data (Conditional based on Type)
+  seasonCount?: number;
+  totalEpisodes?: number;
+  seasons?: Season[];
+  
+  // Playback Resources
+  videoSources?: {
+    url: string;
+    quality: string;
+  }[];
+}
+
+export interface Season {
+  id: string;
+  seasonNumber: number;
+  episodes: Episode[];
+}
+
+export interface Episode {
+  id: string;
+  episodeNumber: number;
+  title: string;
+  description: string;
+  videoUrl: string;
 }
