@@ -10,7 +10,7 @@ interface VideoModalProps {
   video: Video | null;
   videos: Video[];
   onClose: () => void;
-  type?: "movie" | "tv";
+  type?: "movie" | "tv" | "home";
 }
 
 export default function VideoModal({

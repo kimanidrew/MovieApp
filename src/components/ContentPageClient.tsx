@@ -5,11 +5,12 @@ import PageHeader from "@/components/PageHeader";
 import CategoryFilter from "@/components/CategoryFilter";
 import VideoGrid from "@/components/Grids/VideoGrid";
 import { Video } from "@/types/video";
+import Hero from "./Hero";
 
 interface ContentPageClientProps {
   items: Video[];
   categories: string[];
-  type: "movie" | "tv";
+  type: "movie" | "tv" | "home";
 }
 
 export default function ContentPageClient({ items, categories, type }: ContentPageClientProps) {
@@ -29,7 +30,6 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
 
   return (
     <section style={{ flex: 1, paddingTop: "100px", paddingBottom: "60px", paddingInline: "3%" }}>
-      
       <PageHeader 
         title={type === "movie" ? "Movies" : "TV Shows"}
         subtitle={type === "movie" ? "Browse our premium movie library." : "Browse our premium TV series library."}
@@ -46,6 +46,10 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         />
 
         <div className="contentArea">
+          <div className="hero-container">
+            <Hero pageType={type} />
+          </div>
+          
           <VideoGrid 
             videos={filteredItems} 
             type={type}
@@ -54,7 +58,22 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
       </div>
 
       <style jsx>{`
-        .contentLayout { display: grid; grid-template-columns: 240px 1fr; gap: 40px; align-items: start; }
+        .contentLayout { 
+          display: grid; 
+          grid-template-columns: 240px 1fr; 
+          gap: 40px; 
+          align-items: start; 
+        }
+
+        .hero-container {
+          position: relative;
+          width: 100%;
+          height: 450px; 
+          margin-bottom: 30px;
+          border-radius: 20px;
+          overflow: hidden;
+          background: #000;
+        }
         
         @media(max-width: 1024px) {
           .contentLayout { grid-template-columns: 1fr; }

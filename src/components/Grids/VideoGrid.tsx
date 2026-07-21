@@ -7,7 +7,7 @@ import { Video } from "@/types/video";
 
 interface VideoGridProps {
   videos: Video[];
-  type?: "movie" | "tv";
+  type?: "movie" | "tv" | "home";
 }
 
 export default function VideoGrid({ videos, type = "movie" }: VideoGridProps) {
