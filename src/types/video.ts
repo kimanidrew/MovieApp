@@ -17,6 +17,9 @@ export interface Video {
   backdropUrl: string;
   trailerUrl?: string | null;
   
+  hlsManifestUrl?: string | null;
+  videoUrl?: string | null;
+  
   // Taxonomies
   categories: string[];
   
