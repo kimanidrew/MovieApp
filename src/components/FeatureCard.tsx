@@ -42,16 +42,18 @@ export default function FeatureCard({
   ];
   const assignedGenre = dynamicGenres[index % dynamicGenres.length];
 
-  useEffect(() => {
+ useEffect(() => {
     if (!isHovered || !videoRef.current || isLoading) return;
 
     const vid = videoRef.current;
     let hls: Hls | null = null;
 
-    // Access properties from the shared Video type
-    const rawSrc = (video as any).hlsManifestUrl || video.videoUrl;
-    if (!rawSrc) return;
-    const src = normalizeUrl(rawSrc);
+    // Use the defined videoSources array from your Video interface
+    // Fallback to the first available source
+    const source = video.videoSources?.[0]?.url;
+    
+    if (!source) return;
+    const src = normalizeUrl(source);
 
     vid.muted = true;
     vid.playsInline = true;
