@@ -6,6 +6,7 @@ import CategoryFilter from "@/components/CategoryFilter";
 import VideoGrid from "@/components/Grids/VideoGrid";
 import { Video } from "@/types/video";
 import Hero from "./Hero";
+import { isGenre } from "@/lib/category-utils";
 
 interface ContentPageClientProps {
   items: Video[];
@@ -14,8 +15,11 @@ interface ContentPageClientProps {
 }
 
 export default function ContentPageClient({ items, categories, type }: ContentPageClientProps) {
+  const [selectedTabs, setSelectedTabs] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const genres = categories.filter(isGenre);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -28,6 +32,12 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
     });
   }, [items, search, selectedCategory]);
 
+  const toggleTab = (tab: string) => {
+    setSelectedTabs(prev => 
+      prev.includes(tab) ? prev.filter(t => t !== tab) : [...prev, tab]
+    );
+  };
+
   return (
     <section style={{ flex: 1, paddingTop: "100px", paddingBottom: "60px", paddingInline: "3%" }}>
       <PageHeader 
@@ -36,11 +46,14 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         searchPlaceholder={`Search ${type === "movie" ? "movies" : "shows"}, artists e.t.c`}
         searchValue={search}
         onSearch={setSearch}
+        categories={categories}
+        selectedTabs={selectedTabs}
+        onToggleTab={toggleTab}
       />
 
       <div className="contentLayout">
         <CategoryFilter 
-          categories={categories}
+          categories={genres}
           selectedCategory={selectedCategory}
           onSelect={setSelectedCategory}
         />

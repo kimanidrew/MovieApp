@@ -13,6 +13,7 @@ interface HeroProps {
 export default function Hero({ pageType }: HeroProps) {
   const heroRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+  const hasLoaded = useRef(false); // Tracks if the component has appeared before
   const [heroData, setHeroData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
@@ -42,18 +43,60 @@ export default function Hero({ pageType }: HeroProps) {
 
   useEffect(() => {
     if (!heroRef.current) return;
-    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.45 });
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(entry.isIntersecting), 
+      { threshold: 0.8 } 
+    );
+    
     observer.observe(heroRef.current);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!playerRef.current || !videoReady) return;
+
+    try {
+      if (inView && !selectedVideo) {
+        if (typeof playerRef.current.playVideo === 'function') {
+          playerRef.current.playVideo();
+        }
+      } else {
+        if (typeof playerRef.current.pauseVideo === 'function') {
+          playerRef.current.pauseVideo();
+        }
+      }
+    } catch (error) {
+      console.warn("Hero: YouTube player is not reachable", error);
+    }
+  }, [inView, videoReady, selectedVideo]);
+
+  // Handle video pause when modal opens
+  useEffect(() => {
+    if (!playerRef.current) return;
+    if (selectedVideo) {
+      playerRef.current.pauseVideo();
+    } else if (inView) {
+      playerRef.current.playVideo();
+    }
+  }, [selectedVideo]);
 
   useEffect(() => {
     if (!heroData || !inView) {
       setShowVideo(false);
       return;
     }
-    const timer = setTimeout(() => setShowVideo(true), 2500);
-    return () => clearTimeout(timer);
+
+    // On first load, delay by 2 seconds; afterwards, show immediately
+    if (!hasLoaded.current) {
+      const timer = setTimeout(() => {
+        setShowVideo(true);
+        hasLoaded.current = true;
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowVideo(true);
+    }
   }, [heroData, inView]);
 
   const heroImages = heroData?.content?.images || [];
@@ -130,7 +173,6 @@ export default function Hero({ pageType }: HeroProps) {
             <Play size={24} fill="currentColor" /> Play
             </div></Link>
             
-            {/* FIXED: Passed heroData.content instead of heroData */}
             <button className="info-button" onClick={() => setSelectedVideo(heroData.content)}>
                 <Info size={24} /> More Info
             </button>
@@ -163,7 +205,7 @@ export default function Hero({ pageType }: HeroProps) {
         .video-wrapper.visible { opacity: 1; }
         .youtube-player { width: 100%; height: 100%; }
         :global(.youtube-player iframe) { 
-          position: absolute; top: 50%; left: 50%; width: 100vw; height: 300px; object-fit: cover;
+          position: absolute; top: 50%; left: 50%; width: 100vw; height: 200px; object-fit: cover;
           min-width: 100%; min-height: 100%; transform: translate(-50%, -50%) scale(1.5); pointer-events: none;
         }
 
