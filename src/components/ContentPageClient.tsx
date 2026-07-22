@@ -31,7 +31,7 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
   return (
     <section style={{ flex: 1, paddingTop: "100px", paddingBottom: "60px", paddingInline: "3%" }}>
       <PageHeader 
-        title={type === "movie" ? "Movies" : "TV Shows"}
+        title={type === "movie" ? "Movies" : "Shows"}
         subtitle={type === "movie" ? "Browse our premium movie library." : "Browse our premium TV series library."}
         searchPlaceholder={`Search ${type === "movie" ? "movies" : "shows"}, artists e.t.c`}
         searchValue={search}
