@@ -105,7 +105,7 @@ export default function VideoCard({ video, onSelect, isTvPage = false }: VideoCa
       </div>
 
       <style jsx>{`
-        .card { position: relative; cursor: pointer; overflow: hidden; border-radius: 10px; background: #111; border: 1px solid rgba(255,255,255,.06); transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; box-shadow: 0 10px 25px rgba(0,0,0,.30), 0 25px 50px rgba(0,0,0,.45); }
+        .card { position: relative; cursor: pointer; overflow: hidden; border-radius: 10px; background: #111; border: 0px solid rgba(255,255,255,.06); transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; box-shadow: 0 10px 25px rgba(0,0,0,.30), 0 25px 50px rgba(0,0,0,.45); }
         .card:hover { transform: translateY(-8px); border-color: rgba(255,255,255,.14); box-shadow: 0 25px 55px rgba(0,0,0,.55), 0 50px 90px rgba(0,0,0,.70); }
         .poster { position: relative; aspect-ratio: 2/3; overflow: hidden; background: #000; }
         .poster-image { transition: transform .6s ease, opacity .35s ease; }

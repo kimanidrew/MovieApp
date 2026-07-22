@@ -61,7 +61,7 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         .contentLayout { 
           display: grid; 
           grid-template-columns: 240px 1fr; 
-          gap: 40px; 
+          gap: 30px; 
           align-items: start; 
         }
 
