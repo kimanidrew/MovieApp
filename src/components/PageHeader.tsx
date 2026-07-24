@@ -118,7 +118,7 @@ export default function PageHeader({
       <style jsx>{`
         .headerContainer { display: flex; align-items: center; gap: 60px; margin-bottom: 20px; flex-wrap: wrap; }
         .titleSection { display: flex; align-items: center; gap: 24px; min-width: 300px; }
-        .pageTitle { margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 3.8rem; font-weight: 800; line-height: 1; }
+        .pageTitle { margin: 8px 0 0; color: white; font-size: 3.8rem; font-weight: 800; line-height: 1; }
         .rightSection { display: flex; flex-direction: column; flex: 1; min-width: 300px; padding-top: 10px; }
         .searchBox { position: relative; width: 100%; margin-bottom: 10px; }
         .iconWrapper { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #8b8b8b; pointer-events: none; z-index: 5; }

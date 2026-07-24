@@ -234,7 +234,7 @@ export default function Hero({ pageType }: HeroProps) {
         .hero-content { position: absolute; left: 5%; bottom: 10%; z-index: 10; width: 600px; }
         .hero-logo { max-width: 400px; margin-bottom: 10px; }
         .hero-title { 
-            color: #fff; font-size: 4rem; font-weight: 800; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+            color: rgba(255,255,255,0.8); font-size: 3.5rem; font-weight: 800; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; 
         }
         .hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 15px; color: #fff; margin-bottom: 15px; font-weight: 500; font-size: 1.1rem; }
