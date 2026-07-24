@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import PageHeader from "@/components/PageHeader";
 import CategoryFilter from "@/components/CategoryFilter";
 import VideoGrid from "@/components/Grids/VideoGrid";
@@ -26,11 +27,17 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
       const matchesSearch =
         item.title.toLowerCase().includes(search.toLowerCase()) ||
         item.description.toLowerCase().includes(search.toLowerCase());
+      
       const matchesCategory =
         selectedCategory === "All" || item.categories.includes(selectedCategory);
-      return matchesSearch && matchesCategory;
+      
+      const matchesTabs = selectedTabs.every(tab => item.categories.includes(tab));
+
+      return matchesSearch && matchesCategory && matchesTabs;
     });
-  }, [items, search, selectedCategory]);
+  }, [items, search, selectedCategory, selectedTabs]);
+
+  const isFiltering = search.length > 0 || selectedCategory !== "All" || selectedTabs.length > 0;
 
   const toggleTab = (tab: string) => {
     setSelectedTabs(prev => 
@@ -59,9 +66,20 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         />
 
         <div className="contentArea">
-          <div className="hero-container">
-            <Hero pageType={type} />
-          </div>
+          {/* AnimatePresence handles the exit animation */}
+          <AnimatePresence mode="popLayout">
+            {!isFiltering && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 450 }}
+                exit={{ opacity: 0, y: -20, height: 0 }}
+                transition={{ duration: 0.4, ease: "easeInOut" }}
+                className="hero-container"
+              >
+                <Hero pageType={type} />
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           <VideoGrid 
             videos={filteredItems} 
@@ -81,7 +99,6 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         .hero-container {
           position: relative;
           width: 100%;
-          height: 450px; 
           margin-bottom: 30px;
           border-radius: 20px;
           overflow: hidden;
