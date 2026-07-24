@@ -23,7 +23,6 @@ export default async function MoviesPage() {
         cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
         movies: { include: { video: { include: { sources: true } } } },
       },
-      orderBy: { createdAt: "desc" },
     });
 
     movies = rawContent.map((content): Video => {
@@ -55,6 +54,9 @@ export default async function MoviesPage() {
         })) || [],
       };
     });
+
+    // Randomize the order of movies
+    movies.sort(() => Math.random() - 0.5);
 
     categories = Array.from(new Set(movies.flatMap((m) => m.categories))).sort();
   } catch (err) {

@@ -12,6 +12,33 @@
   --player-padding-x: 1.5rem;
 }
 
+/* The entire scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+/* The track (background) - Set to black */
+::-webkit-scrollbar-track {
+  background: #000;
+}
+
+/* Hide the up/down buttons */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* The draggable handle */
+::-webkit-scrollbar-thumb {
+  background: #333; 
+  border-radius: 5px;
+  border: 1px solid #000; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

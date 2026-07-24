@@ -85,7 +85,7 @@ export default function VideoCard({ video, onSelect, isTvPage = false }: VideoCa
           overflow: hidden; 
           border-radius: 12px; 
           background: #111; 
-          isolation: isolate; /* Ensures children respect the border-radius cleanly */
+          isolation: isolate;
           transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease; 
           box-shadow: 0 4px 6px rgba(0,0,0,0.3), 0 10px 20px rgba(0,0,0,0.3); 
         }
@@ -105,14 +105,17 @@ export default function VideoCard({ video, onSelect, isTvPage = false }: VideoCa
         /* Shared Base Styles */
         .new-sticker {
           position: absolute;
-          bottom: 12px;
+          bottom: 0px;
           left: 50%;
           transform: translateX(-50%);
           white-space: nowrap;
           backdrop-filter: blur(4px);
           -webkit-backdrop-filter: blur(4px);
-          padding: 5px 12px;
-          border-radius: 6px;
+          padding: 10px 15px;
+          border-top-left-radius: 6px;
+          border-top-right-radius: 6px;
+          border-bottom-left-radius: 0px;
+          border-bottom-right-radius: 0px;
           font-size: 0.65rem;
           font-weight: 700;
           text-transform: uppercase;
@@ -124,15 +127,27 @@ export default function VideoCard({ video, onSelect, isTvPage = false }: VideoCa
         .sticker-new-episode { background: rgba(255, 255, 255, 0.9); color: black; }
         .sticker-recent { background: rgba(229, 9, 20, 0.85); color: white; }
 
-        .overlay { 
+        /* Animation for hiding overlay and content */
+        .overlay, .content { 
           position: absolute; 
           inset: 0; 
+          z-index: 3; 
+          transition: opacity 0.4s ease;
+          opacity: 1;
+        }
+
+        .card:hover .overlay,
+        .card:hover .content {
+          opacity: 0;
+        }
+
+        .overlay { 
           z-index: 3; 
           background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.05) 100%); 
           pointer-events: none; 
         }
 
-        .content { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; padding: 12px; }
+        .content { z-index: 6; display: flex; flex-direction: column; padding: 12px; }
         .top { display: flex; flex-direction: column; }
         .badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .rating, .quality, .year { background: rgba(0,0,0,.5); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.15); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; }

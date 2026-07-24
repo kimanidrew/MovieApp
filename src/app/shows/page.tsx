@@ -21,7 +21,6 @@ export default async function ShowsPage() {
           include: { seasons: { include: { episodes: { include: { video: { include: { sources: true } } } } } } } 
         },
       },
-      orderBy: { createdAt: "desc" },
     });
 
     shows = rawContent.map((content): Video => {
@@ -62,6 +61,9 @@ export default async function ShowsPage() {
         })),
       };
     });
+
+    // Randomize the order of shows
+    shows.sort(() => Math.random() - 0.5);
 
     categories = Array.from(new Set(shows.flatMap((s) => s.categories))).sort();
   } catch (err) {
