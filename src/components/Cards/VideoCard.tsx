@@ -106,7 +106,8 @@ export default function VideoCard({ video, onSelect, isTvPage = false }: VideoCa
         .new-sticker {
           position: absolute;
           bottom: 12px;
-          left: 12px;
+          left: 50%;
+          transform: translateX(-50%);
           backdrop-filter: blur(4px);
           -webkit-backdrop-filter: blur(4px);
           padding: 5px 12px;
