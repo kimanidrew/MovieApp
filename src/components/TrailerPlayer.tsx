@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import YouTube from "react-youtube";
 
 interface TrailerPlayerProps {
@@ -11,6 +11,8 @@ interface TrailerPlayerProps {
 export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
+  const playerRef = useRef<any>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const youtubeId = useMemo(() => {
     if (!url) return null;
@@ -18,6 +20,28 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
   }, [url]);
+
+  // Intersection Observer to detect if the element is 100% in viewport
+  useEffect(() => {
+    if (!wrapperRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!playerRef.current) return;
+        
+        // entry.intersectionRatio === 1 means the element is 100% visible
+        if (entry.intersectionRatio === 1) {
+          playerRef.current.internalPlayer?.playVideo();
+        } else {
+          playerRef.current.internalPlayer?.pauseVideo();
+        }
+      },
+      { threshold: [1.0] } // Trigger when 100% of the element is visible
+    );
+
+    observer.observe(wrapperRef.current);
+    return () => observer.disconnect();
+  }, [isActive]);
 
   useEffect(() => {
     if (isLoaded || !isActive) return;
@@ -27,7 +51,8 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
     return () => clearInterval(interval);
   }, [isLoaded, isActive]);
 
-  const handleComplete = () => {
+  const handleComplete = (event: any) => {
+    playerRef.current = event;
     setProgress(100);
     setTimeout(() => setIsLoaded(true), 300);
   };
@@ -35,7 +60,7 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
   if (!isActive || !url) return null;
 
   return (
-    <div className="player-wrapper">
+    <div className="player-wrapper" ref={wrapperRef}>
       {!isLoaded && (
         <div className="loading-bar-container">
           <div className="loading-bar-fill" style={{ width: `${progress}%` }} />
@@ -66,7 +91,7 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
             position: "absolute",
             top: "50%",
             left: "50%",
-            width: "150%", // Scale up to cover gaps
+            width: "150%",
             height: "180%",
             transform: "translate(-50%, -50%)",
             pointerEvents: "none",
@@ -79,7 +104,7 @@ export default function TrailerPlayer({ url, isActive }: TrailerPlayerProps) {
           loop
           muted
           playsInline
-          onLoadedData={handleComplete}
+          onLoadedData={() => setIsLoaded(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       )}

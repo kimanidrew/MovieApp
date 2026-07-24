@@ -80,7 +80,7 @@ export default function AdminNavbar() {
           )}
         </div>
       </div>
-      <style>{`
+      <style jsx>{`
         .admin-navbar { position: fixed; top: 0; left: 0; width: 100%; background: #0c0c0e; border-bottom: 1px solid #27272a; z-index: 1000; height: 65px; display: flex; align-items: center; }
         .admin-container { width: 100%; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; }
         .admin-left, .admin-links { display: flex; align-items: center; gap: 2rem; list-style: none; }

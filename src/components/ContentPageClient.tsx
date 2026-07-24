@@ -6,7 +6,7 @@ import CategoryFilter from "@/components/CategoryFilter";
 import VideoGrid from "@/components/Grids/VideoGrid";
 import { Video } from "@/types/video";
 import Hero from "./Hero";
-import { isGenre } from "@/lib/category-utils";
+import { isGenre } from "@/utils/category-utils";
 
 interface ContentPageClientProps {
   items: Video[];

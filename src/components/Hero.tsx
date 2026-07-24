@@ -198,8 +198,26 @@ export default function Hero({ pageType }: HeroProps) {
       {loading && <div className="shimmer-loader" />}
 
       <style jsx>{`
-        .hero { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; border-radius: 20px;}
-        .hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; animation: slowZoom 20s linear infinite alternate; }
+        .hero { 
+          position: relative; 
+          width: 100%; 
+          height: 100%; 
+          overflow: hidden; 
+          background: #000; 
+          border-radius: 20px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+          isolation: isolate; 
+        }
+        
+        .hero-image { 
+          position: absolute; 
+          inset: 0; 
+          width: 100%; 
+          height: 100%; 
+          object-fit: cover; 
+          animation: slowZoom 20s linear infinite alternate; 
+          border-radius: 20px;
+        }
         
         .video-wrapper { position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease; z-index: 2; overflow: hidden; border-radius: 20px; }
         .video-wrapper.visible { opacity: 1; }

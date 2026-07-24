@@ -11,56 +11,48 @@ export default async function MoviesPage() {
   let categories: string[] = [];
 
   try {
-    const rawMovies = await prisma.movie.findMany({
-      include: {
-        content: {
-          include: {
-            images: true,
-            trailers: true,
-            maturityRating: true,
-            categories: { include: { category: true } },
-            cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
-          },
-        },
-        video: {
-          include: {
-            sources: true,
-          },
-        },
+    const rawContent = await prisma.content.findMany({
+      where: {
+        movies: { some: {} }
       },
-      orderBy: { content: { createdAt: "desc" } },
+      include: {
+        images: true,
+        trailers: true,
+        maturityRating: true,
+        categories: { include: { category: true } },
+        cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
+        movies: { include: { video: { include: { sources: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
     });
 
-    movies = rawMovies.map((movie): Video => {
-      const content = movie.content;
-      const video = movie.video;
-
+    movies = rawContent.map((content): Video => {
+      const movieData = content.movies[0];
+      
       const randomImage = (type: string) => {
         const filtered = content.images.filter((i) => i.type === type);
-        return filtered.length > 0 
-          ? filtered[Math.floor(Math.random() * filtered.length)].url 
-          : "";
+        return filtered.length > 0 ? filtered[Math.floor(Math.random() * filtered.length)].url : "";
       };
 
       return {
-        id: movie.id,
+        id: content.id,
         title: content.title,
+        slug: content.slug,
         description: content.description || "",
         releaseYear: content.releaseYear || 0,
+        maturityRating: content.maturityRating?.code || "NR",
+        // Serialized to ISO String to match Video interface requirement
+        createdAt: content.createdAt.toISOString(), 
         thumbnailUrl: randomImage("POSTER"),
         backdropUrl: randomImage("BACKDROP"),
-        maturityRating: content.maturityRating?.code || "NR",
-        trailerUrl: content.trailers[0]?.hlsManifestUrl ?? null,
+        trailerUrl: content.trailers[0]?.hlsManifestUrl ?? movieData?.video?.sources[0]?.url ?? null,
         categories: content.categories.map((x) => x.category.name),
-        cast: content.cast.map((c) => ({
-          name: c.person.name,
-          character: c.character,
-        })),
-        videoSources: video.sources.map((s) => ({
+        cast: content.cast.map((c) => ({ name: c.person.name, character: c.character, displayOrder: c.displayOrder })),
+        isTvShow: false,
+        videoSources: movieData?.video?.sources.map((s) => ({
           url: s.url,
-          // Map the Prisma enum/string to the quality string expected by the interface
           quality: s.resolution || "1080p",
-        })),
+        })) || [],
       };
     });
 
@@ -72,11 +64,7 @@ export default async function MoviesPage() {
   return (
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <PageBackground overlayOpacity={0.82} />
-      <ContentPageClient 
-        items={movies} 
-        categories={categories} 
-        type="movie" 
-      />
+      <ContentPageClient items={movies} categories={categories} type="movie" />
     </main>
   );
 }

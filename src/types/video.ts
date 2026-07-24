@@ -1,49 +1,36 @@
-/**
- * Represents the unified Video metadata structure used across the frontend.
- * This interface bridges the gap between the Prisma Content/Movie/Show models 
- * and the requirements of the VideoPlayer and VideoModal components.
- */
-
 export interface Video {
-  // Core Identity
   id: string;
   title: string;
+  slug: string;
   description: string;
+  storyline?: string | null;
   releaseYear: number;
   maturityRating: string;
-  
-  // Media Assets
+  createdAt: string; // Serialized Date
+  latestEpisodeDate?: string | null;
+  episodeDates?: string[];
+  status?: string;
   thumbnailUrl: string;
   backdropUrl: string;
   trailerUrl?: string | null;
-  
-  hlsManifestUrl?: string | null;
-  videoUrl?: string | null;
-  
-  // Taxonomies
   categories: string[];
-  
-  // Personnel
-  cast: {
-    name: string;
-    character: string;
-  }[];
-
-  // Structural Data (Conditional based on Type)
+  cast: { name: string; character: string; displayOrder: number }[];
+  isTvShow: boolean;
   seasonCount?: number;
-  totalEpisodes?: number;
   seasons?: Season[];
-  
-  // Playback Resources
   videoSources?: {
     url: string;
     quality: string;
+    codec?: string;
+    hdr?: string;
   }[];
 }
 
 export interface Season {
   id: string;
   seasonNumber: number;
+  title?: string | null;
+  slug: string;
   episodes: Episode[];
 }
 
@@ -51,6 +38,7 @@ export interface Episode {
   id: string;
   episodeNumber: number;
   title: string;
-  description: string;
-  videoUrl: string;
+  description: string | null;
+  createdAt: string; // Serialized Date
+  videoUrl: string | null;
 }

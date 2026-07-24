@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Search, Film, Tv, ChevronLeft, ChevronRight } from "lucide-react";
-import { isGenre } from "@/lib/category-utils";
+import { isGenre } from "@/utils/category-utils";
 
 interface PageHeaderProps {
   title: string;
@@ -75,7 +75,7 @@ export default function PageHeader({
 
       <div className="rightSection">
         <div className="searchBox">
-          <div className="iconWrapper"><Search size={25} /></div>
+          <div className="iconWrapper"><Search size={20} /></div>
           <input
             type="text"
             value={searchValue}
@@ -120,7 +120,7 @@ export default function PageHeader({
         .titleSection { display: flex; align-items: center; gap: 24px; min-width: 300px; }
         .pageTitle { margin: 8px 0 0; color: white; font-size: 3.8rem; font-weight: 800; line-height: 1; }
         .rightSection { display: flex; flex-direction: column; flex: 1; min-width: 300px; padding-top: 10px; }
-        .searchBox { position: relative; width: 100%; margin-bottom: 20px; }
+        .searchBox { position: relative; width: 100%; margin-bottom: 10px; }
         .iconWrapper { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #8b8b8b; pointer-events: none; z-index: 5; }
         .searchBox input { width: 100%; height: 50px; padding-left: 55px; padding-bottom: 3px; border-radius: 999px; border: 2px solid rgba(255,255,255,.2); background: rgba(255,255,255,.05); color: white; font-size: 15px; font-weight: 600; transition: 0.3s; }
         .searchBox input:focus { border-color: #E50914; outline: none; }

@@ -60,36 +60,40 @@ export default function CategoryFilter({
           flex-direction: column;
           padding-top: 10px;
           overflow: hidden;
-          /* Transparent top to solid black transition */
-          background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, #000 100%);
+          background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.5) 100%);
           border-radius: 20px;
           isolation: isolate;
-          /* Bottom shadow/elevation */
           box-shadow: 0 40px 50px rgba(0,0,0,0.5);
         }
 
         .categories {
           flex: 1;
           overflow-y: auto;
-          padding-bottom: 60px;
-          /* Fade-out effect at the bottom */
-          mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
-          -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+          padding: 20px 0 60px 0; 
+          -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+          mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+          box-shadow: inset 0 20px 30px -10px rgba(0,0,0,0.6), inset 0 -20px 30px -10px rgba(0,0,0,0.6);
         }
 
+        /* Fully transparent scrollbar track and thumb by default */
         .categories::-webkit-scrollbar {
           width: 4px;
+          background-color: transparent;
         }
         .categories::-webkit-scrollbar-thumb {
-          background-color: #333;
+          background-color: transparent;
           border-radius: 4px;
+          transition: background-color 0.2s ease;
+        }
+        /* Only show thumb on hover */
+        .categories:hover::-webkit-scrollbar-thumb {
+          background-color: #333;
         }
 
         .header {
           display: flex;
           align-items: center;
           gap: 14px;
-          margin-bottom: 30px;
           flex-shrink: 0;
           padding: 10px;
         }
@@ -153,7 +157,7 @@ export default function CategoryFilter({
 
         @media (max-width: 1100px) {
           .sidebar { width: 100%; position: relative; top: auto; height: auto; box-shadow: none; background: #000; }
-          .categories { flex-direction: row; flex-wrap: wrap; gap: 10px; overflow: visible; padding-bottom: 0; -webkit-mask-image: none; mask-image: none; }
+          .categories { flex-direction: row; flex-wrap: wrap; gap: 10px; overflow: visible; padding-bottom: 0; -webkit-mask-image: none; mask-image: none; box-shadow: none; }
           .category { width: auto; padding: 12px 20px; background: #1c1c1c; border-radius: 999px; }
           .category::before, .arrow { display: none; }
           .category.active { background: #e50914; padding-left: 20px; }

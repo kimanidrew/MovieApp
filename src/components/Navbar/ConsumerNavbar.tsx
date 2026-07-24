@@ -19,7 +19,7 @@ export default function ConsumerNavbar() {
 
   useEffect(() => {
     setMounted(true);
-    const handleScroll = () => setIsScrolled(window.scrollY > 30);
+    const handleScroll = () => setIsScrolled(window.scrollY > 0);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -37,66 +37,63 @@ export default function ConsumerNavbar() {
   const isActive = (path: string) => pathname === path;
 
   if (pathname.startsWith("/admin")) return null;
-  if (!mounted) return <nav className="navbar"><div className="nav-container"><span className="nav-brand">MFLIX</span></div></nav>;
 
   const avatarSeed = activeProfile?.name === "Guest" ? "guest" : (activeProfile?.name || "user");
   const fallbackAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
   return (
     <nav className={`navbar ${isScrolled ? "scrolled" : ""}`}>
-      <div className="nav-container">
-        <div className="nav-left">
-          <Link href="/" className="nav-brand text-gradient">MFLIX</Link>
-          {customerUser && (
-            <ul className="nav-links">
-              <li><Link href="/" className={isActive("/") ? "active" : ""}>Home</Link></li>
-              {activeProfile ? (
-                <>
-                  <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Shows</Link></li>
-                  <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Movies</Link></li>
-                  <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My List</Link></li>
-                </>
-              ) : (
-                <li><Link href="/profiles" className="profile-reminder">Select Profile</Link></li>
-              )}
-            </ul>
-          )}
-        </div>
+      {mounted ? (
+        <div className="nav-container">
+          <div className="nav-left">
+            <Link href="/" className="nav-brand text-gradient">MFLIX</Link>
+            {customerUser && (
+              <ul className="nav-links">
+                <li><Link href="/" className={isActive("/") ? "active" : ""}>Home</Link></li>
+                {activeProfile ? (
+                  <>
+                    <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Shows</Link></li>
+                    <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Movies</Link></li>
+                    <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My List</Link></li>
+                  </>
+                ) : (
+                  <li><Link href="/profiles" className="profile-reminder">Select Profile</Link></li>
+                )}
+              </ul>
+            )}
+          </div>
 
-        <div className="nav-right">
-          <ThemePicker />
-          {customerUser ? (
-            <div className="profile-menu-container" ref={dropdownRef}>
-              <button className="profile-trigger-btn" onClick={() => setDropdownOpen(!dropdownOpen)}>
-                <span className="profile-name-label">{activeProfile?.name || customerUser.email?.split("@")[0]}</span>
-                <div className="profile-avatar-thumb" style={{ backgroundImage: `url(${activeProfile?.avatarUrl || fallbackAvatar})` }} />
-              </button>
+          <div className="nav-right">
+            <ThemePicker />
+            {customerUser ? (
+              <div className="profile-menu-container" ref={dropdownRef}>
+                <button className="profile-trigger-btn" onClick={() => setDropdownOpen(!dropdownOpen)}>
+                  <span className="profile-name-label">{activeProfile?.name || customerUser.email?.split("@")[0]}</span>
+                  <div className="profile-avatar-thumb" style={{ backgroundImage: `url(${activeProfile?.avatarUrl || fallbackAvatar})` }} />
+                </button>
 
-              {dropdownOpen && (
-                <div className="dropdown-card">
-                  <Link href="/profiles" className="dropdown-item" onClick={() => setDropdownOpen(false)}><User size={16} /> Switch Profiles</Link>
-                  <Link href="/profiles/manage" className="dropdown-item" onClick={() => setDropdownOpen(false)}><Settings size={16} /> Manage Profiles</Link>
-                  <Link href="/account" className="dropdown-item" onClick={() => setDropdownOpen(false)}><CreditCard size={16} /> Account Settings</Link>
-                  <hr className="divider" />
-                  <button onClick={() => { setDropdownOpen(false); logout("customer"); }} className="dropdown-item text-danger"><LogOut size={16} /> Sign Out</button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Link href="/login" className="login-btn">Sign In</Link>
-          )}
+                {dropdownOpen && (
+                  <div className="dropdown-card">
+                    <Link href="/profiles" className="dropdown-item" onClick={() => setDropdownOpen(false)}><User size={16} /> Switch Profiles</Link>
+                    <Link href="/profiles/manage" className="dropdown-item" onClick={() => setDropdownOpen(false)}><Settings size={16} /> Manage Profiles</Link>
+                    <Link href="/account" className="dropdown-item" onClick={() => setDropdownOpen(false)}><CreditCard size={16} /> Account Settings</Link>
+                    <hr className="divider" />
+                    <button onClick={() => { setDropdownOpen(false); logout("customer"); }} className="dropdown-item text-danger"><LogOut size={16} /> Sign Out</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/login" className="login-btn">Sign In</Link>
+            )}
+          </div>
         </div>
-      </div>
-      <style>{`
-        .navbar { position: fixed; top: 1rem; left: 50%; transform: translate3d(-50%, -120%, 0); width: 95%; max-width: 1400px; z-index: 1000; transition: transform 0s; animation: slide-down 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .nav-container { padding: 0.9rem 2rem; display: flex; justify-content: space-between; align-items: center; border-radius: 20px; background: rgba(0, 0, 0, 0); border: 1px solid rgba(255, 255, 255, 0); transition: all 0.35s ease; }
-        .navbar.scrolled .nav-container { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); border-color: rgba(255, 255, 255, 0.1); }
-        .nav-left, .nav-links { display: flex; align-items: center; gap: 2.5rem; list-style: none; }
-        .nav-brand { font-size: 1.6rem; font-weight: 900; color: #fff; text-decoration: none; }
-        .nav-links a { font-size: 0.95rem; color: #b3b3b3; text-decoration: none; font-weight: 500; transition: color 0.3s ease; }
-        .nav-links a:hover, .nav-links a.active { color: #fff; }
-        
-        .nav-right { display: flex; align-items: center; gap: 1.5rem; }
+      ) : (
+        <div className="nav-container">
+          <span className="nav-brand">MFLIX</span>
+        </div>
+      )}
+      
+      <style jsx>{`
         .profile-trigger-btn { background: transparent; border: none; display: flex; align-items: center; gap: 12px; cursor: pointer; color: white; }
         .profile-avatar-thumb { width: 44px; height: 44px; border-radius: 4px; background-size: cover; }
         .profile-name-label { font-size: 0.95rem; font-weight: 600; }

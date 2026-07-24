@@ -6,72 +6,58 @@ import { Video } from "@/types/video";
 
 export const dynamic = "force-dynamic";
 
-export default async function TVShowsPage() {
+export default async function ShowsPage() {
   let shows: Video[] = [];
   let categories: string[] = [];
 
   try {
-    const rawShows = await prisma.show.findMany({
+    const rawContent = await prisma.content.findMany({
+      where: { show: { isNot: null } },
       include: {
-        content: {
-          include: {
-            images: true,
-            trailers: true,
-            maturityRating: true,
-            categories: { include: { category: true } },
-            cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
-          },
-        },
-        seasons: {
-          orderBy: { seasonNumber: "asc" },
-          include: {
-            episodes: {
-              orderBy: { episodeNumber: "asc" },
-              include: {
-                video: { include: { sources: true } },
-              },
-            },
-          },
+        images: true, trailers: true, maturityRating: true,
+        categories: { include: { category: true } },
+        cast: { include: { person: true }, orderBy: { displayOrder: "asc" } },
+        show: { 
+          include: { seasons: { include: { episodes: { include: { video: { include: { sources: true } } } } } } } 
         },
       },
-      orderBy: { content: { createdAt: "desc" } },
+      orderBy: { createdAt: "desc" },
     });
 
-    shows = rawShows.map((show): Video => {
-      const content = show.content;
-
-      const randomImage = (type: string) => {
-        const filtered = content.images.filter((i) => i.type === type);
-        return filtered.length > 0
-          ? filtered[Math.floor(Math.random() * filtered.length)].url
-          : "";
-      };
+    shows = rawContent.map((content): Video => {
+      const showData = content.show;
+      const episodes = showData?.seasons.flatMap(s => s.episodes || []) || [];
+      
+      const sortedEpisodes = [...episodes].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
       return {
-        id: show.id,
+        id: content.id,
         title: content.title,
+        slug: content.slug,
         description: content.description || "",
         releaseYear: content.releaseYear || 0,
-        thumbnailUrl: randomImage("POSTER"),
-        backdropUrl: randomImage("BACKDROP"),
-        maturityRating: content.maturityRating.code,
+        maturityRating: content.maturityRating?.code || "NR",
+        createdAt: content.createdAt.toISOString(),
+        episodeDates: sortedEpisodes.map(e => e.createdAt.toISOString()), 
+        latestEpisodeDate: sortedEpisodes[0]?.createdAt.toISOString() || null,
+        thumbnailUrl: content.images.find(i => i.type === "POSTER")?.url || "",
+        backdropUrl: content.images.find(i => i.type === "BACKDROP")?.url || "",
         trailerUrl: content.trailers[0]?.hlsManifestUrl ?? null,
         categories: content.categories.map((x) => x.category.name),
-        cast: content.cast.map((c) => ({
-          name: c.person.name,
-          character: c.character,
-        })),
-        seasonCount: show.seasons.length,
-        totalEpisodes: show.seasons.reduce((acc, s) => acc + s.episodes.length, 0),
-        seasons: show.seasons.map((season) => ({
-          id: season.id,
-          seasonNumber: season.seasonNumber,
-          episodes: season.episodes.map((ep) => ({
-            id: ep.id,
-            episodeNumber: ep.episodeNumber,
-            title: ep.title,
-            description: ep.description || "",
-            videoUrl: ep.video?.sources[0]?.url || "",
+        cast: content.cast.map((c) => ({ name: c.person.name, character: c.character, displayOrder: c.displayOrder })),
+        isTvShow: true,
+        seasonCount: showData?.seasons.length || 0,
+        seasons: showData?.seasons.map((s) => ({
+          id: s.id,
+          seasonNumber: s.seasonNumber,
+          slug: s.slug,
+          episodes: s.episodes.map((e) => ({
+            id: e.id,
+            episodeNumber: e.episodeNumber,
+            title: e.title,
+            description: e.description,
+            createdAt: e.createdAt.toISOString(),
+            videoUrl: e.video?.sources[0]?.url ?? null,
           })),
         })),
       };
@@ -79,7 +65,7 @@ export default async function TVShowsPage() {
 
     categories = Array.from(new Set(shows.flatMap((s) => s.categories))).sort();
   } catch (err) {
-    console.error("Error fetching TV shows:", err);
+    console.error("Error fetching shows:", err);
   }
 
   return (

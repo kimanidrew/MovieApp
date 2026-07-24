@@ -8,15 +8,11 @@ export default function Loading() {
       <div className="loading-container">
         {/* Pulsing MFLIX Logo */}
         <h1 className="loading-brand text-gradient-2">MFLIX</h1>
-        
-        {/* Modern Spinner */}
-        <div className="spinner">
-          <div className="spinner-inner"></div>
-        </div>
+    
       </div>
 
       {/* Using standard style tag to bypass client-side CSS injection lag */}
-      <style>{`
+      <style jsx>{`
         .loading-screen {
           position: fixed;
           top: 0;
@@ -28,7 +24,6 @@ export default function Loading() {
           justify-content: center;
           align-items: center;
           z-index: 9999;
-          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         }
 
         .loading-container {
@@ -40,7 +35,7 @@ export default function Loading() {
 
         .loading-brand {
           margin: 0;
-          font-size: 3rem;
+          font-size: 4rem;
           font-weight: 900;
           letter-spacing: 2px;
           user-select: none;
@@ -56,25 +51,6 @@ export default function Loading() {
           background: linear-gradient(135deg, #e50914 0%, #9b0007 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
-        }
-
-        .spinner {
-          width: 44px;
-          height: 44px;
-          border: 3px solid rgba(255, 255, 255, 0.1);
-          border-radius: 50%;
-          border-top-color: #e50914;
-          
-          /* GPU-accelerated spin */
-          animation: spin 0.9s linear infinite;
-          transform: translate3d(0, 0, 0);
-          will-change: transform;
-        }
-
-        @keyframes spin {
-          to {
-            transform: translate3d(0, 0, 0) rotate(360deg);
-          }
         }
 
         @keyframes smooth-pulse {
