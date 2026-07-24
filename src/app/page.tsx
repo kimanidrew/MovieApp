@@ -1,7 +1,6 @@
 import React from "react";
 import { cookies } from "next/headers";
 import getBaseUrl from "@/lib/getBaseUrl";
-import HomeClient from "@/components/HomeComponents/HomeClient";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +32,8 @@ export default async function Home() {
   }
 
   return (
-    <HomeClient 
-      initialRows={initialRows}
-      initialContinueWatching={initialContinueWatching}
-      initialMyList={initialMyList}
-      initialHero={initialHero}
-      serverProfileId={profileId}
-    />
+    <div className="w-full h-[100vh] flex justify-center align-center">
+      <h1>Coming Soon</h1>
+    </div>
   );
 }
