@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
 import "./admin/upload/upload.css";
 import Footer from "@/components/Footer";
@@ -54,6 +55,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={outfit.variable}>
       <body style={{ fontFamily: "var(--font-main), sans-serif", backgroundColor: "var(--background)" }}>
+        <Analytics/>
         <ThemeProvider>
           <AuthProvider>
             <ConsumerNavbar/>
