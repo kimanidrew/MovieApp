@@ -45,7 +45,6 @@ export default function VideoModal({
 
     return () => {
       document.body.style.overflow = "";
-      // Stop/Destroy player on close
       if (playerRef.current) {
         playerRef.current.destroy();
       }
@@ -111,14 +110,12 @@ export default function VideoModal({
         <button className="close-btn" onClick={onClose}>✕</button>
 
         <section className="hero">
-          {/* Thumbnail image fades out when playing */}
           <img 
             className={`hero-image ${isPlaying ? "hidden" : ""}`} 
             src={normalizeUrl(video.backdropUrl || video.thumbnailUrl)} 
             alt={video.title} 
           />
           
-          {/* Video wrapper only visible and opaque when ready and playing */}
           <div className={`video-wrapper ${isPlaying ? "visible" : ""}`}>
             {youtubeId && (
               <YouTube 
@@ -126,15 +123,23 @@ export default function VideoModal({
                 opts={{ 
                     width: "100%", 
                     height: "100%", 
-                    playerVars: { autoplay: 1, controls: 0, modestbranding: 1, loop: 0, mute: 0, rel: 0 } 
+                    playerVars: { 
+                        autoplay: 1, 
+                        controls: 0, 
+                        modestbranding: 1, 
+                        loop: 0, 
+                        mute: 0, 
+                        rel: 0,
+                        playsinline: 1 
+                    } 
                 }} 
                 onReady={(event) => {
                     playerRef.current = event.target;
                     setIsReady(true);
                 }}
                 onStateChange={(event) => {
-                    if (event.data === 1) setIsPlaying(true); // Playing
-                    if (event.data === 0) { // Ended
+                    if (event.data === 1) setIsPlaying(true);
+                    if (event.data === 0) {
                         setIsPlaying(false);
                         setHasPlayed(true);
                     }
@@ -254,16 +259,12 @@ export default function VideoModal({
         .modal-overlay{ position:fixed; inset:0; z-index:9999; overflow-y:auto; display:flex; justify-content:center; padding:40px 0; background: rgba(0,0,0,0.3); backdrop-filter:blur(5px); animation:fadeIn .25s ease; }
         .modal{ width:min(920px,92vw); background-color:#000; border-radius: 22px; position:relative; box-shadow: 0 30px 90px rgba(0,0,0,.65); animation:modalEnter .35s cubic-bezier(.2,.8,.2,1); margin: auto; display: flex; flex-direction: column; }
         .hero { position:relative; height:520px; overflow:hidden; border-radius: 22px 22px 0 0; background: #000; flex-shrink: 0; display: block; }
-        
         .hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; transition: opacity 0.6s ease; opacity: 1; }
         .hero-image.hidden { opacity: 0; pointer-events: none; }
-        
         .video-wrapper { position: absolute; inset: 0; z-index: 3; opacity: 0; transition: opacity 0.6s ease; }
         .video-wrapper.visible { opacity: 1; }
-        
         .youtube-player { width: 100%; height: 100%; }
         .youtube-player iframe { width: 100%; height: 100%; }
-
         .hero-overlay{ position:absolute; inset:0; background: linear-gradient(to top, #000 8%, rgba(0,0,0,.75) 30%, rgba(0,0,0,.2) 58%, transparent); z-index: 4; }
         .hero-vignette{ position:absolute; inset:0; background: radial-gradient(circle at center, transparent 45%, rgba(0,0,0,.45) 100%); z-index: 2; }
         .replay-btn { position: absolute; bottom: 120px; right: 55px; z-index: 10; background: rgba(0,0,0,0.5); color: white; border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(5px); transition: 0.3s; }
