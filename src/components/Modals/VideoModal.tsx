@@ -255,8 +255,8 @@ export default function VideoModal({
         )}
       </div>
 
-      <style>{`
-        .modal-overlay{ position:fixed; inset:0; z-index:9999; overflow-y:auto; display:flex; justify-content:center; padding:40px 0; background: rgba(0,0,0,0.3); backdrop-filter:blur(5px); animation:fadeIn .25s ease; }
+      <style jsx>{`
+        .modal-overlay{ position:fixed; inset:0; z-index:9999; overflow-y:auto; display:flex; justify-content:center; padding:40px 0; background: rgba(0,0,0,0.5); backdrop-filter:blur(5px); animation:fadeIn .25s ease; }
         .modal{ width:min(920px,92vw); background-color:#000; border-radius: 22px; position:relative; box-shadow: 0 30px 90px rgba(0,0,0,.65); animation:modalEnter .35s cubic-bezier(.2,.8,.2,1); margin: auto; display: flex; flex-direction: column; }
         .hero { position:relative; height:520px; overflow:hidden; border-radius: 22px 22px 0 0; background: #000; flex-shrink: 0; display: block; }
         .hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; transition: opacity 0.6s ease; opacity: 1; }
