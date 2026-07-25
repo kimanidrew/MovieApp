@@ -287,9 +287,15 @@ export default function HlsPlayer(props: HlsPlayerProps) {
     };
 
     if (Hls.isSupported() && tokenizedSrc.includes(".m3u8")) {
-      const urlObj = new URL(tokenizedSrc);
-      const token = urlObj.searchParams.get("token");
-      const expires = urlObj.searchParams.get("expires");
+      let token: string | null = null;
+      let expires: string | null = null;
+      try {
+        const urlObj = new URL(tokenizedSrc, typeof window !== "undefined" ? window.location.href : "http://localhost");
+        token = urlObj.searchParams.get("token");
+        expires = urlObj.searchParams.get("expires");
+      } catch (e) {
+        console.warn("Invalid URL for HLS token parsing:", e);
+      }
 
       hls = new Hls({
         capLevelToPlayerSize: true,
@@ -316,7 +322,11 @@ export default function HlsPlayer(props: HlsPlayerProps) {
       });
     } else {
       video.src = tokenizedSrc;
-      video.addEventListener("loadedmetadata", startPlayback, { once: true });
+      if (video.readyState >= 1) {
+        startPlayback();
+      } else {
+        video.addEventListener("loadedmetadata", startPlayback, { once: true });
+      }
     }
 
     const onPlay = () => {

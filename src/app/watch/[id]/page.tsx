@@ -1,17 +1,18 @@
 import React from 'react';
-import getBaseUrl from '@/lib/getBaseUrl';
-import { notFound } from 'next/navigation';
+import { getVideoById } from '@/lib/videoService';
 import HlsPlayer from './HlsPlayer';
 
-export default async function WatchPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function WatchPage({ 
+  params,
+  searchParams
+}: { 
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ season?: string; ep?: string; episode?: string }>;
+}) {
   const { id } = await params;
+  const sParams = await searchParams;
 
-  const res = await fetch(`${getBaseUrl()}/api/videos/${id}`, { cache: 'no-store' });
-  const video = res.ok ? await res.json() : null;
-
-  if (!video) {
-    notFound();
-  }
+  const video = await getVideoById(id, sParams);
 
   // Precedence: HLS > MP4 Fallback > Demo Big Buck Bunny
   const videoSrc = video.hlsManifestUrl || video.videoUrl || "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
@@ -22,10 +23,10 @@ export default async function WatchPage({ params }: { params: Promise<{ id: stri
         videoId={video.id}
         src={videoSrc}
         poster={video.thumbnailUrl || undefined}
-        title={video.title}
-        introStart={video.introStart ?? 0} // 👈 FIXED: Forwarding introStart from database
-        introEnd={video.introEnd ?? 0}     // 👈 FIXED: Forwarding introEnd from database
-        isProcessing={!video.hlsManifestUrl && !!video.videoUrl}
+        title={video.title || "MovieFlix Stream"}
+        introStart={video.introStart ?? 0}
+        introEnd={video.introEnd ?? 0}
+        isProcessing={!video.hlsManifestUrl && !video.videoUrl}
       />
     </div>
   );

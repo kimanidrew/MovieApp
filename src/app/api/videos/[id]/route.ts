@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { getVideoById } from "@/lib/videoService";
 
 export async function GET(
   request: NextRequest,
@@ -7,17 +7,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const video = await prisma.video.findUnique({
-      where: { id }
-    });
+    const { searchParams } = new URL(request.url);
+    const season = searchParams.get("season") || undefined;
+    const ep = searchParams.get("ep") || searchParams.get("episode") || undefined;
 
-    if (!video) {
-      return NextResponse.json({ error: "Video not found" }, { status: 404 });
-    }
-
+    const video = await getVideoById(id, { season, ep });
     return NextResponse.json(video);
   } catch (error) {
-    console.error(error);
+    console.error("API Error in /api/videos/[id]:", error);
     return NextResponse.json({ error: "Failed to fetch video" }, { status: 500 });
   }
 }
+

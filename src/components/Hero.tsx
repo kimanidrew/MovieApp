@@ -71,15 +71,19 @@ export default function Hero({ pageType }: HeroProps) {
     }
   }, [inView, videoReady, selectedVideo]);
 
-  // Handle video pause when modal opens
-  useEffect(() => {
-    if (!playerRef.current) return;
+useEffect(() => {
+  if (!playerRef.current || !videoReady) return;
+
+  try {
     if (selectedVideo) {
       playerRef.current.pauseVideo();
     } else if (inView) {
       playerRef.current.playVideo();
     }
-  }, [selectedVideo]);
+  } catch (err) {
+    console.warn("Unable to control hero trailer", err);
+  }
+}, [selectedVideo, inView, videoReady]);
 
   useEffect(() => {
     if (!heroData || !inView) {
@@ -173,7 +177,16 @@ export default function Hero({ pageType }: HeroProps) {
             <Play size={24} fill="currentColor" /> Play
             </div></Link>
             
-            <button className="info-button" onClick={() => setSelectedVideo(heroData.content)}>
+            <button className="info-button" 
+               onClick={() => {
+                    if (playerRef.current && videoReady) {
+                        try {
+                            playerRef.current.pauseVideo();
+                        } catch {}
+                    }
+
+                    setSelectedVideo(heroData.content);
+                }}>
                 <Info size={24} /> More Info
             </button>
           </div>
@@ -191,7 +204,17 @@ export default function Hero({ pageType }: HeroProps) {
           video={selectedVideo} 
           videos={[selectedVideo]}
           type={pageType}
-          onClose={() => setSelectedVideo(null)} 
+          onClose={() => {
+              setSelectedVideo(null);
+
+              if (playerRef.current && videoReady && inView) {
+                  setTimeout(() => {
+                      try {
+                          playerRef.current.playVideo();
+                      } catch {}
+                  }, 150);
+              }
+          }}
         />
       )}
 
