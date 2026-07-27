@@ -15,7 +15,7 @@ interface VideoDetailsPageProps {
 
 export default function VideoDetailsPage({ video, allVideos, type }: VideoDetailsPageProps) {
   const [inMyList, setInMyList] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default to true for autoplay
   const [activeSeason, setActiveSeason] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
@@ -77,6 +77,8 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
   return (
     <main className="details-page">
       <section className="hero">
+        <div className="hero-top-gradient" />
+        <div className="hero-left-gradient" />
         <img 
           className={`hero-image ${isPlaying ? "hidden" : "pulse"}`} 
           src={normalizeUrl(video.backdropUrl || video.thumbnailUrl)} 
@@ -88,7 +90,15 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
             <YouTube 
               videoId={youtubeId} 
               opts={{ 
-                playerVars: { autoplay: 1, controls: 0, modestbranding: 1, loop: 0, mute: 0, rel: 0, playsinline: 1 } 
+                playerVars: { 
+                  autoplay: 1, 
+                  controls: 0, 
+                  modestbranding: 1, 
+                  loop: 0, 
+                  mute: 1, 
+                  rel: 0, 
+                  playsinline: 1 
+                } 
               }} 
               onReady={(event) => { playerRef.current = event.target; }}
               onStateChange={(event) => {
@@ -112,18 +122,22 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
         <div className="hero-content">
           <span className="netflix-badge">{type === "show" ? "TV SHOW" : "MOVIE"}</span>
           <h1 className="title">{video.title}</h1>
-          <div className="meta">
-            <span className="rating">{video.maturityRating}</span>
-            <span className="quality">HD</span>
-            <span className="quality">5.1</span>
-            <span className="year-box">{video.releaseYear}</span>
+          
+          <div className="meta-container">
+            <div className="meta-top">
+                <span className="rating">{video.maturityRating}</span>
+                {type === "show" && video.seasons && (
+                    <span className="season-count">
+                        {video.seasons.length} {video.seasons.length === 1 ? "Season" : "Seasons"}
+                    </span>
+                )}
+            </div>
+            <div className="meta-bottom">
+                <span className="year-box">{video.releaseYear}</span>
+                <span className="quality">HD</span>
+                <span className="quality">5.1</span>
+            </div>
           </div>
-
-          {type === "show" && video.seasons && (
-             <div className="season-count">
-               {video.seasons.length} {video.seasons.length === 1 ? "Season" : "Seasons"}
-             </div>
-          )}
 
           <div className="hero-buttons">
             <Link href={type === "show" && firstEpisode ? `/watch/${video.id}?season=${activeSeason}&ep=${firstEpisode.episodeNumber}` : `/watch/${video.id}`}>
@@ -193,6 +207,9 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
         .details-page { background: #000; min-height: 100vh; color: white; padding-bottom: 60px; }
         .hero { position: relative; height: 100vh; overflow: hidden; background: #000; }
         
+        .hero-top-gradient { position: absolute; top: 0; left: 0; width: 100%; height: 300px; background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%); z-index: 3; pointer-events: none; }
+        .hero-left-gradient { position: absolute; inset: 0; width: 100%; height: 100%; background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, transparent 60%); z-index: 3; pointer-events: none; }
+        
         .hero-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; transition: opacity 0.6s ease; opacity: 1; }
         .hero-image.hidden { opacity: 0; }
         .hero-image.pulse { animation: pulse 12s infinite ease-in-out; }
@@ -209,11 +226,14 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
         .hero-content { position: absolute; left: 55px; bottom: 30px; z-index: 5; max-width: 600px; }
         .title { font-size: 4rem; font-weight: 900; margin: 0; text-shadow: 0 5px 18px rgba(0,0,0,.6); line-height: 1.1; }
         
-        .meta{ margin-top:20px; display:flex; gap:15px; align-items:center; color:#d5d5d5; font-size:1.1rem; font-weight:500; }
-        .year-box { background-color: #000; padding: 5px 8px; border-radius: 4px; color: #fff; font-size: 1rem; }
-        .season-count { margin-top: 15px; font-size: 1.2rem; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .meta-container { margin-top: 20px; }
+        .meta-top { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
+        .meta-bottom { display: flex; align-items: center; gap: 15px; color: #d5d5d5; font-size: 1rem; }
         
-        .rating{ border:2px solid rgba(255,255,255,.45); padding:3px 10px; border-radius:4px; }
+        .year-box { background-color: #000; padding: 5px 8px; border-radius: 4px; color: #fff; font-size: 1rem; border: 1px solid rgba(255,255,255,0.2); }
+        .season-count { font-size: 1.1rem; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        
+        .rating{ border:2px solid rgba(255,255,255,.45); padding:3px 10px; border-radius:4px; font-weight:600; }
         .quality{ background:#2a2a2a; padding:3px 10px; border-radius:4px; color:#e8e8e8; font-size: 0.9rem; }
         
         .hero-buttons { display: flex; gap: 15px; margin-top: 30px; align-items: center; }
