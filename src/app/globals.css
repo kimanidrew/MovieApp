@@ -39,6 +39,11 @@
   background: #555;
 }
 
+/* Apply this to a custom class */
+.hide-scroll {
+  overflow: hidden !important;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;
