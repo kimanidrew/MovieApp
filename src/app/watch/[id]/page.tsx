@@ -18,7 +18,7 @@ export default async function WatchPage({
   const videoSrc = video.hlsManifestUrl || video.videoUrl || "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   return (
-    <div className="watch-container" style={{ width: '100vw', height: '100vh', background: '#000', position: 'fixed', zIndex: 9999, overflow: 'hidden' }}>
+    <div className="watch-container">
       <HlsPlayer
         videoId={video.id}
         src={videoSrc}
@@ -28,6 +28,28 @@ export default async function WatchPage({
         introEnd={video.introEnd ?? 0}
         isProcessing={!video.hlsManifestUrl && !video.videoUrl}
       />
+      
+      <style jsx global>{`
+        body {
+          overflow: hidden;
+        }
+      `}</style>
+
+      <style jsx>{`
+        .watch-container { 
+          width: 100vw; 
+          height: 100vh; 
+          background: #000; 
+          position: fixed; 
+          z-index: 9999; 
+          overflow: hidden;
+          scrollbar-width: none; /* Firefox */
+        }
+        
+        .watch-container::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Edge */
+        }
+      `}</style>
     </div>
   );
 }
