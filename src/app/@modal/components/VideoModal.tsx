@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import YouTube from "react-youtube";
 import { Play, Volume2, VolumeX, Plus, Check, RotateCcw } from "lucide-react";
 import type { Video } from "@/types/video";
@@ -12,7 +12,7 @@ interface VideoModalProps {
   video: Video | null;
   videos: Video[];
   onClose: () => void;
-  type?: "movie" | "tv" | "home";
+  type?: "show" | "movie"; // Updated to match server-side logic
 }
 
 export default function VideoModal({
@@ -21,6 +21,7 @@ export default function VideoModal({
   onClose,
   type = "movie",
 }: VideoModalProps) {
+  const router = useRouter();
   const [inMyList, setInMyList] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -104,7 +105,7 @@ export default function VideoModal({
 
   const firstEpisode = sortedEpisodes[0];
 
-  const modal = (
+  return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <button className="close-btn" onClick={onClose}>✕</button>
@@ -159,7 +160,7 @@ export default function VideoModal({
           <div className="hero-vignette" />
           <div className="hero-content">
             <div className="logo-area">
-              <span className="netflix-badge">{type === "tv" ? "TV SHOW" : "MOVIE"}</span>
+              <span className="netflix-badge">{type === "show" ? "TV SHOW" : "MOVIE"}</span>
               <h1 className="title">{video.title}</h1>
               <div className="meta">
                 <span>{video.releaseYear}</span>
@@ -174,11 +175,11 @@ export default function VideoModal({
         <section className="content">
           <div className="hero-buttons" style={{ marginBottom: '25px' }}>
             <Link 
-              href={type === "tv" && firstEpisode ? `/watch/${video.id}?season=${activeSeason}&ep=${firstEpisode.episodeNumber}` : `/watch/${video.id}`} 
+              href={type === "show" && firstEpisode ? `/watch/${video.id}?season=${activeSeason}&ep=${firstEpisode.episodeNumber}` : `/watch/${video.id}`} 
             >
               <div className="play-button">
               <Play size={20} fill="currentColor" />
-              <span>{type === "tv" ? `Play S${activeSeason} E${firstEpisode?.episodeNumber || 1}` : "Play"}</span>
+              <span>{type === "show" ? `Play S${activeSeason} E${firstEpisode?.episodeNumber || 1}` : "Play"}</span>
               </div>
             </Link>
             <button className="circle-btn" onClick={toggleMyList}>
@@ -194,13 +195,13 @@ export default function VideoModal({
             <p className="description">{video.description}</p>
             
             <div className="meta-info-bar">
-              <p><span>Cast:</span> Coming Soon</p>
+              <p><span>Cast:</span> {video.cast?.slice(0, 3).map(c => c.name).join(", ") || "N/A"}</p>
               <p><span>Director:</span> Unknown</p>
               <p><span>Language:</span> English</p>
             </div>
           </div>
 
-          {type === "tv" && seasons.length > 0 && activeSeason !== null && (
+          {type === "show" && seasons.length > 0 && activeSeason !== null && (
             <div className="tv-section">
               <h3 className="section-title">Episodes</h3>
               
@@ -322,6 +323,4 @@ export default function VideoModal({
       `}</style>
     </div>
   );
-
-  return ReactDOM.createPortal(modal, document.body);
 }

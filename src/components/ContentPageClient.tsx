@@ -12,7 +12,7 @@ import { isGenre } from "@/utils/category-utils";
 interface ContentPageClientProps {
   items: Video[];
   categories: string[];
-  type: "movie" | "tv" | "home";
+  type: "movies" | "shows" | "home";
 }
 
 export default function ContentPageClient({ items, categories, type }: ContentPageClientProps) {
@@ -48,9 +48,9 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
   return (
     <section style={{ flex: 1, paddingTop: "100px", paddingBottom: "60px", paddingInline: "3%" }}>
       <PageHeader 
-        title={type === "movie" ? "Movies" : "Shows"}
-        subtitle={type === "movie" ? "Browse our premium movie library." : "Browse our premium TV series library."}
-        searchPlaceholder={`Search ${type === "movie" ? "movies" : "shows"}, artists e.t.c`}
+        title={type === "movies" ? "Movies" : "Shows"}
+        subtitle={type === "movies" ? "Browse our premium movie library." : "Browse our premium TV series library."}
+        searchPlaceholder={`Search ${type === "movies" ? "movies" : "shows"}, artists e.t.c`}
         searchValue={search}
         onSearch={setSearch}
         categories={categories}
@@ -73,8 +73,9 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
                 initial={{ opacity: 0, y: -20, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: 450 }}
                 exit={{ opacity: 0, y: -20, height: 0 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="hero-container"
+                style={{ marginBottom: "30px" }}
               >
                 <Hero pageType={type} />
               </motion.div>
@@ -99,7 +100,6 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         .hero-container {
           position: relative;
           width: 100%;
-          margin-bottom: 30px;
           border-radius: 20px;
           overflow: hidden;
           background: #000;

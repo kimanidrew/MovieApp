@@ -73,7 +73,7 @@ export default async function ShowsPage() {
   return (
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <PageBackground overlayOpacity={0.82} />
-      <ContentPageClient items={shows} categories={categories} type="tv" />
+      <ContentPageClient items={shows} categories={categories} type="shows" />
     </main>
   );
 }

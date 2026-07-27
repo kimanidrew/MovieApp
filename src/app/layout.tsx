@@ -48,8 +48,10 @@ import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function RootLayout({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  modal: React.ReactNode;
 }>) {
   
   return (
@@ -61,6 +63,7 @@ export default function RootLayout({
             <ConsumerNavbar/>
             <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
               {children}
+              {modal}
             </main>
             <Footer />
           </AuthProvider>

@@ -7,9 +7,9 @@ export async function GET(request: Request) {
 
   try {
     let whereClause: any = {};
-    if (type === "movie") {
+    if (type === "movies") {
       whereClause = { movies: { some: {} } };
-    } else if (type === "tv") {
+    } else if (type === "shows") {
       whereClause = { show: { isNot: null } };
     }
 

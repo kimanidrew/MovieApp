@@ -1,20 +1,18 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import VideoModal from "../Modals/VideoModal";
 import VideoCard from "../Cards/VideoCard";
 import { Video } from "@/types/video";
 
 interface VideoGridProps {
   videos: Video[];
-  type?: "movie" | "tv" | "home";
+  type?: "movies" | "shows" | "home";
   isLoading?: boolean;
 }
 
 const ITEMS_PER_ROW = 4; // Matches your grid-template-columns
 
-export default function VideoGrid({ videos, type = "movie", isLoading = false }: VideoGridProps) {
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+export default function VideoGrid({ videos, type = "movies", isLoading = false }: VideoGridProps) {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_ROW);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -50,9 +48,9 @@ export default function VideoGrid({ videos, type = "movie", isLoading = false }:
         ) : (
           displayedVideos.map((video) => (
             <VideoCard 
-              key={video.id} 
+              key={video.id}
               video={video} 
-              onSelect={() => setSelectedVideo(video)} 
+              type={type}
             />
           ))
         )}
@@ -61,15 +59,6 @@ export default function VideoGrid({ videos, type = "movie", isLoading = false }:
       {/* Sentinel element to trigger load on scroll */}
       {!isLoading && visibleCount < videos.length && (
         <div ref={sentinelRef} style={{ height: '20px', marginTop: '20px' }} />
-      )}
-
-      {selectedVideo && (
-        <VideoModal 
-          video={selectedVideo} 
-          videos={videos}
-          type={type}
-          onClose={() => setSelectedVideo(null)} 
-        />
       )}
 
       <style jsx>{`

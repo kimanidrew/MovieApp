@@ -54,7 +54,7 @@ export function middleware(request: NextRequest) {
   // 4. 👉 PROFILE SELECTION FORCED GATE
   // If customer is logged in, but has not selected a profile, protect streaming routes
   if (consumerToken && !profileId && !isAdminSpace) {
-    const streamingRoutes = ["/", "/tv", "/movies", "/my-list"];
+    const streamingRoutes = ["/", "/tv", "/movies", "/my-list", "/video"];
     const isTryingToStream = streamingRoutes.includes(pathname);
 
     if (isTryingToStream) {

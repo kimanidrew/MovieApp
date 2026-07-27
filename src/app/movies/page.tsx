@@ -66,7 +66,7 @@ export default async function MoviesPage() {
   return (
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <PageBackground overlayOpacity={0.82} />
-      <ContentPageClient items={movies} categories={categories} type="movie" />
+      <ContentPageClient items={movies} categories={categories} type="movies" />
     </main>
   );
 }

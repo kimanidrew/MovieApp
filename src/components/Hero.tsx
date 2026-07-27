@@ -2,18 +2,22 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSelectedLayoutSegment } from "next/navigation";
 import YouTube from "react-youtube";
 import { Play, Info, Volume2, VolumeX } from "lucide-react";
-import VideoModal from "@/components/Modals/VideoModal";
 
 interface HeroProps {
-  pageType: "home" | "movie" | "tv";
+  pageType: "movies" | "shows" | "home";
 }
 
 export default function Hero({ pageType }: HeroProps) {
+  // Checks if the "@modal" parallel route slot is active
+  const modalSegment = useSelectedLayoutSegment("modal");
+  const isModalOpen = !!modalSegment;
+
   const heroRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
-  const hasLoaded = useRef(false); // Tracks if the component has appeared before
+  const hasLoaded = useRef(false);
   const [heroData, setHeroData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
@@ -21,7 +25,6 @@ export default function Hero({ pageType }: HeroProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [inView, setInView] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +44,29 @@ export default function Hero({ pageType }: HeroProps) {
     return () => { cancelled = true; };
   }, [pageType]);
 
+  // Pause video automatically when modal is open
+  useEffect(() => {
+    if (isModalOpen && playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+      try {
+        playerRef.current.pauseVideo();
+      } catch (e) {
+        console.warn("Could not pause player on modal open", e);
+      }
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        try {
+          playerRef.current.pauseVideo();
+        } catch (e) {
+          console.warn("Could not pause player on unmount", e);
+        }
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!heroRef.current) return;
     
@@ -54,10 +80,11 @@ export default function Hero({ pageType }: HeroProps) {
   }, []);
 
   useEffect(() => {
-    if (!playerRef.current || !videoReady) return;
+    // Only play if video is ready, in view, AND modal is NOT open
+    if (!playerRef.current || !videoReady || isModalOpen) return;
 
     try {
-      if (inView && !selectedVideo) {
+      if (inView) {
         if (typeof playerRef.current.playVideo === 'function') {
           playerRef.current.playVideo();
         }
@@ -69,24 +96,10 @@ export default function Hero({ pageType }: HeroProps) {
     } catch (error) {
       console.warn("Hero: YouTube player is not reachable", error);
     }
-  }, [inView, videoReady, selectedVideo]);
-
-useEffect(() => {
-  if (!playerRef.current || !videoReady) return;
-
-  try {
-    if (selectedVideo) {
-      playerRef.current.pauseVideo();
-    } else if (inView) {
-      playerRef.current.playVideo();
-    }
-  } catch (err) {
-    console.warn("Unable to control hero trailer", err);
-  }
-}, [selectedVideo, inView, videoReady]);
+  }, [inView, videoReady, isModalOpen]);
 
   useEffect(() => {
-    if (!heroData || !inView) {
+    if (!heroData || !inView || isModalOpen) {
       setShowVideo(false);
       return;
     }
@@ -101,7 +114,7 @@ useEffect(() => {
     } else {
       setShowVideo(true);
     }
-  }, [heroData, inView]);
+  }, [heroData, inView, isModalOpen]);
 
   const heroImages = heroData?.content?.images || [];
   const logo = heroImages.find((img: any) => img.type === "LOGO")?.url;
@@ -173,22 +186,27 @@ useEffect(() => {
           
           <div className="hero-buttons">
             <Link href={`/watch/${heroData?.content?.id}`}>
-            <div className="play-button">
-            <Play size={24} fill="currentColor" /> Play
-            </div></Link>
-            
-            <button className="info-button" 
-               onClick={() => {
-                    if (playerRef.current && videoReady) {
-                        try {
-                            playerRef.current.pauseVideo();
-                        } catch {}
-                    }
-
-                    setSelectedVideo(heroData.content);
-                }}>
-                <Info size={24} /> More Info
-            </button>
+                <div className="play-button">
+                    <Play size={24} fill="currentColor" /> Play
+                </div>
+            </Link>
+      
+            <Link href={`/${pageType === "home" ? "movie" : pageType}/${heroData?.content?.id}`}>
+                <button 
+                    className="info-button" 
+                    onClick={() => {
+                        if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+                            try {
+                                playerRef.current.pauseVideo();
+                            } catch (e) {
+                                console.warn("Could not pause player", e);
+                            }
+                        }
+                    }}
+                >
+                    <Info size={24} /> More Info
+                </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -198,25 +216,6 @@ useEffect(() => {
           {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
         </button>
       </div>
-
-      {selectedVideo && (
-        <VideoModal 
-          video={selectedVideo} 
-          videos={[selectedVideo]}
-          type={pageType}
-          onClose={() => {
-              setSelectedVideo(null);
-
-              if (playerRef.current && videoReady && inView) {
-                  setTimeout(() => {
-                      try {
-                          playerRef.current.playVideo();
-                      } catch {}
-                  }, 150);
-              }
-          }}
-        />
-      )}
 
       {loading && <div className="shimmer-loader" />}
 
@@ -269,7 +268,7 @@ useEffect(() => {
         .hero-buttons { display: flex; gap: 15px; }
         .play-button { display: flex; align-items: center; gap: 12px; background: #fff; color: #000; padding: 12px 30px; border-radius: 5px; font-weight: 800; text-decoration: none; transition: transform 0.2s, background 0.2s; }
         .play-button:hover { background: #e6e6e6; transform: scale(1.05); }
-        .info-button { display: flex; align-items: center; gap: 12px; background: rgba(109,109,110,0.7); color: #fff; padding: 12px 30px; border-radius: 5px; border: none; font-weight: 800; cursor: pointer; transition: transform 0.2s, background 0.2s; }
+        .info-button { display: flex; align-items: center; gap: 12px; background: rgba(109,109,110,0.7); color: #fff; padding: 12px 30px; border-radius: 5px; border: none; font-weight: 800; cursor: pointer; transition: transform 0.2s, background 0.2s; text-decoration: none; }
         .info-button:hover { background: rgba(109,109,110,0.5); transform: scale(1.05); }
         
         .hero-controls { position: absolute; right: 5%; bottom: 15%; z-index: 20; }
