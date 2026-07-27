@@ -201,7 +201,7 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
         .video-wrapper.visible { opacity: 1; }
         
         .youtube-player { width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
-        :global(.youtube-player iframe) { width: 100vw !important; height: 100vh !important; pointer-events: none; transform: scale(1.25); }
+        :global(.youtube-player iframe) { width: 100vw !important; height: 100vh !important; pointer-events: none; transform: scale(1.3); }
         
         .hero-overlay { position: absolute; inset: 0; background: radial-gradient(ellipse at bottom left, #000 0%, rgba(0,0,0,0.5) 30%, transparent 70%); z-index: 4; }
         .hero-vignette{ position:absolute; inset:0; background: radial-gradient(circle at center, transparent 45%, rgba(0,0,0,.3) 100%); z-index: 2; }
