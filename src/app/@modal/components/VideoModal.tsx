@@ -23,7 +23,7 @@ export default function VideoModal({
 }: VideoModalProps) {
   const router = useRouter();
   const [inMyList, setInMyList] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default to true
   const [mounted, setMounted] = useState(false);
   const [activeSeason, setActiveSeason] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -129,7 +129,7 @@ export default function VideoModal({
                         controls: 0, 
                         modestbranding: 1, 
                         loop: 0, 
-                        mute: 0, 
+                        mute: 1, // Start muted
                         rel: 0,
                         playsinline: 1 
                     } 
@@ -320,7 +320,7 @@ export default function VideoModal({
         @media (max-width:640px){ .modal{ width:96vw; border-radius:16px; } .hero{ height:320px; } .title{ font-size:2rem; } .play-button{ padding:13px 24px!important; } .circle-btn{ width:48px; height:48px; } .recommend-grid{ grid-template-columns:1fr; } .content{ padding:28px 22px; } }
         @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
         @keyframes modalEnter{ from{ opacity:0; } to{ opacity:1; } }
-      `}</style>
+        `}</style>
     </div>
   );
 }

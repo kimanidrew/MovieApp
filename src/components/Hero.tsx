@@ -22,7 +22,7 @@ export default function Hero({ pageType }: HeroProps) {
   const [loading, setLoading] = useState(true);
   const [showVideo, setShowVideo] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default to true for autoplay
   const [inView, setInView] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -127,7 +127,6 @@ export default function Hero({ pageType }: HeroProps) {
   function onPlayerReady(event: any) {
     playerRef.current = event.target;
     setVideoReady(true);
-    event.target.unMute();
     event.target.playVideo();
   }
 
@@ -160,7 +159,7 @@ export default function Hero({ pageType }: HeroProps) {
             opts={{ 
                 width: "100%", 
                 height: "100%", 
-                playerVars: { autoplay: 1, controls: 0, modestbranding: 1, loop: 1, mute: 0, playlist: youtubeId } 
+                playerVars: { autoplay: 1, controls: 0, modestbranding: 1, loop: 1, mute: 1, playlist: youtubeId } 
             }} 
             onReady={onPlayerReady} 
             className="youtube-player" 
@@ -186,26 +185,26 @@ export default function Hero({ pageType }: HeroProps) {
           
           <div className="hero-buttons">
             <Link href={`/watch/${heroData?.content?.id}`}>
-                <div className="play-button">
-                    <Play size={24} fill="currentColor" /> Play
-                </div>
+              <div className="play-button">
+                  <Play size={24} fill="currentColor" /> Play
+              </div>
             </Link>
       
             <Link href={`/${pageType === "home" ? "movie" : pageType}/${heroData?.content?.id}`}>
-                <button 
-                    className="info-button" 
-                    onClick={() => {
-                        if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
-                            try {
-                                playerRef.current.pauseVideo();
-                            } catch (e) {
-                                console.warn("Could not pause player", e);
-                            }
-                        }
-                    }}
-                >
-                    <Info size={24} /> More Info
-                </button>
+              <button 
+                  className="info-button" 
+                  onClick={() => {
+                      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+                          try {
+                              playerRef.current.pauseVideo();
+                          } catch (e) {
+                              console.warn("Could not pause player", e);
+                          }
+                      }
+                  }}
+              >
+                  <Info size={24} /> More Info
+              </button>
             </Link>
           </div>
         </div>
