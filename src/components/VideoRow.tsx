@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import VideoModal from "./Modals/VideoModal";
 import Hls from "hls.js";
 import Image from "next/image";
 import { Video } from "@/types/video";
@@ -54,14 +53,7 @@ export default function VideoRow({
         </div>
       </section>
 
-      {/* FIXED: Passing video, videos, and onClose as requested */}
-      {selectedVideo && (
-        <VideoModal
-          video={selectedVideo}
-          videos={videos}
-          onClose={() => setSelectedVideo(null)}
-        />
-      )}
+   
 
       <style jsx>{`
         .row-section { padding: 1rem 0; position: relative; clear: both; }
