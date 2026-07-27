@@ -230,10 +230,10 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
         .meta-top { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; }
         .meta-bottom { display: flex; align-items: center; gap: 15px; color: #d5d5d5; font-size: 1rem; }
         
-        .year-box { background-color: #000; padding: 5px 8px; border-radius: 4px; color: #fff; font-size: 1rem; border: 1px solid rgba(255,255,255,0.2); }
+        .year-box { background-color: #000; padding: 4px 8px; border-radius: 4px; color: #fff; font-size: 1rem; border: 1px solid rgba(255,255,255,0.2); }
         .season-count { font-size: 1.1rem; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
         
-        .rating{ border:2px solid rgba(255,255,255,.45); padding:3px 10px; border-radius:4px; font-weight:600; }
+        .rating{ border:2px solid rgba(255,255,255,.45); padding:4px 10px; border-radius:4px; font-weight:600; }
         .quality{ background:#2a2a2a; padding:3px 10px; border-radius:4px; color:#e8e8e8; font-size: 0.9rem; }
         
         .hero-buttons { display: flex; gap: 15px; margin-top: 30px; align-items: center; }
