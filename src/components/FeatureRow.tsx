@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import VideoModal from "./Modals/VideoModal";
 import FeatureCard from "./FeatureCard";
 import { Video } from "@/types/video"; // Importing the shared type
 
@@ -113,13 +112,6 @@ export default function FeatureRow({
         </div>
       </section>
 
-      {selectedVideo && (
-        <VideoModal
-          video={selectedVideo}
-          videos={videos}
-          onClose={() => setSelectedVideo(null)}
-        />
-      )}
 
       <style jsx>{`
         .feature-row-section { padding: 2rem 0; position: relative; clear: both; }
