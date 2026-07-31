@@ -13,7 +13,7 @@ interface PageHeaderProps {
   categories: string[];
   selectedTabs: string[];
   onToggleTab: (tab: string) => void;
-  pageType: "movies" | "shows";
+  pageType: "movies" | "shows" | "home";
 }
 
 export default function PageHeader({
