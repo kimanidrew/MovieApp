@@ -1,5 +1,4 @@
 import React from 'react';
-import Footer from '@/components/Footer';
 
 export const metadata = {
   title: 'About Us - MovieFlix',
@@ -33,8 +32,6 @@ export default function AboutPage() {
           <style>{`.hover-card:hover { transform: translateY(-10px); }`}</style>
         </div>
       </div>
-
-      <Footer />
     </main>
   );
 }

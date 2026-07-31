@@ -7,12 +7,14 @@ interface FilterProps {
   categories: string[];
   selectedCategory: string;
   onSelect: (category: string) => void;
+  pageType: "movies" | "shows" | "home";
 }
 
 export default function CategoryFilter({
   categories,
   selectedCategory,
   onSelect,
+  pageType,
 }: FilterProps) {
   return (
     <aside className="sidebar">
@@ -23,7 +25,7 @@ export default function CategoryFilter({
 
         <div>
           <h3>Browse</h3>
-          <p>Discover movies by genre</p>
+          <p>Discover {pageType} by genre</p>
         </div>
       </div>
 
@@ -32,8 +34,7 @@ export default function CategoryFilter({
           onClick={() => onSelect("All")}
           className={`category ${selectedCategory === "All" ? "active" : ""}`}
         >
-          <span>All Movies</span>
-          <ChevronRight size={16} className="arrow" />
+          <span>Browse {pageType}</span>
         </button>
 
         {categories.map((category) => (
@@ -45,7 +46,6 @@ export default function CategoryFilter({
             }`}
           >
             <span>{category}</span>
-            <ChevronRight size={16} className="arrow" />
           </button>
         ))}
       </nav>
@@ -60,7 +60,7 @@ export default function CategoryFilter({
           flex-direction: column;
           padding-top: 10px;
           overflow: hidden;
-          background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.5) 100%);
+          background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 90%, rgba(0,0,0,0.5) 100%);
           border-radius: 20px;
           isolation: isolate;
           box-shadow: 0 40px 50px rgba(0,0,0,0.5);
@@ -69,7 +69,7 @@ export default function CategoryFilter({
         .categories {
           flex: 1;
           overflow-y: auto;
-          padding: 20px 0 60px 0; 
+          padding: 30px 0 60px 0; 
           -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
           mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
           box-shadow: inset 0 20px 30px -10px rgba(0,0,0,0.6), inset 0 -20px 30px -10px rgba(0,0,0,0.6);
@@ -95,7 +95,7 @@ export default function CategoryFilter({
           align-items: center;
           gap: 14px;
           flex-shrink: 0;
-          padding: 10px;
+          padding: 5px 10px;
         }
 
         .headerIcon {
@@ -127,6 +127,7 @@ export default function CategoryFilter({
           font-size: 0.95rem;
           font-weight: 600;
           transition: all 0.25s ease;
+          text-transform: capitalize;
         }
 
         .category::before {
@@ -134,21 +135,21 @@ export default function CategoryFilter({
           position: absolute;
           left: 0;
           top: 50%;
-          width: 3px;
+          width: 4px;
           height: 0;
-          background: #e50914;
+          background: #ec4899;
           transition: 0.25s ease;
           transform: translateY(-50%);
         }
 
-        .category:hover { background: rgba(255, 255, 255, 0.04); color: white; padding-left: 26px; }
+        .category:hover { background: linear-gradient(to right, #3b82f6, #ec4899); opacity:0.6; color: white; padding-left: 26px; }
         .category:hover::before { height: 70%; }
 
         .arrow { opacity: 0; transform: translateX(-10px); transition: 0.25s ease; }
         .category:hover .arrow { opacity: 1; transform: translateX(0); }
 
         .category.active {
-          background: linear-gradient(90deg, rgba(229, 9, 20, 0.18), transparent);
+          background:linear-gradient(90deg, #3b82f6, #ec4899, transparent);
           color: white;
           padding-left: 28px;
         }
@@ -160,7 +161,7 @@ export default function CategoryFilter({
           .categories { flex-direction: row; flex-wrap: wrap; gap: 10px; overflow: visible; padding-bottom: 0; -webkit-mask-image: none; mask-image: none; box-shadow: none; }
           .category { width: auto; padding: 12px 20px; background: #1c1c1c; border-radius: 999px; }
           .category::before, .arrow { display: none; }
-          .category.active { background: #e50914; padding-left: 20px; }
+          .category.active { background: linear-gradient(to right, #3b82f6, #ec4899); padding-left: 20px; }
         }
       `}</style>
     </aside>

@@ -1,5 +1,4 @@
 import React from 'react';
-import Footer from '@/components/Footer';
 
 export const metadata = {
   title: 'Careers - MovieFlix',
@@ -39,8 +38,6 @@ export default function CareersPage() {
           <style>{`.job-hover:hover { background: rgba(255,255,255,0.08) !important; }`}</style>
         </div>
       </div>
-
-      <Footer />
     </main>
   );
 }

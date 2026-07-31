@@ -64,8 +64,8 @@ export default function VideoGrid({ videos, type = "movies", isLoading = false }
       <style jsx>{`
         .grid-layout { 
           display: grid; 
-          grid-template-columns: repeat(4, 1fr); 
-          gap: 1rem; 
+          grid-template-columns: repeat(5, 1fr); 
+          gap: 1.5rem; 
         }
 
         @media (max-width: 1024px) {

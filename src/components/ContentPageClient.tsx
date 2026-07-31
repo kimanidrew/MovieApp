@@ -46,7 +46,7 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
   };
 
   return (
-    <section style={{ flex: 1, paddingTop: "100px", paddingBottom: "60px", paddingInline: "3%" }}>
+    <section style={{ flex: 1, paddingTop: "80px", paddingBottom: "60px", paddingInline: "3%" }}>
       <PageHeader 
         title={type === "movies" ? "Movies" : "Shows"}
         subtitle={type === "movies" ? "Browse our premium movie library." : "Browse our premium TV series library."}
@@ -56,15 +56,10 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
         categories={categories}
         selectedTabs={selectedTabs}
         onToggleTab={toggleTab}
+        pageType={type}
       />
 
-      <div className="contentLayout">
-        <CategoryFilter 
-          categories={genres}
-          selectedCategory={selectedCategory}
-          onSelect={setSelectedCategory}
-        />
-
+  
         <div className="contentArea">
           {/* AnimatePresence handles the exit animation */}
           <AnimatePresence mode="popLayout">
@@ -87,7 +82,6 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
             type={type}
           />
         </div>
-      </div>
 
       <style jsx>{`
         .contentLayout { 

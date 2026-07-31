@@ -48,7 +48,7 @@ export default function Loading() {
 
         /* Red gradient match to your branding */
         .text-gradient-2 {
-          background: linear-gradient(135deg, #e50914 0%, #9b0007 100%);
+          background: linear-gradient(to right, #3b82f6, #ec4899);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
