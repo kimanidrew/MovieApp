@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     "@ffmpeg-installer/ffmpeg",
     "fluent-ffmpeg",
   ],
+  allowedDevOrigins: ['192.168.1.9'],
 
   images: {
     qualities: [70, 75, 90], // 👈 Authorize quality 90 here

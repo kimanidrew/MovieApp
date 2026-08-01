@@ -127,6 +127,24 @@ export default function PageHeader({
               <span>{tab}</span>
             </button>
           ))}
+          {collectionTabs.map((tab) => (
+            <button
+              key={tab}
+              className={`tab ${selectedTabs.includes(tab) ? "active" : ""}`}
+              onClick={() => onToggleTab(tab)}
+            >
+              <span>{tab}</span>
+            </button>
+          ))}
+          {collectionTabs.map((tab) => (
+            <button
+              key={tab}
+              className={`tab ${selectedTabs.includes(tab) ? "active" : ""}`}
+              onClick={() => onToggleTab(tab)}
+            >
+              <span>{tab}</span>
+            </button>
+          ))}
         </div>
 
         {scrollState.right && (
@@ -193,7 +211,7 @@ export default function PageHeader({
         .scrollBtn { 
           background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); 
           border-radius: 50%; width: 36px; height: 36px; cursor: pointer; display: flex; align-items: center; 
-          justify-content: center; flex-shrink: 0; z-index: 10; margin-bottom: 5px;
+          justify-content: center; flex-shrink: 0; z-index: 10; margin-bottom: 7px;
         }
       `}</style>
     </div>

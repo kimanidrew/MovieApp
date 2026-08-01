@@ -31,13 +31,20 @@ enum ContentStatus {
   ARCHIVED
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PENDING
+}
+
 enum AssetType {
-  POSTER // Standard vertical portrait card (e.g., 2:3 aspect ratio grids)
-  BACKDROP // Wide landscape showcase billboard image 
-  BANNER // High-density horizontal graphic components
-  STILL // Isolated static freeze-frame thumbnail from stream captures
-  LOGO // Alpha-channel transparent typographic typography layers
-  HERO_ART // Prominent premium marketing banners
+  POSTER
+  BACKDROP
+  BANNER
+  STILL
+  LOGO
+  HERO_ART
 }
 
 enum VideoResolution {
@@ -100,30 +107,26 @@ enum RowDataSource {
 }
 
 // =========================================================================
-// 3. CORE CONTENT CLASSIFICATION (NORMALIZED RATINGS & LANGUAGES)
+// 3. CORE CONTENT CLASSIFICATION
 // =========================================================================
 
 model MaturityRating {
-  id           String   @id @default(uuid())
-  code         String   @unique // e.g., "PG-13", "TV-MA", "18+"
-  system       String // e.g., "MPAA", "TVPG", "BBFC"
-  severityRank Int // Numeric weight for sorting/parental lock control (e.g., G=10, R=50)
+  id           String    @id @default(uuid())
+  code         String    @unique
+  system       String
+  severityRank Int
   description  String?
-  createdAt    DateTime @default(now())
-
-  // Back-Relations
+  createdAt    DateTime  @default(now())
   contentItems Content[]
   profiles     Profile[]
 }
 
 model LanguageRegistry {
-  id         String   @id @default(uuid())
-  iso6391    String   @unique // e.g., "en", "es", "ja"
-  name       String // e.g., "English", "Español", "Japanese"
-  nativeName String?
-  createdAt  DateTime @default(now())
-
-  // Back-Relations
+  id               String            @id @default(uuid())
+  iso6391          String            @unique
+  name             String
+  nativeName       String?
+  createdAt        DateTime          @default(now())
   contentLanguages ContentLanguage[]
   subtitleTracks   SubtitleTrack[]
   audioTracks      AudioTrack[]
@@ -131,44 +134,81 @@ model LanguageRegistry {
 }
 
 // =========================================================================
-// 4. IDENTITY, BILLING STRATAS & ACTIVE RUNTIME DEVICE SESSIONS
+// 4. IDENTITY, CREATOR & BILLING
 // =========================================================================
 
 model User {
-  id                 String            @id @default(uuid())
-  passwordHash       String?
-  email              String            @unique
-  role               Role              @default(USER)
-  subscriptionPlanId String?
-  subscriptionPlan   SubscriptionPlan? @relation(fields: [subscriptionPlanId], references: [id], onDelete: Restrict)
-  isActive           Boolean           @default(true)
-  deletedAt          DateTime?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  id           String  @id @default(uuid())
+  passwordHash String?
+  email        String  @unique
+  role         Role    @default(USER)
 
-  profiles Profile[]
-  sessions DeviceSession[]
+  // Creator Permissions
+  isCreator      Boolean         @default(false)
+  creatorProfile CreatorProfile?
 
-  // CMS Auditing Back-References
+  isActive  Boolean   @default(true)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  profiles      Profile[]
+  sessions      DeviceSession[]
+  subscriptions Subscription[]
+
+  // Content ownership
   createdContents Content[] @relation("ContentCreator")
   updatedContents Content[] @relation("ContentUpdater")
 
   @@index([email])
 }
 
-model SubscriptionPlan {
-  id                     String   @id @default(uuid())
-  name                   String   @unique // e.g., "Premium Ultra 4K"
-  slug                   String   @unique // e.g., "premium-ultra-4k"
-  maxSimultaneousScreens Int      @default(1)
-  maxResolution          String   @default("1080p")
-  allowsDownloads        Boolean  @default(false)
-  priceCents             Int
-  currency               String   @default("USD")
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+model CreatorProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  users User[]
+  // Added balance tracking
+  currentBalance Decimal @default(0.00) @db.Decimal(10, 2)
+
+  channelName String
+  bio         String?  @db.Text
+  avatarUrl   String?
+  isVerified  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  slug            String   @unique
+  durationDays    Int // 1=Daily, 7=Weekly, 30=Monthly
+  priceCents      Int
+  currency        String   @default("USD")
+  maxResolution   String   @default("1080p")
+  allowsDownloads Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id     String           @id @default(uuid())
+  userId String
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  status    SubscriptionStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime
+  autoRenew Boolean            @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
 }
 
 model DeviceSession {
@@ -176,7 +216,7 @@ model DeviceSession {
   userId       String
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceUuid   String
-  deviceName   String // e.g., "Living Room Samsung TV"
+  deviceName   String
   deviceType   DeviceType @default(WEB)
   ipAddress    String?
   refreshToken String     @unique
@@ -193,19 +233,17 @@ model DeviceSession {
 // =========================================================================
 
 model Profile {
-  id        String  @id @default(uuid())
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  avatarUrl String?
-
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  avatarUrl     String?
   maxMaturityId String
   maxMaturity   MaturityRating @relation(fields: [maxMaturityId], references: [id], onDelete: Restrict)
   pinLockCode   String?
-
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  deletedAt     DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   settings        ProfileSettings?
   watchHistory    WatchHistory[]
@@ -230,7 +268,7 @@ model ProfileSettings {
 }
 
 // =========================================================================
-// 6. CONTENT CORE METADATA CONTAINER (Polymorphic Unified Entrypoint)
+// 6. CONTENT CORE METADATA
 // =========================================================================
 
 model Content {
@@ -244,37 +282,33 @@ model Content {
   maturityRatingId String
   maturityRating   MaturityRating @relation(fields: [maturityRatingId], references: [id], onDelete: Restrict)
 
-  // External Provider Mappings
+  // External Providers
   imdbId  String? @unique
   tmdbId  Int?    @unique
   tvdbId  String? @unique
   traktId Int?    @unique
 
-  // Global Engine Search Optimization
-  keywords String[]
-
-  // Macro Engine Metrics & Telemetry Rollups
+  // Engine Metrics
   popularityScore Float  @default(0.0)
   viewCount       BigInt @default(0)
   watchSeconds    BigInt @default(0)
   playCount       Int    @default(0)
-  trendingScore   Float  @default(0.0)
 
-  // CMS Lifecycle Auditing
+  // Creator Relations
   createdById String
-  createdBy   User      @relation("ContentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy   User   @relation("ContentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   updatedById String
-  updatedBy   User      @relation("ContentUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  updatedBy   User   @relation("ContentUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+
   publishedAt DateTime?
-  deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   // Structural Variants
-  movies Movie[] // Now an explicit array to support Director's Cuts, Regional Variants, etc.
+  movies Movie[]
   show   Show?
 
-  // Explicit Joint Relationship Connectors
+  // Join Connectors
   categories      ContentCategory[]
   collections     CollectionItem[]
   languages       ContentLanguage[]
@@ -292,12 +326,8 @@ model Content {
   sourcedRecomms  RecommendationScore[]      @relation("SourceContent")
 
   @@index([title])
-  @@index([releaseYear])
   @@index([status])
-  @@index([createdAt])
-  @@index([popularityScore])
-  @@index([trendingScore])
-  @@index([keywords])
+  @@index([createdById])
 }
 
 // =========================================================================
@@ -788,4 +818,42 @@ model Download {
 
   @@unique([profileId, videoId, deviceUuid])
   @@index([profileId])
+}
+
+// =========================================================================
+// 15. CREATOR MONETIZATION & PAYOUT SYSTEM
+// =========================================================================
+
+model EarningsEvent {
+  id        String @id @default(uuid())
+  creatorId String
+  contentId String
+
+  // The amount earned in the smallest currency unit (e.g., 0.50 USD)
+  amount Decimal @db.Decimal(10, 2)
+
+  // Describes the source (e.g., "SUBSCRIPTION_SHARE", "BONUS")
+  sourceType String
+
+  // Link to the watch history entry that triggered this
+  watchHistoryId String? @unique
+
+  createdAt DateTime @default(now())
+
+  @@index([creatorId])
+  @@index([createdAt])
+}
+
+model CreatorPayout {
+  id        String @id @default(uuid())
+  creatorId String
+
+  amount Decimal @db.Decimal(10, 2)
+  status String  @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
+
+  // Payout metadata (e.g., "Monthly Payout July 2026")
+  description String?
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
 }

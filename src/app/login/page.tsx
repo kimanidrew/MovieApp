@@ -16,11 +16,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [deviceUuid, setDeviceUuid] = useState("");
 
-  // Safely initialize a persistent device identifier inside the browser environment
+// Safely initialize a persistent device identifier
   useEffect(() => {
     let uuid = localStorage.getItem("device_uuid");
     if (!uuid) {
-      uuid = crypto.randomUUID();
+      // Fallback: Use crypto.randomUUID if available, otherwise generate a random string
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        uuid = crypto.randomUUID();
+      } else {
+        // Simple fallback for older browsers or insecure contexts
+        uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
       localStorage.setItem("device_uuid", uuid);
     }
     setDeviceUuid(uuid);

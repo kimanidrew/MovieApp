@@ -142,22 +142,45 @@ exports.Prisma.UserScalarFieldEnum = {
   passwordHash: 'passwordHash',
   email: 'email',
   role: 'role',
-  subscriptionPlanId: 'subscriptionPlanId',
+  isCreator: 'isCreator',
   isActive: 'isActive',
   deletedAt: 'deletedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.CreatorProfileScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  currentBalance: 'currentBalance',
+  channelName: 'channelName',
+  bio: 'bio',
+  avatarUrl: 'avatarUrl',
+  isVerified: 'isVerified',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SubscriptionPlanScalarFieldEnum = {
   id: 'id',
   name: 'name',
   slug: 'slug',
-  maxSimultaneousScreens: 'maxSimultaneousScreens',
-  maxResolution: 'maxResolution',
-  allowsDownloads: 'allowsDownloads',
+  durationDays: 'durationDays',
   priceCents: 'priceCents',
   currency: 'currency',
+  maxResolution: 'maxResolution',
+  allowsDownloads: 'allowsDownloads',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SubscriptionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  planId: 'planId',
+  status: 'status',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  autoRenew: 'autoRenew',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -210,16 +233,13 @@ exports.Prisma.ContentScalarFieldEnum = {
   tmdbId: 'tmdbId',
   tvdbId: 'tvdbId',
   traktId: 'traktId',
-  keywords: 'keywords',
   popularityScore: 'popularityScore',
   viewCount: 'viewCount',
   watchSeconds: 'watchSeconds',
   playCount: 'playCount',
-  trendingScore: 'trendingScore',
   createdById: 'createdById',
   updatedById: 'updatedById',
   publishedAt: 'publishedAt',
-  deletedAt: 'deletedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -510,6 +530,26 @@ exports.Prisma.DownloadScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.EarningsEventScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  contentId: 'contentId',
+  amount: 'amount',
+  sourceType: 'sourceType',
+  watchHistoryId: 'watchHistoryId',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CreatorPayoutScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  amount: 'amount',
+  status: 'status',
+  description: 'description',
+  paidAt: 'paidAt',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -530,6 +570,13 @@ exports.Role = exports.$Enums.Role = {
   CONTENT_MANAGER: 'CONTENT_MANAGER',
   ADMIN: 'ADMIN',
   SUPERADMIN: 'SUPERADMIN'
+};
+
+exports.SubscriptionStatus = exports.$Enums.SubscriptionStatus = {
+  ACTIVE: 'ACTIVE',
+  CANCELED: 'CANCELED',
+  EXPIRED: 'EXPIRED',
+  PENDING: 'PENDING'
 };
 
 exports.DeviceType = exports.$Enums.DeviceType = {
@@ -612,7 +659,9 @@ exports.Prisma.ModelName = {
   MaturityRating: 'MaturityRating',
   LanguageRegistry: 'LanguageRegistry',
   User: 'User',
+  CreatorProfile: 'CreatorProfile',
   SubscriptionPlan: 'SubscriptionPlan',
+  Subscription: 'Subscription',
   DeviceSession: 'DeviceSession',
   Profile: 'Profile',
   ProfileSettings: 'ProfileSettings',
@@ -648,7 +697,9 @@ exports.Prisma.ModelName = {
   MyListItem: 'MyListItem',
   Rating: 'Rating',
   RecommendationScore: 'RecommendationScore',
-  Download: 'Download'
+  Download: 'Download',
+  EarningsEvent: 'EarningsEvent',
+  CreatorPayout: 'CreatorPayout'
 };
 
 /**

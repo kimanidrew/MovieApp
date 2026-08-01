@@ -69,15 +69,13 @@ export default function ConsumerNavbar() {
             <Link href="/" className="nav-brand text-gradient">MFLIX</Link>
             {!isSearchOpen && customerUser && (
               <ul className="nav-links">
-                <li><Link href="/" className={isActive("/") ? "active" : ""}>Home</Link></li>
-                {activeProfile ? (
+                {activeProfile && (
                   <>
+                  <li><Link href="/" className={isActive("/") ? "active" : ""}>Home</Link></li>
                     <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Shows</Link></li>
                     <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Movies</Link></li>
                     <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My List</Link></li>
                   </>
-                ) : (
-                  <li><Link href="/profiles">Select Profile</Link></li>
                 )}
               </ul>
             )}
@@ -113,7 +111,7 @@ export default function ConsumerNavbar() {
 
           {/* RIGHT: Search Toggle + Profile */}
           <div className="nav-right">
-            {!isSearchOpen && (
+            {!isSearchOpen && activeProfile && (
               <button className="search-toggle-btn" onClick={() => setIsSearchOpen(true)}>
                 <Search size={20} />
               </button>
