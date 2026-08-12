@@ -57,11 +57,7 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
     updatedAt: new Date(),
   });
 
-  // Add a "Featured" row from admin-set featured content
-  const featuredRow = await getFeaturedRow();
-  if (featuredRow) {
-    mixedRows.push(featuredRow);
-  }
+ 
 
   allCategories.forEach((cat, index) => {
     mixedRows.push({
