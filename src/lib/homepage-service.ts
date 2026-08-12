@@ -148,6 +148,20 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
               const recommended = await getRecommendedContent(profileId);
               content = recommended;
               break;
+            case "CURATED_COLLECTION":
+              if (row.collectionId) {
+                const collection = await prisma.collection.findUnique({
+                  where: { id: row.collectionId },
+                  include: {
+                    items: {
+                      orderBy: { displayOrder: "asc" as const },
+                      include: { content: { include: contentInclude } },
+                    },
+                  },
+                });
+                content = collection?.items?.map((i: any) => mapContentToVideo(i.content)) || [];
+              }
+              break;
           }
         }
       } catch (error) {
@@ -172,12 +186,9 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
       viewAllHref: getViewAllHref(row.sourceType, row.categoryId),
     }));
 
-  // 6. Determine featured content
-  const featured = await getFeaturedContent();
-
+ 
   return {
     profile: profileData,
-    featured,
     sections,
   };
 }
