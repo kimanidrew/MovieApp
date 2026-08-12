@@ -3,7 +3,6 @@ import { Outfit } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
 import "./admin/upload/upload.css";
-import Footer from "@/components/Footer";
 import Script from "next/script";
 
 // Configure Outfit font
@@ -43,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/components/AuthProvider";
-import ConsumerNavbar from "@/components/Navbar/ConsumerNavbar";
+import LayoutShell from "@/components/LayoutShell";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function RootLayout({
@@ -60,12 +59,10 @@ export default function RootLayout({
         <Analytics/>
         <ThemeProvider>
           <AuthProvider>
-            <ConsumerNavbar/>
-            <main style={{ backgroundColor: "transparent", color: "var(--foreground)", minHeight: "100vh" }}>
+            <LayoutShell>
               {children}
               {modal}
-            </main>
-            <Footer />
+            </LayoutShell>
           </AuthProvider>
         </ThemeProvider>
         <Script

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma"; 
+import prisma from "@/lib/prisma";
+import { requireRole, CONTENT_MANAGEMENT_ROLES } from "@/lib/admin-auth";
 
 export async function GET(request: Request) {
   try {
+    const { user, error } = await requireRole(request, CONTENT_MANAGEMENT_ROLES);
+    if (error) return error;
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
 
@@ -30,10 +34,10 @@ export async function GET(request: Request) {
     });
 
     const formattedShows = shows.map((item) => ({
-      id: item.show?.id, // The unique Show ID
-      contentId: item.id, // The Master Content ID
+      id: item.show?.id,
+      contentId: item.id,
       tmdbId: item.tmdbId,
-      slug: item.slug,   // Required for lookups
+      slug: item.slug,
       title: item.title,
       releaseYear: item.releaseYear,
       posterUrl: item.images[0]?.url || "",
@@ -41,6 +45,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ results: formattedShows });
   } catch (error) {
+    console.error("Search shows error:", error);
     return NextResponse.json({ error: "Failed to search" }, { status: 500 });
   }
 }

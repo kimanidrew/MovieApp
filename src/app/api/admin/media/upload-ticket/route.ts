@@ -1,8 +1,12 @@
 // src/app/api/admin/media/upload-ticket/route.ts
 import { NextResponse } from "next/server";
+import { requireRole, CONTENT_MANAGEMENT_ROLES } from "@/lib/admin-auth";
 
 export async function POST(req: Request) {
   try {
+    const { user, error } = await requireRole(req, CONTENT_MANAGEMENT_ROLES);
+    if (error) return error;
+
     const { filename, sizeInBytes } = await req.json();
 
     const accountId = process.env.CF_ACCOUNT_ID;

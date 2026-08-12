@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-use-env-variable-in-production"
-);
+import { getJwtSecretKey } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -25,7 +22,7 @@ export async function GET() {
     // 2. Decode the incoming JWT safely to extract the database session tracking reference
     let sessionRef: string;
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, getJwtSecretKey());
       sessionRef = payload.sessionRef as string;
     } catch (jwtErr) {
       console.error("Profiles API JWT parsing failure:", jwtErr);
@@ -94,7 +91,7 @@ export async function POST(request: Request) {
     // 1. Parse session token
     let sessionRef: string;
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, getJwtSecretKey());
       sessionRef = payload.sessionRef as string;
     } catch (jwtErr) {
       return NextResponse.json({ error: "Invalid session token signature." }, { status: 401 });

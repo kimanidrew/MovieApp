@@ -1,10 +1,17 @@
-'use client'
-import React from "react";
-import ComingSoon from "../components/ComingSoon";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { getHomepageData } from "@/lib/homepage-service";
+import HomePageContent from "@/components/home/HomePageContent";
 
-export default function Home() {
+export default async function BrowsePage() {
+  const cookieStore = await cookies();
+  const profileId = cookieStore.get("profile_id")?.value;
 
-  return (
-    <ComingSoon/>
-  );
+  if (!profileId) {
+    redirect("/profiles");
+  }
+
+  const homepageData = await getHomepageData(profileId);
+
+  return <HomePageContent data={homepageData} />;
 }

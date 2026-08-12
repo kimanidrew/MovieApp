@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 import Loading from "./Loading";
 
 export type Profile = {
@@ -15,6 +15,7 @@ export type User = {
   id: string;
   email: string;
   role: "USER" | "MODERATOR" | "CONTENT_MANAGER" | "ADMIN" | "SUPERADMIN";
+  isCreator?: boolean;
   profiles: Profile[];
 };
 
@@ -37,78 +38,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [customerUser, setCustomerUser] = useState<User | null>(null);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  
+  const pathname = usePathname();
+  const hasFetched = useRef(false);
 
   const refreshSessions = async () => {
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
-      if (!res.ok) throw new Error("Sessions could not be processed");
+      if (!res.ok) {
+        setAdminUser(null);
+        setCustomerUser(null);
+        setActiveProfile(null);
+        return;
+      }
 
       const data = await res.json();
       
-      // Update Admin State
-      if (data?.adminUser) {
-        setAdminUser(data.adminUser);
-      } else {
-        setAdminUser(null);
-      }
-
-      // Update Customer State
+      // Independent evaluation of both sessions
+      setAdminUser(data?.adminUser || null);
+      
       if (data?.customerUser) {
-        const cUser: User = data.customerUser;
-        setCustomerUser(cUser);
-
+        setCustomerUser(data.customerUser);
+        // Restore the saved profile from localStorage (persisted selection)
         const savedProfileId = localStorage.getItem("customer_active_profile_id");
-        if (savedProfileId && cUser.profiles) {
-          const profile = cUser.profiles.find((p) => p.id === savedProfileId);
-          if (profile) setActiveProfile(profile);
+        if (savedProfileId && data.customerUser.profiles) {
+          const profile = data.customerUser.profiles.find((p: Profile) => p.id === savedProfileId);
+          if (profile) {
+            setActiveProfile(profile);
+            // Also restore the profile_id cookie so middleware lets them through
+            document.cookie = `profile_id=${profile.id}; path=/; max-age=31536000; SameSite=Lax`;
+          }
         }
       } else {
         setCustomerUser(null);
         setActiveProfile(null);
       }
-    } catch (err) {
+    } catch {
       setAdminUser(null);
       setCustomerUser(null);
       setActiveProfile(null);
     } finally {
-      // Guaranteed to resolve, showing the application once data is populated
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    refreshSessions();
+    // Only fetch once on mount to avoid re-rendering on every pathname change
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      refreshSessions();
+    }
   }, []);
 
   const login = async (userData: User, userType: "admin" | "customer", redirectPath?: string) => {
-    let targetPath = redirectPath;
-
     if (userType === "admin") {
       setAdminUser(userData);
-      targetPath = targetPath || "/admin/dashboard";
+      window.location.href = redirectPath || "/admin/dashboard";
     } else {
       setCustomerUser(userData);
-      targetPath = targetPath || "/profiles";
-      
-      if (userData.profiles && userData.profiles.length > 0) {
-        const savedProfileId = localStorage.getItem("customer_active_profile_id");
-        const profile = userData.profiles.find((p) => p.id === savedProfileId);
-        if (profile) {
-          setActiveProfile(profile);
-          targetPath = "/";
-        }
-      }
+      window.location.href = redirectPath || "/profiles";
     }
-
-    // Refresh FIRST to ensure Next.js updates server context with the newly set cookie
-    router.refresh();
-    router.push(targetPath);
   };
 
- const logout = async (userType: "admin" | "customer") => {
+  const logout = async (userType: "admin" | "customer") => {
     try {
-      // 1. Clear HTTP-Only session cookies on the server
       await fetch("/api/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,33 +110,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Logout dispatch failed:", err);
     } finally {
-      // 2. Clear all client-accessible cookies
-      document.cookie = "profile_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-      document.cookie = "admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-      document.cookie = "customer_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-
-      // 3. Clear local storage
-      localStorage.removeItem("customer_active_profile_id");
-
-      // 4. Force hard redirect to clear all internal React state
       if (userType === "admin") {
+        document.cookie = "admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+        setAdminUser(null);
         window.location.href = "/admin/login";
       } else {
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+        document.cookie = "profile_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
+        localStorage.removeItem("customer_active_profile_id");
+        setCustomerUser(null);
+        setActiveProfile(null);
         window.location.href = "/login";
       }
     }
   };
 
-const handleSetActiveProfile = (profile: Profile | null, shouldRedirect = false) => {
+  const handleSetActiveProfile = (profile: Profile | null, shouldRedirect = false) => {
     setActiveProfile(profile);
     
     if (profile) {
       localStorage.setItem("customer_active_profile_id", profile.id);
-      // 1. Set the cookie
       document.cookie = `profile_id=${profile.id}; path=/; max-age=31536000; SameSite=Lax`;
       
       if (shouldRedirect) {
-        // 2. Force a hard reload to "/" -> completely fresh server and client state
         window.location.href = "/";
       }
     } else {
@@ -166,11 +155,7 @@ const handleSetActiveProfile = (profile: Profile | null, shouldRedirect = false)
         refreshSessions,
       }}
     >
-      {loading ? (
-        <Loading/>
-      ) : (
-        children
-      )}
+      {loading && !pathname.includes("/login") ? <Loading /> : children}
     </AuthContext.Provider>
   );
 }

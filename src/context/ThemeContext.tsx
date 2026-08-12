@@ -12,28 +12,28 @@ export type ThemeColors = {
 
 export const defaultThemes: Record<string, ThemeColors> = {
   "Netflix": {
-    background: "#141414",
+    background: "#000",
     foreground: "#ffffff",
     primaryBrand: "#e50914",
     secondary: "#b9090b",
     tertiary: "#564d4d",
   },
   "Cyberpunk": {
-    background: "#0d0221",
+    background: "#000",
     foreground: "#00ffcc",
     primaryBrand: "#ff00ff",
     secondary: "#00ffff",
     tertiary: "#fcee0a",
   },
   "Midnight": {
-    background: "#0f172a",
+    background: "#000",
     foreground: "#f8fafc",
     primaryBrand: "#3b82f6",
     secondary: "#ec4899",
     tertiary: "#8b5cf6",
   },
   "Forest": {
-    background: "#052e16",
+    background: "#000",
     foreground: "#ecfdf5",
     primaryBrand: "#10b981",
     secondary: "#34d399",

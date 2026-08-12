@@ -1,27 +1,31 @@
 import React, { useState } from "react";
 import { UploadCloud, CheckCircle, Info, Loader2 } from "lucide-react";
+import { uploadFileToR2 } from "@/lib/r2Upload";
 
 export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, uploadedVideoUrl, setUploadedVideoUrl, commitCompleteAssetToDb, saving, isFormValid }: any) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatusText, setUploadStatusText] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const startR2VideoUpload = async () => {
     if (!mainVideoFile) return;
+    setUploading(true);
     setUploadProgress(1);
     setUploadStatusText("Acquiring upload authorization ticket...");
-    
-    // MOCKED: Replace this timeout block with your uploadToR2 XMLHttpRequest block
-    let progress = 1;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      setUploadStatusText("Pushing video segments directly to R2...");
-      if (progress >= 100) {
-        clearInterval(interval);
-        setUploadedVideoUrl("https://cloudflare-r2-public-url.com/mock-video.mp4");
-        setUploadStatusText("Upload complete!");
-      }
-    }, 200);
+
+    try {
+      setUploadProgress(20);
+      setUploadStatusText("Uploading to Cloudflare R2...");
+      const publicUrl = await uploadFileToR2(mainVideoFile, "VIDEO");
+      setUploadedVideoUrl(publicUrl);
+      setUploadProgress(100);
+      setUploadStatusText("Upload complete!");
+    } catch (error: any) {
+      setUploadProgress(0);
+      setUploadStatusText(error?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -38,7 +42,9 @@ export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, upl
         </div>
 
         {mainVideoFile && !uploadedVideoUrl && (
-          <button onClick={startR2VideoUpload} className="btn-execution-commit" style={{ backgroundColor: "#e11d48", color: "#ffffff" }}>Start Direct R2 Upload</button>
+          <button onClick={startR2VideoUpload} disabled={uploading} className="btn-execution-commit" style={{ backgroundColor: "#e11d48", color: "#ffffff" }}>
+            {uploading ? "Uploading..." : "Start Direct R2 Upload"}
+          </button>
         )}
 
         {uploadProgress > 0 && (

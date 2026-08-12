@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { UploadCloud, Link, Trash2 } from "lucide-react";
+import { uploadFileToR2 } from "@/lib/r2Upload";
 
 export default function TrailerUploader({ trailerTracks, setTrailerTracks }: any) {
   const [manualTrailerTitle, setManualTrailerTitle] = useState("");
@@ -10,10 +11,11 @@ export default function TrailerUploader({ trailerTracks, setTrailerTracks }: any
     if (!file) return;
     setTrailerUploading(true);
     try {
-      // Mocked R2 push
-      const publicUrl = URL.createObjectURL(file); // Replace with uploadToR2
+      const publicUrl = await uploadFileToR2(file, "TRAILER");
       setTrailerTracks([...trailerTracks, { title: manualTrailerTitle || "Official Trailer", hlsManifestUrl: publicUrl }]);
       setManualTrailerTitle("");
+    } catch (error: any) {
+      alert(error?.message || "Trailer upload failed");
     } finally {
       setTrailerUploading(false);
     }

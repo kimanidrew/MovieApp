@@ -1,98 +1,118 @@
 // app/api/auth/register/route.ts
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers"; // Added to manage your login cookie state
+import { cookies } from "next/headers";
+import { SignJWT } from "jose";
+import crypto from "crypto";
+import { getJwtSecretKey } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, subscriptionPlanId } = body;
+    const { email, password, deviceUuid, deviceName, deviceType } = body;
 
-    // 1. Basic validation
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required fields.' },
+        { error: "Email and password are required fields." },
         { status: 400 }
       );
     }
 
-    // 2. Prevent unique constraint violations on email
     const normalizedEmail = email.toLowerCase().trim();
-    const existingUser = await prisma.user.findUnique({ 
-      where: { email: normalizedEmail } 
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
     });
-    
+
     if (existingUser) {
       return NextResponse.json(
-        { error: 'An account with this email address already exists.' },
+        { error: "An account with this email address already exists." },
         { status: 409 }
       );
     }
 
-    // 3. Securely encrypt credentials
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 4. Resolve a baseline maturity rating for the default profile
     let defaultMaturity = await prisma.maturityRating.findFirst({
-      orderBy: { severityRank: 'asc' }
+      orderBy: { severityRank: "asc" },
     });
 
-    // Fallback if metadata tables aren't pre-populated yet
     if (!defaultMaturity) {
       defaultMaturity = await prisma.maturityRating.create({
-        data: { code: "G", system: "MPAA", severityRank: 10, description: "General" }
+        data: { code: "G", system: "MPAA", severityRank: 10, description: "General" },
       });
     }
 
-    // 5. Provision the primary User AND their first default viewing profile atomically
     const user = await prisma.user.create({
       data: {
         email: normalizedEmail,
         passwordHash,
-        subscriptionPlanId: subscriptionPlanId || null,
-        role: 'USER',
+        role: "USER",
+        isActive: true,
         profiles: {
           create: {
             name: "Guest",
             maxMaturityId: defaultMaturity.id,
-            // avatarUrl: can be a default asset string here if desired
-          }
-        }
+          },
+        },
       },
       include: {
-        profiles: true // Pull the nested profile list to share back to your frontend layout context
-      }
+        profiles: true,
+      },
     });
 
-    // 6. Generate the session cookie to ensure the user is logged in
-    const response = NextResponse.json(
-      { 
-        message: 'User account initialized successfully.', 
-        user: {
-          id: user.id, // Fixed: Changed from userId to id to match common client schemas
-          email: user.email,
-          role: user.role,
-          subscriptionPlanId: user.subscriptionPlanId,
-          profiles: user.profiles // Fixed: Included profiles so client-side mapping doesn't break
-        } 
-      },
-      { status: 201 }
-    );
+    const resolvedDeviceUuid = deviceUuid || crypto.randomUUID();
+    const resolvedDeviceName = deviceName || "Web Browser";
+    const resolvedDeviceType = deviceType || "WEB";
+    const deviceSessionRef = crypto.randomBytes(40).toString("hex");
+    const ipAddress = request.headers.get("x-forwarded-for") || "127.0.0.1";
 
-    // Drop the JWT token into browser cookie storage
+    await prisma.deviceSession.create({
+      data: {
+        userId: user.id,
+        deviceUuid: resolvedDeviceUuid,
+        deviceName: resolvedDeviceName,
+        deviceType: resolvedDeviceType,
+        ipAddress,
+        refreshToken: deviceSessionRef,
+      },
+    });
+
+    const token = await new SignJWT({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      sessionRef: deviceSessionRef,
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(getJwtSecretKey());
+
     const cookieStore = await cookies();
-    cookieStore.set("token", "mock-jwt-session-string-for-auth", {
+    cookieStore.set("token", token, {
       path: "/",
       maxAge: 7 * 24 * 60 * 60,
       sameSite: "lax",
-      httpOnly: true // Keeps script access locked away for safety
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
     });
 
-    return response;
+    const { passwordHash: _, ...sanitizedUser } = user;
 
+    return NextResponse.json(
+      {
+        message: "User account initialized successfully.",
+        user: {
+          ...sanitizedUser,
+          profiles: user.profiles,
+          isCreator: false,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
-    console.error('Registration Pipeline Exception:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Registration Pipeline Exception:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

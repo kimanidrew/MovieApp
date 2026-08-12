@@ -17,8 +17,6 @@ interface CreateContentInput {
   tmdbId?: number;
   tvdbId?: string;
   traktId?: number;
-
-  keywords?: string[];
 }
 
 export async function createContent(data: CreateContentInput) {
@@ -56,8 +54,6 @@ export async function createContent(data: CreateContentInput) {
       tmdbId: data.tmdbId,
       tvdbId: data.tvdbId,
       traktId: data.traktId,
-
-      keywords: data.keywords ?? [],
 
       status: "READY",
     },

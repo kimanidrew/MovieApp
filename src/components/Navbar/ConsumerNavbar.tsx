@@ -125,6 +125,7 @@ export default function ConsumerNavbar() {
                 {dropdownOpen && (
                   <div className="dropdown-card">
                     <Link href="/profiles" className="dropdown-item" onClick={() => setDropdownOpen(false)}><User size={16} /> Switch Profiles</Link>
+                    <Link href="/creator" className="dropdown-item" onClick={() => setDropdownOpen(false)}><Settings size={16} /> Creator Studio</Link>
                     <button onClick={() => logout("customer")} className="dropdown-item text-danger"><LogOut size={16} /> Sign Out</button>
                   </div>
                 )}
@@ -162,10 +163,11 @@ export default function ConsumerNavbar() {
         .search-item img { width: 50px; height: 30px; object-fit: cover; }
         
         .nav-right { display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0; }
+        .creator-link { color: #f8fafc; text-decoration: none; font-weight: 600; padding: 0.45rem 0.8rem; border-radius: 999px; background: rgba(248, 113, 113, 0.16); border: 1px solid rgba(248, 113, 113, 0.3); }
         .profile-trigger-btn { background: transparent; border: none; display: flex; align-items: center; cursor: pointer; }
         .profile-avatar-thumb { width: 32px; height: 32px; border-radius: 4px; background-size: cover; }
         
-        .dropdown-card { position: absolute; top: 70px; right: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 10px; width: 200px; }
+        .dropdown-card { position: absolute; top: 70px; right: 2rem; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 10px; width: 220px; }
         .dropdown-item { padding: 8px; color: white; text-decoration: none; display: flex; align-items: center; gap: 10px; cursor: pointer; background: none; border: none; width: 100%; }
         .text-danger { color: #e50914; }
       `}</style>

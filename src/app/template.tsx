@@ -2,8 +2,18 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 
 export default function Template({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // Skip animation on login pages to prevent re-rendering loops
+  const isLoginPage = pathname?.includes("/login");
+  
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}

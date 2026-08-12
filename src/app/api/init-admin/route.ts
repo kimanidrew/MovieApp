@@ -1,54 +1,56 @@
 // src/app/api/init-admin/route.ts
 import { NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-import crypto from "crypto";
-import bcrypt from "bcryptjs"; // Make sure bcrypt is in your package.json! 
-// Alternative if you use argon2: import argon2 from "argon2";
+import prisma from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function GET() {
   try {
-    const sql = neon("postgresql://neondb_owner:npg_wdoBs0AyUe1z@ep-falling-mode-anaqy4l8-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require");
+    // Only allow in development or when explicitly enabled
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_INIT_ADMIN !== "true") {
+      return NextResponse.json(
+        { success: false, error: "This endpoint is disabled in production" },
+        { status: 403 }
+      );
+    }
 
-    const email = "admin@movieflix.com";
-    const plainPassword = "singer123"; 
+    const email = process.env.ADMIN_EMAIL || "admin@movieflix.com";
+    const plainPassword = process.env.ADMIN_PASSWORD || "admin123";
     const role = "ADMIN";
-    
+
     // 1. Securely hash the plain text password using 10 salt rounds
     const passwordHash = await bcrypt.hash(plainPassword, 10);
-    // If your app uses argon2 instead: const passwordHash = await argon2.hash(plainPassword);
 
-    const generatedId = crypto.randomUUID(); 
-    const now = new Date().toISOString(); 
-
-    // Step 2: Check if the user already exists
-    const existingUsers = await sql`SELECT id FROM "User" WHERE email = ${email} LIMIT 1`;
+    // 2. Check if the user already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     let result;
-    if (existingUsers.length > 0) {
-      // Step 3: Update role and password if they exist
-      result = await sql`
-        UPDATE "User" 
-        SET role = ${role}, "passwordHash" = ${passwordHash}, "updatedAt" = ${now}
-        WHERE email = ${email}
-        RETURNING id, email, role
-      `;
+    if (existingUser) {
+      // 3. Update role and password if they exist
+      result = await prisma.user.update({
+        where: { email },
+        data: { role: role as any, passwordHash, isActive: true, deletedAt: null },
+        select: { id: true, email: true, role: true },
+      });
     } else {
-      // Step 4: Insert record with hashed password
-      result = await sql`
-        INSERT INTO "User" (id, email, "passwordHash", role, "updatedAt")
-        VALUES (${generatedId}, ${email}, ${passwordHash}, ${role}, ${now})
-        RETURNING id, email, role
-      `;
+      // 4. Insert record with hashed password
+      result = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          role: role as any,
+          isActive: true,
+        },
+        select: { id: true, email: true, role: true },
+      });
     }
 
     return NextResponse.json({
       success: true,
-      message: `Superuser configured securely with hashed password!`,
-      data: result[0]
+      message: "Superuser configured securely with hashed password!",
+      data: result,
     });
-
   } catch (error: any) {
-    console.error("Direct Neon HTTP execution failed:", error);
+    console.error("Admin initialization failed:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Database execution failed" },
       { status: 500 }

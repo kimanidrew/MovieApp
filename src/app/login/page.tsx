@@ -59,7 +59,19 @@ export default function LoginPage() {
       const data = await res.json();
       
       if (res.ok && data.user) {
-        // FIXED: Added the 'userType' parameter ("customer") as the second argument
+        // Restore the previously selected profile if it exists for this user
+        const savedProfileId = localStorage.getItem("customer_active_profile_id");
+        if (savedProfileId && data.user.profiles?.length) {
+          const savedProfile = data.user.profiles.find((p: any) => p.id === savedProfileId);
+          if (savedProfile) {
+            // Restore the profile cookie so middleware lets them straight through
+            document.cookie = `profile_id=${savedProfile.id}; path=/; max-age=31536000; SameSite=Lax`;
+            // Go straight to home instead of profile selection
+            await login(data.user, "customer", "/");
+            return;
+          }
+        }
+        // No saved profile - go to profile selection
         await login(data.user, "customer", "/profiles");
       } else {
         setError(data.error || "Failed to log into your account.");

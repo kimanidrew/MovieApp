@@ -13,7 +13,6 @@ export async function GET(
     const content = await prisma.content.findUnique({
       where: {
         slug,
-        deletedAt: null,
       },
       include: {
         maturityRating: true,

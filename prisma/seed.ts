@@ -1,5 +1,6 @@
 import { Role } from "../src/app/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 async function main() {
   console.log("🌱 Starting database seeding...");
@@ -50,16 +51,24 @@ async function main() {
   console.log("✅ Seeded Maturity Ratings");
 
   // 3. Seed an Admin User
-  const adminUser = await prisma.user.upsert({
+  const plainPassword = "singer123"; // Change this to a strong password
+  const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+const adminUser = await prisma.user.upsert({
     where: { email: "admin@movieflix.com" },
-    update: {},
+    update: {
+      passwordHash: hashedPassword, // Update existing record with new hash if needed
+    },
     create: {
       email: "admin@movieflix.com",
+      passwordHash: hashedPassword, // Store the hash, NOT the plain text
       role: Role.ADMIN,
       isActive: true,
     },
   });
+  
   console.log("✅ Seeded Admin User:", adminUser.email);
+  console.log("⚠️  Note: Make sure to change your initial password after login.");
 
   console.log("🏁 Seeding complete!");
 }

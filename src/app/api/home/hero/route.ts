@@ -18,10 +18,9 @@ export async function GET(request: Request) {
     const hero = await prisma.content.findFirst({
       where: {
         status: "PUBLISHED",
-        deletedAt: null,
         maturityRating: { severityRank: { lte: maxMaturityOrder } }
       },
-      orderBy: [{ trendingScore: "desc" }, { popularityScore: "desc" }],
+      orderBy: [{ popularityScore: "desc" }],
       include: {
         maturityRating: true,
         images: { orderBy: { displayOrder: "asc" } },

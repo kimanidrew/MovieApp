@@ -45,7 +45,8 @@ export default function TitleInformationForm({ formData, setFormData, categories
         <div className="input-group-wrapper">
           <label>Maturity Rating</label>
           <select value={formData.maturityRatingCode} onChange={(e) => setFormData({ ...formData, maturityRatingCode: e.target.value })} className="input-text-field">
-            {maturityOptions.map((rating: any) => (
+            <option value="">Select Maturity Rating...</option>
+            {Array.isArray(maturityOptions) && maturityOptions.map((rating: any) => (
               <option key={rating.id} value={rating.code}>{rating.code} - {rating.description}</option>
             ))}
           </select>
@@ -58,7 +59,7 @@ export default function TitleInformationForm({ formData, setFormData, categories
               <input type="text" value={newCategoryInput} onChange={(e) => setNewCategoryInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }} placeholder="Type category and press Enter..." className="input-text-field" />
               <button type="button" onClick={handleAddCategory} className="btn-category-append"><Plus style={{ width: "1rem", height: "1rem" }} /></button>
             </div>
-            {categories.length > 0 && (
+            {categories?.length > 0 && (
               <div className="badge-pills-wrap">
                 {categories.map((cat: string, i: number) => (
                   <span key={i} className="category-badge-pill">

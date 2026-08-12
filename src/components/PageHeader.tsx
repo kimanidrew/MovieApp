@@ -127,24 +127,6 @@ export default function PageHeader({
               <span>{tab}</span>
             </button>
           ))}
-          {collectionTabs.map((tab) => (
-            <button
-              key={tab}
-              className={`tab ${selectedTabs.includes(tab) ? "active" : ""}`}
-              onClick={() => onToggleTab(tab)}
-            >
-              <span>{tab}</span>
-            </button>
-          ))}
-          {collectionTabs.map((tab) => (
-            <button
-              key={tab}
-              className={`tab ${selectedTabs.includes(tab) ? "active" : ""}`}
-              onClick={() => onToggleTab(tab)}
-            >
-              <span>{tab}</span>
-            </button>
-          ))}
         </div>
 
         {scrollState.right && (

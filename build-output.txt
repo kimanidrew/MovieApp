@@ -1,0 +1,29 @@
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\MRT\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\MRT\Desktop\MovieFlix\package-lock.json
+
+▲ Next.js 16.2.3 (Turbopack)
+- Environments: .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 75s
+  Running TypeScript ...
+Failed to type check.
+
+./src/app/api/plans/route.ts:19:50
+Type error: Type '{ name: string; slug: string; maxSimultaneousScreens: number; maxResolution: string; allowsDownloads: boolean; priceCents: number; currency: string; }[]' is not assignable to type 'SubscriptionPlanCreateManyInput | SubscriptionPlanCreateManyInput[]'.
+  Type '{ name: string; slug: string; maxSimultaneousScreens: number; maxResolution: string; allowsDownloads: boolean; priceCents: number; currency: string; }[]' is not assignable to type 'SubscriptionPlanCreateManyInput[]'.
+    Property 'durationDays' is missing in type '{ name: string; slug: string; maxSimultaneousScreens: number; maxResolution: string; allowsDownloads: boolean; priceCents: number; currency: string; }' but required in type 'SubscriptionPlanCreateManyInput'.
+
+  [90m17 |[0m ...];
+  [90m18 |[0m ...
+[31m[1m>[0m [90m19 |[0m ...[36mawait[0m prisma.subscriptionPlan.createMany({ data: defaultPlans });
+  [90m   |[0m                                               [31m[1m^[0m
+  [90m20 |[0m ...[36mconst[0m seededPlans = [36mawait[0m prisma.subscriptionPlan.findMany({ orderBy: { priceCents: [32m"as..[0m.
+  [90m21 |[0m ...[36mreturn[0m [33mNextResponse[0m.json({ plans: seededPlans });
+  [90m22 |[0m ...
+Next.js build worker exited with code: 1 and signal: null

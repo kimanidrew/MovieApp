@@ -62,9 +62,6 @@ export async function GET(
 
       orderBy: [
         {
-          trendingScore: "desc",
-        },
-        {
           popularityScore: "desc",
         },
       ],
@@ -122,9 +119,6 @@ export async function GET(
 
         popularityScore:
           content.popularityScore,
-
-        trendingScore:
-          content.trendingScore,
 
         type:
           content.movies.length > 0

@@ -1,19 +1,20 @@
 import React, { useState } from "react";
 import { ImageIcon, Loader2, Trash2 } from "lucide-react";
+import { uploadFileToR2 } from "@/lib/r2Upload";
 
 export default function GraphicAssetsUploader({ imageAssets, setImageAssets }: any) {
   const [imageUploading, setImageUploading] = useState(false);
 
-  // Implement your R2 Upload logic here (extracted from original component)
   const handleDeviceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetType: "POSTER" | "BACKDROP") => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageUploading(true);
     try {
-      // Mocked R2 push
-      const publicUrl = URL.createObjectURL(file); // Replace with uploadToR2
+      const publicUrl = await uploadFileToR2(file, targetType === "POSTER" ? "POSTER" : "BACKDROP");
       const currentCount = imageAssets.filter((img: any) => img.type === targetType).length;
       setImageAssets([...imageAssets, { url: publicUrl, type: targetType, displayOrder: currentCount }]);
+    } catch (error: any) {
+      alert(error?.message || "Image upload failed");
     } finally {
       setImageUploading(false);
     }

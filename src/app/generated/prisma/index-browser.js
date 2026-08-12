@@ -139,13 +139,14 @@ exports.Prisma.LanguageRegistryScalarFieldEnum = {
 
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
-  passwordHash: 'passwordHash',
   email: 'email',
-  role: 'role',
-  isCreator: 'isCreator',
-  isActive: 'isActive',
-  deletedAt: 'deletedAt',
   createdAt: 'createdAt',
+  deletedAt: 'deletedAt',
+  isActive: 'isActive',
+  isCreator: 'isCreator',
+  passwordHash: 'passwordHash',
+  role: 'role',
+  referralCode: 'referralCode',
   updatedAt: 'updatedAt'
 };
 
@@ -157,6 +158,7 @@ exports.Prisma.CreatorProfileScalarFieldEnum = {
   bio: 'bio',
   avatarUrl: 'avatarUrl',
   isVerified: 'isVerified',
+  payoutDetails: 'payoutDetails',
   createdAt: 'createdAt'
 };
 
@@ -164,11 +166,20 @@ exports.Prisma.SubscriptionPlanScalarFieldEnum = {
   id: 'id',
   name: 'name',
   slug: 'slug',
+  description: 'description',
   durationDays: 'durationDays',
+  price: 'price',
   priceCents: 'priceCents',
   currency: 'currency',
+  billingInterval: 'billingInterval',
   maxResolution: 'maxResolution',
+  maxProfiles: 'maxProfiles',
+  maxDevices: 'maxDevices',
+  adsEnabled: 'adsEnabled',
   allowsDownloads: 'allowsDownloads',
+  isPremiumAccess: 'isPremiumAccess',
+  isActive: 'isActive',
+  displayOrder: 'displayOrder',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -179,10 +190,179 @@ exports.Prisma.SubscriptionScalarFieldEnum = {
   planId: 'planId',
   status: 'status',
   startDate: 'startDate',
+  currentPeriodStart: 'currentPeriodStart',
+  currentPeriodEnd: 'currentPeriodEnd',
   endDate: 'endDate',
+  cancelledAt: 'cancelledAt',
+  trialEndsAt: 'trialEndsAt',
   autoRenew: 'autoRenew',
+  externalProvider: 'externalProvider',
+  externalSubscriptionId: 'externalSubscriptionId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
+};
+
+exports.Prisma.PaymentScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  subscriptionId: 'subscriptionId',
+  rentalId: 'rentalId',
+  amount: 'amount',
+  currency: 'currency',
+  provider: 'provider',
+  providerTransactionId: 'providerTransactionId',
+  providerRef: 'providerRef',
+  paymentStatus: 'paymentStatus',
+  paymentMethod: 'paymentMethod',
+  paidAt: 'paidAt',
+  failedAt: 'failedAt',
+  refundedAt: 'refundedAt',
+  metadata: 'metadata',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RentalScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  contentId: 'contentId',
+  paymentId: 'paymentId',
+  price: 'price',
+  currency: 'currency',
+  purchasedAt: 'purchasedAt',
+  expiresAt: 'expiresAt',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AdvertisementScalarFieldEnum = {
+  id: 'id',
+  advertiser: 'advertiser',
+  name: 'name',
+  title: 'title',
+  description: 'description',
+  mediaUrl: 'mediaUrl',
+  clickUrl: 'clickUrl',
+  placement: 'placement',
+  isActive: 'isActive',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AdvertisementEventScalarFieldEnum = {
+  id: 'id',
+  advertisementId: 'advertisementId',
+  userId: 'userId',
+  profileId: 'profileId',
+  contentId: 'contentId',
+  eventType: 'eventType',
+  timestamp: 'timestamp'
+};
+
+exports.Prisma.ContentOwnershipScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  contentId: 'contentId',
+  revenueSharePct: 'revenueSharePct'
+};
+
+exports.Prisma.CreatorEarningScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  contentId: 'contentId',
+  amount: 'amount',
+  currency: 'currency',
+  sourceType: 'sourceType',
+  paymentId: 'paymentId',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CreatorPayoutRecordScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  amount: 'amount',
+  currency: 'currency',
+  status: 'status',
+  provider: 'provider',
+  providerRef: 'providerRef',
+  requestedAt: 'requestedAt',
+  processedAt: 'processedAt',
+  failureReason: 'failureReason',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.EarningsEventScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  contentId: 'contentId',
+  amount: 'amount',
+  sourceType: 'sourceType',
+  watchHistoryId: 'watchHistoryId',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CreatorPayoutScalarFieldEnum = {
+  id: 'id',
+  creatorId: 'creatorId',
+  amount: 'amount',
+  status: 'status',
+  description: 'description',
+  paidAt: 'paidAt',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ReferralScalarFieldEnum = {
+  id: 'id',
+  referrerId: 'referrerId',
+  referredUserId: 'referredUserId',
+  code: 'code',
+  status: 'status',
+  rewardGiven: 'rewardGiven',
+  createdAt: 'createdAt',
+  convertedAt: 'convertedAt'
+};
+
+exports.Prisma.CouponScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  discountType: 'discountType',
+  discountValue: 'discountValue',
+  currency: 'currency',
+  maxRedemptions: 'maxRedemptions',
+  redemptionCount: 'redemptionCount',
+  startDate: 'startDate',
+  expiresAt: 'expiresAt',
+  minPurchaseAmt: 'minPurchaseAmt',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CouponPlanScalarFieldEnum = {
+  couponId: 'couponId',
+  planId: 'planId'
+};
+
+exports.Prisma.CouponRedemptionScalarFieldEnum = {
+  id: 'id',
+  couponId: 'couponId',
+  userId: 'userId',
+  paymentId: 'paymentId',
+  redeemedAt: 'redeemedAt'
+};
+
+exports.Prisma.FinancialLedgerScalarFieldEnum = {
+  id: 'id',
+  paymentId: 'paymentId',
+  grossRevenue: 'grossRevenue',
+  gatewayFee: 'gatewayFee',
+  creatorRevShare: 'creatorRevShare',
+  netPlatformRev: 'netPlatformRev',
+  currency: 'currency',
+  recordedAt: 'recordedAt'
 };
 
 exports.Prisma.DeviceSessionScalarFieldEnum = {
@@ -202,10 +382,10 @@ exports.Prisma.ProfileScalarFieldEnum = {
   userId: 'userId',
   name: 'name',
   avatarUrl: 'avatarUrl',
+  createdAt: 'createdAt',
+  deletedAt: 'deletedAt',
   maxMaturityId: 'maxMaturityId',
   pinLockCode: 'pinLockCode',
-  deletedAt: 'deletedAt',
-  createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
 
@@ -228,6 +408,13 @@ exports.Prisma.ContentScalarFieldEnum = {
   storyline: 'storyline',
   releaseYear: 'releaseYear',
   status: 'status',
+  accessType: 'accessType',
+  requiredPlanId: 'requiredPlanId',
+  rentalPrice: 'rentalPrice',
+  rentalDurationHours: 'rentalDurationHours',
+  purchasePrice: 'purchasePrice',
+  currency: 'currency',
+  isMonetized: 'isMonetized',
   maturityRatingId: 'maturityRatingId',
   imdbId: 'imdbId',
   tmdbId: 'tmdbId',
@@ -241,7 +428,9 @@ exports.Prisma.ContentScalarFieldEnum = {
   updatedById: 'updatedById',
   publishedAt: 'publishedAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  featuredOrder: 'featuredOrder',
+  isFeatured: 'isFeatured'
 };
 
 exports.Prisma.MovieScalarFieldEnum = {
@@ -354,7 +543,8 @@ exports.Prisma.HomepageRowScalarFieldEnum = {
   isActive: 'isActive',
   collectionId: 'collectionId',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  categoryId: 'categoryId'
 };
 
 exports.Prisma.ContentCategoryScalarFieldEnum = {
@@ -427,13 +617,13 @@ exports.Prisma.TrailerScalarFieldEnum = {
 exports.Prisma.VideoScalarFieldEnum = {
   id: 'id',
   durationSeconds: 'durationSeconds',
-  introStart: 'introStart',
-  introEnd: 'introEnd',
-  recapStart: 'recapStart',
-  recapEnd: 'recapEnd',
-  creditsStart: 'creditsStart',
-  creditsEnd: 'creditsEnd',
   createdAt: 'createdAt',
+  introEnd: 'introEnd',
+  introStart: 'introStart',
+  creditsEnd: 'creditsEnd',
+  creditsStart: 'creditsStart',
+  recapEnd: 'recapEnd',
+  recapStart: 'recapStart',
   updatedAt: 'updatedAt'
 };
 
@@ -488,9 +678,9 @@ exports.Prisma.WatchHistoryScalarFieldEnum = {
   videoId: 'videoId',
   lastTime: 'lastTime',
   isFinished: 'isFinished',
+  updatedAt: 'updatedAt',
   completedAt: 'completedAt',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.MyListItemScalarFieldEnum = {
@@ -530,29 +720,14 @@ exports.Prisma.DownloadScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
-exports.Prisma.EarningsEventScalarFieldEnum = {
-  id: 'id',
-  creatorId: 'creatorId',
-  contentId: 'contentId',
-  amount: 'amount',
-  sourceType: 'sourceType',
-  watchHistoryId: 'watchHistoryId',
-  createdAt: 'createdAt'
-};
-
-exports.Prisma.CreatorPayoutScalarFieldEnum = {
-  id: 'id',
-  creatorId: 'creatorId',
-  amount: 'amount',
-  status: 'status',
-  description: 'description',
-  paidAt: 'paidAt',
-  createdAt: 'createdAt'
-};
-
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -564,6 +739,12 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
+
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
 exports.Role = exports.$Enums.Role = {
   USER: 'USER',
   MODERATOR: 'MODERATOR',
@@ -572,11 +753,87 @@ exports.Role = exports.$Enums.Role = {
   SUPERADMIN: 'SUPERADMIN'
 };
 
+exports.BillingInterval = exports.$Enums.BillingInterval = {
+  DAILY: 'DAILY',
+  WEEKLY: 'WEEKLY',
+  MONTHLY: 'MONTHLY',
+  YEARLY: 'YEARLY',
+  ONE_TIME: 'ONE_TIME'
+};
+
+exports.VideoResolution = exports.$Enums.VideoResolution = {
+  P240: 'P240',
+  P360: 'P360',
+  P480: 'P480',
+  P720: 'P720',
+  P1080: 'P1080',
+  UHD_4K: 'UHD_4K',
+  UHD_8K: 'UHD_8K'
+};
+
 exports.SubscriptionStatus = exports.$Enums.SubscriptionStatus = {
   ACTIVE: 'ACTIVE',
+  TRIALING: 'TRIALING',
+  PENDING: 'PENDING',
+  PAST_DUE: 'PAST_DUE',
+  PAUSED: 'PAUSED',
   CANCELED: 'CANCELED',
-  EXPIRED: 'EXPIRED',
-  PENDING: 'PENDING'
+  CANCELLED: 'CANCELLED',
+  EXPIRED: 'EXPIRED'
+};
+
+exports.PaymentProvider = exports.$Enums.PaymentProvider = {
+  MPESA_DARAJA: 'MPESA_DARAJA',
+  FLUTTERWAVE: 'FLUTTERWAVE',
+  PESAPAL: 'PESAPAL',
+  STRIPE: 'STRIPE',
+  PAYPAL: 'PAYPAL'
+};
+
+exports.PaymentStatus = exports.$Enums.PaymentStatus = {
+  PENDING: 'PENDING',
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED',
+  REFUNDED: 'REFUNDED',
+  PARTIALLY_REFUNDED: 'PARTIALLY_REFUNDED'
+};
+
+exports.PaymentMethod = exports.$Enums.PaymentMethod = {
+  MPESA: 'MPESA',
+  CARD: 'CARD',
+  PAYPAL: 'PAYPAL',
+  BANK_TRANSFER: 'BANK_TRANSFER',
+  WALLET: 'WALLET'
+};
+
+exports.AdType = exports.$Enums.AdType = {
+  PRE_ROLL: 'PRE_ROLL',
+  MID_ROLL: 'MID_ROLL',
+  POST_ROLL: 'POST_ROLL',
+  HOME_BANNER: 'HOME_BANNER',
+  CONTENT_BANNER: 'CONTENT_BANNER',
+  SPONSORED_CONTENT: 'SPONSORED_CONTENT'
+};
+
+exports.AdEventType = exports.$Enums.AdEventType = {
+  IMPRESSION: 'IMPRESSION',
+  CLICK: 'CLICK',
+  COMPLETION: 'COMPLETION',
+  SKIP: 'SKIP'
+};
+
+exports.PayoutStatus = exports.$Enums.PayoutStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  PAID: 'PAID',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
+};
+
+exports.CouponDiscountType = exports.$Enums.CouponDiscountType = {
+  PERCENTAGE: 'PERCENTAGE',
+  FIXED_AMOUNT: 'FIXED_AMOUNT'
 };
 
 exports.DeviceType = exports.$Enums.DeviceType = {
@@ -599,6 +856,15 @@ exports.ContentStatus = exports.$Enums.ContentStatus = {
   ARCHIVED: 'ARCHIVED'
 };
 
+exports.ContentAccessType = exports.$Enums.ContentAccessType = {
+  FREE: 'FREE',
+  SUBSCRIPTION: 'SUBSCRIPTION',
+  PREMIUM: 'PREMIUM',
+  RENTAL: 'RENTAL',
+  PURCHASE: 'PURCHASE',
+  ADMIN_ONLY: 'ADMIN_ONLY'
+};
+
 exports.RowRenderStyle = exports.$Enums.RowRenderStyle = {
   STANDARD_POSTER: 'STANDARD_POSTER',
   WIDE_BACKDROP: 'WIDE_BACKDROP',
@@ -614,7 +880,10 @@ exports.RowDataSource = exports.$Enums.RowDataSource = {
   NEW_RELEASES: 'NEW_RELEASES',
   TOP_10: 'TOP_10',
   CONTINUE_WATCHING: 'CONTINUE_WATCHING',
-  RECOMMENDED: 'RECOMMENDED'
+  RECOMMENDED: 'RECOMMENDED',
+  CATEGORY_ROW: 'CATEGORY_ROW',
+  SIMILAR_TO_HISTORY: 'SIMILAR_TO_HISTORY',
+  BILLBOARD: 'BILLBOARD'
 };
 
 exports.AssetType = exports.$Enums.AssetType = {
@@ -630,16 +899,6 @@ exports.VideoSourceType = exports.$Enums.VideoSourceType = {
   HLS: 'HLS',
   DASH: 'DASH',
   MP4: 'MP4'
-};
-
-exports.VideoResolution = exports.$Enums.VideoResolution = {
-  P240: 'P240',
-  P360: 'P360',
-  P480: 'P480',
-  P720: 'P720',
-  P1080: 'P1080',
-  UHD_4K: 'UHD_4K',
-  UHD_8K: 'UHD_8K'
 };
 
 exports.HDRFormat = exports.$Enums.HDRFormat = {
@@ -662,6 +921,20 @@ exports.Prisma.ModelName = {
   CreatorProfile: 'CreatorProfile',
   SubscriptionPlan: 'SubscriptionPlan',
   Subscription: 'Subscription',
+  Payment: 'Payment',
+  Rental: 'Rental',
+  Advertisement: 'Advertisement',
+  AdvertisementEvent: 'AdvertisementEvent',
+  ContentOwnership: 'ContentOwnership',
+  CreatorEarning: 'CreatorEarning',
+  CreatorPayoutRecord: 'CreatorPayoutRecord',
+  EarningsEvent: 'EarningsEvent',
+  CreatorPayout: 'CreatorPayout',
+  Referral: 'Referral',
+  Coupon: 'Coupon',
+  CouponPlan: 'CouponPlan',
+  CouponRedemption: 'CouponRedemption',
+  FinancialLedger: 'FinancialLedger',
   DeviceSession: 'DeviceSession',
   Profile: 'Profile',
   ProfileSettings: 'ProfileSettings',
@@ -697,9 +970,7 @@ exports.Prisma.ModelName = {
   MyListItem: 'MyListItem',
   Rating: 'Rating',
   RecommendationScore: 'RecommendationScore',
-  Download: 'Download',
-  EarningsEvent: 'EarningsEvent',
-  CreatorPayout: 'CreatorPayout'
+  Download: 'Download'
 };
 
 /**

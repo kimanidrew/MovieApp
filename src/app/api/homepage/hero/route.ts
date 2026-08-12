@@ -13,9 +13,6 @@ export async function GET() {
       },
       orderBy: [
         {
-          trendingScore: "desc",
-        },
-        {
           popularityScore: "desc",
         },
       ],
@@ -135,7 +132,6 @@ export async function GET() {
       type: movie ? "MOVIE" : "SHOW",
 
       popularityScore: hero.popularityScore,
-      trendingScore: hero.trendingScore,
     });
   } catch (error) {
     console.error(error);

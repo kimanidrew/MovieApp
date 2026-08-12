@@ -17,7 +17,15 @@ export default function AdminLoginPage() {
   useEffect(() => {
     let uuid = localStorage.getItem("admin_device_uuid");
     if (!uuid) {
-      uuid = crypto.randomUUID();
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        uuid = crypto.randomUUID();
+      } else {
+        uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
       localStorage.setItem("admin_device_uuid", uuid);
     }
     setDeviceUuid(uuid);

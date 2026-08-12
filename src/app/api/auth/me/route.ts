@@ -1,57 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose"; 
-import prisma from "@/lib/prisma";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-use-env-variable-in-production"
-);
-
-// Helper function to resolve a token to a sanitized user object
-async function resolveUserFromToken(token: string | undefined) {
-  if (!token) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    const sessionRef = payload.sessionRef as string;
-    if (!sessionRef) return null;
-
-    const session = await prisma.deviceSession.findUnique({
-      where: { refreshToken: sessionRef },
-      include: {
-        user: {
-          include: {
-            profiles: { where: { deletedAt: null } },
-            subscriptionPlan: true,
-          },
-        },
-      },
-    });
-
-    if (!session || !session.user || !session.user.isActive) {
-      return null;
-    }
-
-    // Update heartbeat timestamp
-    await prisma.deviceSession.update({
-      where: { id: session.id },
-      data: { lastActiveAt: new Date() },
-    });
-
-    const { passwordHash, ...safeUser } = session.user;
-    return safeUser;
-  } catch (err) {
-    return null;
-  }
-}
+import { getAdminUser, getConsumerUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const adminToken = req.cookies.get("admin_token")?.value;
-    const consumerToken = req.cookies.get("token")?.value;
-
-    // 1. Resolve both users independently
-    const resolvedAdmin = await resolveUserFromToken(adminToken);
-    const resolvedCustomer = await resolveUserFromToken(consumerToken);
+    // 1. Resolve both users independently using dedicated resolvers
+    const resolvedAdmin = await getAdminUser(req);
+    const resolvedCustomer = await getConsumerUser(req);
 
     // 2. Double-check admin privileges (Security Gate)
     const isStaffUser = resolvedAdmin && ["ADMIN", "SUPERADMIN", "MODERATOR", "CONTENT_MANAGER"].includes(resolvedAdmin.role);

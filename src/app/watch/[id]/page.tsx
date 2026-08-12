@@ -1,7 +1,10 @@
 import React from 'react';
+import { getAuthenticatedUser } from '@/lib/auth';
+import { canUserWatchContent } from '@/lib/services/entitlementService';
 import { getVideoById } from '@/lib/videoService';
 import HlsPlayer from './HlsPlayer';
 import BodyScrollLock from '@/components/BodyScrollLock';
+import ContentLockScreen from '@/components/monetization/ContentLockScreen';
 
 export default async function WatchPage({ 
   params,
@@ -14,11 +17,9 @@ export default async function WatchPage({
   const sParams = await searchParams;
 
   const video = await getVideoById(id, sParams);
-
   const videoSrc = video.hlsManifestUrl || video.videoUrl || "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   return (
-    // Inline styles work perfectly in Server Components
     <div 
       className="watch-container"
       style={{ 

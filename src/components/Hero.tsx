@@ -8,9 +8,11 @@ import { Play, Info, Volume2, VolumeX } from "lucide-react";
 
 interface HeroProps {
   pageType: "movies" | "shows" | "home";
+  selectedCategories?: string[];
+  featuredItem?: any;
 }
 
-export default function Hero({ pageType }: HeroProps) {
+export default function Hero({ pageType, selectedCategories, featuredItem }: HeroProps) {
   // Checks if the "@modal" parallel route slot is active
   const modalSegment = useSelectedLayoutSegment("modal");
   const isModalOpen = !!modalSegment;

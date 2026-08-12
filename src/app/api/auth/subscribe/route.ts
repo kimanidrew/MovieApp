@@ -40,11 +40,31 @@ export async function POST(request: Request) {
     }
 
     // 3. Atomically bind the chosen configuration plan to the active user profile
-    const updatedUser = await prisma.user.update({
-      where: { id: activeUser.id },
-      data: { subscriptionPlanId: planId },
+    const plan = await prisma.subscriptionPlan.findUnique({
+      where: { id: planId }
+    });
+
+    if (!plan) {
+      return NextResponse.json(
+        { error: "Subscription plan not found." },
+        { status: 404 }
+      );
+    }
+
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + plan.durationDays);
+
+    const subscription = await prisma.subscription.create({
+      data: {
+        userId: activeUser.id,
+        planId: plan.id,
+        status: "ACTIVE",
+        startDate: new Date(),
+        endDate,
+        autoRenew: true,
+      },
       include: {
-        subscriptionPlan: true
+        plan: true
       }
     });
 
@@ -52,9 +72,14 @@ export async function POST(request: Request) {
       success: true,
       message: "Subscription configuration successfully bound.",
       user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        subscriptionPlanId: updatedUser.subscriptionPlanId
+        id: activeUser.id,
+        email: activeUser.email,
+        subscription: {
+          id: subscription.id,
+          planId: subscription.planId,
+          status: subscription.status,
+          endDate: subscription.endDate
+        }
       }
     }, { status: 200 });
 

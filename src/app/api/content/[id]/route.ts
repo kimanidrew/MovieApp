@@ -170,7 +170,6 @@ export async function PATCH(
         releaseYear: body.releaseYear,
         status: body.status,
         popularityScore: body.popularityScore,
-        trendingScore: body.trendingScore,
         publishedAt: body.publishedAt
           ? new Date(body.publishedAt)
           : undefined,
@@ -208,7 +207,7 @@ export async function DELETE(
         id,
       },
       data: {
-        deletedAt: new Date(),
+        status: "ARCHIVED",
       },
     });
 

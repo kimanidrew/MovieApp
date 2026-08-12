@@ -110,7 +110,6 @@ export async function GET() {
             duration: movie?.durationTotal ?? null,
 
             popularityScore: content.popularityScore,
-            trendingScore: content.trendingScore,
             playCount: Number(content.playCount),
             viewCount: Number(content.viewCount),
           };

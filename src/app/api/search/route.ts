@@ -16,7 +16,6 @@ export async function GET(req: NextRequest) {
 
     const results = await prisma.content.findMany({
       where: {
-        deletedAt: null,
         status: "PUBLISHED",
         OR: [
           {
@@ -35,11 +34,6 @@ export async function GET(req: NextRequest) {
             storyline: {
               contains: query,
               mode: "insensitive",
-            },
-          },
-          {
-            keywords: {
-              has: query,
             },
           },
           {
@@ -72,9 +66,6 @@ export async function GET(req: NextRequest) {
       orderBy: [
         {
           popularityScore: "desc",
-        },
-        {
-          trendingScore: "desc",
         },
       ],
 

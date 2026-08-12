@@ -1,59 +1,101 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
+import { ADMIN_ROLES } from "@/lib/admin-roles";
 
-// Public paths that skip session extraction requirements
-const publicRoutes = ["/login", "/register", "/admin/login"];
+// Admin API routes that are always protected
+const adminProtectedApiPrefixes = [
+  "/api/admin/stats",
+  "/api/admin/revenue",
+  "/api/admin/subscriptions",
+  "/api/admin/creators",
+  "/api/admin/payments",
+  "/api/admin/content",
+  "/api/admin/users",
+  "/api/admin/media",
+  "/api/admin/metadata",
+];
 
-export function middleware(request: NextRequest) {
+function getJwtSecretKey() {
+  const secret = process.env.JWT_SECRET || "fallback-secret-use-env-variable-in-production";
+  return new TextEncoder().encode(secret);
+}
+
+export async function middleware(request: NextRequest) {
   const { nextUrl, cookies } = request;
   const { pathname } = nextUrl;
 
-  // 1. Expose auth API routes so credentials can be set or cleared without interference
-  if (pathname.startsWith("/api/auth")) {
+  // 1. ABSOLUTE BYPASS: Let login, public pricing, webhooks, plans, and auth API paths pass through immediately.
+  if (
+    pathname.startsWith("/admin/login") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/webhooks") ||
+    pathname === "/api/plans" ||
+    pathname === "/pricing"
+  ) {
     return NextResponse.next();
   }
 
-  const isPublicRoute = publicRoutes.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
-  );
+  // 2. Secure admin API routes with JWT verification + role check
+  if (adminProtectedApiPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+    const adminToken = cookies.get("admin_token")?.value;
+    if (!adminToken) {
+      return NextResponse.json({ error: "Unauthorized session" }, { status: 401 });
+    }
+
+    try {
+      const { payload } = await jwtVerify(adminToken, getJwtSecretKey());
+      const role = payload.role as string;
+      if (!ADMIN_ROLES.includes(role as any)) {
+        return NextResponse.json({ error: "Access denied: Admin privileges required" }, { status: 403 });
+      }
+      return NextResponse.next();
+    } catch {
+      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+    }
+  }
+
+  // 3. Other API routes still need a token
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/admin")) {
+    const token = cookies.get("token")?.value || cookies.get("admin_token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized session" }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
 
   const consumerToken = cookies.get("token")?.value;
   const adminToken = cookies.get("admin_token")?.value;
-  const profileId = cookies.get("profile_id")?.value; // 👈 Read the active profile cookie
+  const profileId = cookies.get("profile_id")?.value;
 
-  const isAdminSpace =
-  pathname.startsWith("/admin") ||
-  pathname.startsWith("/api/admin");
-  const currentSpaceToken = isAdminSpace ? adminToken : consumerToken;
+  const isAdminPageRoute = pathname.startsWith("/admin") && !pathname.startsWith("/api/admin");
+  const isCreatorPageRoute = pathname.startsWith("/creator") && !pathname.startsWith("/api/creator");
 
-  // 2. Secure Route Guard (Unauthenticated redirects)
-  if (!currentSpaceToken && !isPublicRoute) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Unauthorized session" },
-        { status: 401 }
-      );
-    }
-
-    const fallbackPath = isAdminSpace ? "/admin/login" : "/login";
-    const loginUrl = new URL(fallbackPath, request.url);
-    
+  // 4. Secure Route Guard (Unauthenticated redirects)
+  // Admin pages require admin_token; consumer pages require token
+  if (isAdminPageRoute && !adminToken) {
+    const loginUrl = new URL("/admin/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. Prevent logged-in users from hitting login pages
-  if (pathname === "/admin/login" && adminToken) {
-    return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+  // Consumer pages (non-admin, non-creator) require consumer token
+  if (!isAdminPageRoute && !isCreatorPageRoute && !consumerToken) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  if ((pathname === "/login" || pathname === "/register") && consumerToken) {
-    return NextResponse.redirect(new URL("/", request.url));
+  // Creator space uses consumer token
+  if (isCreatorPageRoute && !consumerToken) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // 4. 👉 PROFILE SELECTION FORCED GATE
-  // If customer is logged in, but has not selected a profile, protect streaming routes
-  if (consumerToken && !profileId && !isAdminSpace) {
+  // 5. Profile Selection Forced Gate
+  if (consumerToken && !profileId && !isAdminPageRoute && !isCreatorPageRoute) {
     const streamingRoutes = ["/", "/tv", "/movies", "/my-list", "/video"];
     const isTryingToStream = streamingRoutes.includes(pathname);
 
@@ -67,13 +109,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (images, svgs, etc.)
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

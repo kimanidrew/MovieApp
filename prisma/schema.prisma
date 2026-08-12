@@ -1,19 +1,15 @@
-// =========================================================================
-// 1. GENERATOR, DATASOURCE & EXTENSION CONFIGURATION
-// =========================================================================
-
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../src/app/generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../src/app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// =========================================================================
-// 2. ENUMS & CORE VALUE REGISTRIES
-// =========================================================================
+// ============================================================================
+// MONETIZATION ENUMS
+// ============================================================================
 
 enum Role {
   USER
@@ -31,11 +27,86 @@ enum ContentStatus {
   ARCHIVED
 }
 
+enum ContentAccessType {
+  FREE
+  SUBSCRIPTION
+  PREMIUM
+  RENTAL
+  PURCHASE
+  ADMIN_ONLY
+}
+
 enum SubscriptionStatus {
   ACTIVE
-  CANCELED
-  EXPIRED
+  TRIALING
   PENDING
+  PAST_DUE
+  PAUSED
+  CANCELED
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingInterval {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  ONE_TIME
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  MPESA
+  CARD
+  PAYPAL
+  BANK_TRANSFER
+  WALLET
+}
+
+enum PaymentProvider {
+  MPESA_DARAJA
+  FLUTTERWAVE
+  PESAPAL
+  STRIPE
+  PAYPAL
+}
+
+enum AdType {
+  PRE_ROLL
+  MID_ROLL
+  POST_ROLL
+  HOME_BANNER
+  CONTENT_BANNER
+  SPONSORED_CONTENT
+}
+
+enum AdEventType {
+  IMPRESSION
+  CLICK
+  COMPLETION
+  SKIP
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
 }
 
 enum AssetType {
@@ -104,321 +175,543 @@ enum RowDataSource {
   TOP_10
   CONTINUE_WATCHING
   RECOMMENDED
+  CATEGORY_ROW
+  SIMILAR_TO_HISTORY
+  BILLBOARD
 }
 
-// =========================================================================
-// 3. CORE CONTENT CLASSIFICATION
-// =========================================================================
+// ============================================================================
+// USER & CORE SYSTEM
+// ============================================================================
 
 model MaturityRating {
-  id           String   @id @default(uuid())
-  code         String   @unique
+  id           String    @id @default(uuid())
+  code         String    @unique
   system       String
   severityRank Int
   description  String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   contentItems Content[]
   profiles     Profile[]
 }
 
 model LanguageRegistry {
-  id           String   @id @default(uuid())
-  iso6391      String   @unique
-  name         String
-  nativeName   String?
-  createdAt    DateTime @default(now())
-  contentLanguages ContentLanguage[]
-  subtitleTracks   SubtitleTrack[]
+  id               String            @id @default(uuid())
+  iso6391          String            @unique
+  name             String
+  nativeName       String?
+  createdAt        DateTime          @default(now())
   audioTracks      AudioTrack[]
+  contentLanguages ContentLanguage[]
   imageAssets      ImageAsset[]
+  subtitleTracks   SubtitleTrack[]
 }
 
-// =========================================================================
-// 4. IDENTITY, CREATOR & BILLING
-// =========================================================================
-
 model User {
-  id                String          @id @default(uuid())
-  passwordHash      String?
-  email             String          @unique
-  role              Role            @default(USER)
-  
-  // Creator Permissions
-  isCreator         Boolean         @default(false)
-  creatorProfile    CreatorProfile?
-  
-  isActive          Boolean         @default(true)
+  id                String             @id @default(uuid())
+  email             String             @unique
+  createdAt         DateTime           @default(now())
   deletedAt         DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-
-  profiles          Profile[]
+  isActive          Boolean            @default(true)
+  isCreator         Boolean            @default(false)
+  passwordHash      String?
+  role              Role               @default(USER)
+  referralCode      String?            @unique
+  updatedAt         DateTime           @updatedAt
+  createdContents   Content[]          @relation("ContentCreator")
+  updatedContents   Content[]          @relation("ContentUpdater")
+  creatorProfile    CreatorProfile?
   sessions          DeviceSession[]
+  profiles          Profile[]
   subscriptions     Subscription[]
-
-  // Content ownership
-  createdContents   Content[]       @relation("ContentCreator")
-  updatedContents   Content[]       @relation("ContentUpdater")
+  payments          Payment[]
+  rentals           Rental[]
+  referralsMade     Referral[]         @relation("ReferrerUser")
+  referralReceived  Referral?          @relation("ReferredUser")
+  couponRedemptions CouponRedemption[]
 
   @@index([email])
+  @@index([referralCode])
 }
 
 model CreatorProfile {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Added balance tracking
-  currentBalance Decimal @default(0.00) @db.Decimal(10, 2)
-  
-  channelName  String
-  bio          String?  @db.Text
-  avatarUrl    String?
-  isVerified   Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  id             String                @id @default(uuid())
+  userId         String                @unique
+  currentBalance Decimal               @default(0.00) @db.Decimal(12, 2)
+  channelName    String
+  bio            String?
+  avatarUrl      String?
+  isVerified     Boolean               @default(false)
+  payoutDetails  Json?
+  createdAt      DateTime              @default(now())
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerships     ContentOwnership[]
+  earnings       CreatorEarning[]
+  payoutRecords  CreatorPayoutRecord[]
 }
 
-model SubscriptionPlan {
-  id              String         @id @default(uuid())
-  name            String         @unique 
-  slug            String         @unique 
-  durationDays    Int            // 1=Daily, 7=Weekly, 30=Monthly
-  priceCents      Int
-  currency        String         @default("USD")
-  maxResolution   String         @default("1080p")
-  allowsDownloads Boolean        @default(false)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+// ============================================================================
+// SUBSCRIPTION & PLAN SYSTEM
+// ============================================================================
 
-  subscriptions   Subscription[]
+model SubscriptionPlan {
+  id               String           @id @default(uuid())
+  name             String           @unique
+  slug             String           @unique
+  description      String?
+  durationDays     Int              @default(30)
+  price            Decimal          @default(0.00) @db.Decimal(12, 2)
+  priceCents       Int?
+  currency         String           @default("KES")
+  billingInterval  BillingInterval  @default(MONTHLY)
+  maxResolution    VideoResolution  @default(P1080)
+  maxProfiles      Int              @default(1)
+  maxDevices       Int              @default(1)
+  adsEnabled       Boolean          @default(true)
+  allowsDownloads  Boolean          @default(false)
+  isPremiumAccess  Boolean          @default(false)
+  isActive         Boolean          @default(true)
+  displayOrder     Int              @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  subscriptions    Subscription[]
+  requiredContents Content[]        @relation("RequiredPlan")
+  coupons          CouponPlan[]
 }
 
 model Subscription {
-  id              String             @id @default(uuid())
-  userId          String
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId          String
-  plan            SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
-  
-  status          SubscriptionStatus @default(ACTIVE)
-  startDate       DateTime           @default(now())
-  endDate         DateTime
-  autoRenew       Boolean            @default(false)
-  
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                     String             @id @default(uuid())
+  userId                 String
+  planId                 String
+  status                 SubscriptionStatus @default(ACTIVE)
+  startDate              DateTime           @default(now())
+  currentPeriodStart     DateTime           @default(now())
+  currentPeriodEnd       DateTime?
+  endDate                DateTime           @default(now())
+  cancelledAt            DateTime?
+  trialEndsAt            DateTime?
+  autoRenew              Boolean            @default(true)
+  externalProvider       PaymentProvider?
+  externalSubscriptionId String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  plan                   SubscriptionPlan   @relation(fields: [planId], references: [id])
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments               Payment[]
 
   @@index([userId, status])
 }
 
+// ============================================================================
+// TRANSACTIONS & PAYMENTS
+// ============================================================================
+
+model Payment {
+  id                    String            @id @default(uuid())
+  userId                String
+  subscriptionId        String?
+  rentalId              String?
+  amount                Decimal           @db.Decimal(12, 2)
+  currency              String            @default("KES")
+  provider              PaymentProvider   @default(MPESA_DARAJA)
+  providerTransactionId String            @unique
+  providerRef           String?
+  paymentStatus         PaymentStatus     @default(PENDING)
+  paymentMethod         PaymentMethod     @default(MPESA)
+  paidAt                DateTime?
+  failedAt              DateTime?
+  refundedAt            DateTime?
+  metadata              Json?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription          Subscription?     @relation(fields: [subscriptionId], references: [id])
+  rental                Rental?
+  redemption            CouponRedemption?
+
+  @@index([userId, paymentStatus])
+  @@index([providerTransactionId])
+}
+
+model Rental {
+  id          String    @id @default(uuid())
+  userId      String
+  contentId   String
+  paymentId   String    @unique
+  price       Decimal   @db.Decimal(12, 2)
+  currency    String    @default("KES")
+  purchasedAt DateTime  @default(now())
+  expiresAt   DateTime
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content     Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  payment     Payment   @relation(fields: [paymentId], references: [id])
+
+  @@index([userId, contentId])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// ADVERTISING SYSTEM (AVOD)
+// ============================================================================
+
+model Advertisement {
+  id          String               @id @default(uuid())
+  advertiser  String
+  name        String
+  title       String?
+  description String?
+  mediaUrl    String
+  clickUrl    String?
+  placement   AdType               @default(PRE_ROLL)
+  isActive    Boolean              @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  events      AdvertisementEvent[]
+}
+
+model AdvertisementEvent {
+  id              String        @id @default(uuid())
+  advertisementId String
+  userId          String?
+  profileId       String?
+  contentId       String?
+  eventType       AdEventType
+  timestamp       DateTime      @default(now())
+  advertisement   Advertisement @relation(fields: [advertisementId], references: [id], onDelete: Cascade)
+
+  @@index([advertisementId, eventType])
+  @@index([timestamp])
+}
+
+// ============================================================================
+// CREATOR & REVENUE SHARE MODELS
+// ============================================================================
+
+model ContentOwnership {
+  id              String         @id @default(uuid())
+  creatorId       String
+  contentId       String
+  revenueSharePct Decimal        @default(60.00) @db.Decimal(5, 2)
+  creator         CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  content         Content        @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, contentId])
+}
+
+model CreatorEarning {
+  id         String         @id @default(uuid())
+  creatorId  String
+  contentId  String
+  amount     Decimal        @db.Decimal(12, 2)
+  currency   String         @default("KES")
+  sourceType String
+  paymentId  String?
+  createdAt  DateTime       @default(now())
+  creator    CreatorProfile @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  content    Content        @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
+  @@index([createdAt])
+}
+
+model CreatorPayoutRecord {
+  id            String          @id @default(uuid())
+  creatorId     String
+  amount        Decimal         @db.Decimal(12, 2)
+  currency      String          @default("KES")
+  status        PayoutStatus    @default(PENDING)
+  provider      PaymentProvider @default(MPESA_DARAJA)
+  providerRef   String?
+  requestedAt   DateTime        @default(now())
+  processedAt   DateTime?
+  failureReason String?
+  createdAt     DateTime        @default(now())
+  creator       CreatorProfile  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId, status])
+}
+
+model EarningsEvent {
+  id             String   @id @default(uuid())
+  creatorId      String
+  contentId      String
+  amount         Decimal  @db.Decimal(10, 2)
+  sourceType     String
+  watchHistoryId String?  @unique
+  createdAt      DateTime @default(now())
+
+  @@index([creatorId])
+  @@index([createdAt])
+}
+
+model CreatorPayout {
+  id          String    @id @default(uuid())
+  creatorId   String
+  amount      Decimal   @db.Decimal(10, 2)
+  status      String    @default("PENDING")
+  description String?
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ============================================================================
+// REFERRALS & COUPONS
+// ============================================================================
+
+model Referral {
+  id             String    @id @default(uuid())
+  referrerId     String
+  referredUserId String    @unique
+  code           String
+  status         String    @default("PENDING")
+  rewardGiven    Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  convertedAt    DateTime?
+  referrer       User      @relation("ReferrerUser", fields: [referrerId], references: [id])
+  referredUser   User      @relation("ReferredUser", fields: [referredUserId], references: [id])
+
+  @@index([code])
+}
+
+model Coupon {
+  id              String             @id @default(uuid())
+  code            String             @unique
+  discountType    CouponDiscountType @default(PERCENTAGE)
+  discountValue   Decimal            @db.Decimal(12, 2)
+  currency        String             @default("KES")
+  maxRedemptions  Int                @default(100)
+  redemptionCount Int                @default(0)
+  startDate       DateTime?
+  expiresAt       DateTime?
+  minPurchaseAmt  Decimal?           @db.Decimal(12, 2)
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  plans           CouponPlan[]
+  redemptions     CouponRedemption[]
+}
+
+model CouponPlan {
+  couponId String
+  planId   String
+  coupon   Coupon           @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, planId])
+}
+
+model CouponRedemption {
+  id         String   @id @default(uuid())
+  couponId   String
+  userId     String
+  paymentId  String   @unique
+  redeemedAt DateTime @default(now())
+  coupon     Coupon   @relation(fields: [couponId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+}
+
+model FinancialLedger {
+  id              String   @id @default(uuid())
+  paymentId       String?  @unique
+  grossRevenue    Decimal  @db.Decimal(12, 2)
+  gatewayFee      Decimal  @default(0.00) @db.Decimal(12, 2)
+  creatorRevShare Decimal  @default(0.00) @db.Decimal(12, 2)
+  netPlatformRev  Decimal  @db.Decimal(12, 2)
+  currency        String   @default("KES")
+  recordedAt      DateTime @default(now())
+}
+
+// ============================================================================
+// PROFILES, DEVICE SESSIONS & WATCH INFRASTRUCTURE
+// ============================================================================
+
 model DeviceSession {
   id           String     @id @default(uuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceUuid   String     
-  deviceName   String     
+  deviceUuid   String
+  deviceName   String
   deviceType   DeviceType @default(WEB)
   ipAddress    String?
   refreshToken String     @unique
   lastActiveAt DateTime   @updatedAt
   createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, deviceUuid])
   @@index([userId])
   @@index([deviceUuid])
-  @@unique([userId, deviceUuid])
 }
 
-// =========================================================================
-// 5. USER PROFILES & RUNTIME CONTROLS
-// =========================================================================
-
 model Profile {
-  id               String                @id @default(uuid())
-  userId           String
-  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name             String
-  avatarUrl        String?
-  maxMaturityId    String
-  maxMaturity      MaturityRating        @relation(fields: [maxMaturityId], references: [id], onDelete: Restrict)
-  pinLockCode      String?
-  deletedAt        DateTime?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-
-  settings         ProfileSettings?
-  watchHistory     WatchHistory[]
-  myList           MyListItem[]
-  ratings          Rating[]
-  downloads        Download[]
-  recommendations  RecommendationScore[]
+  id              String                @id @default(uuid())
+  userId          String
+  name            String
+  avatarUrl       String?
+  createdAt       DateTime              @default(now())
+  deletedAt       DateTime?
+  maxMaturityId   String
+  pinLockCode     String?
+  updatedAt       DateTime              @updatedAt
+  downloads       Download[]
+  myList          MyListItem[]
+  maxMaturity     MaturityRating        @relation(fields: [maxMaturityId], references: [id])
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings        ProfileSettings?
+  ratings         Rating[]
+  recommendations RecommendationScore[]
+  watchHistory    WatchHistory[]
 
   @@index([userId])
 }
 
 model ProfileSettings {
-  id                 String   @id @default(uuid())
-  profileId          String   @unique
-  profile            Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  interfaceLanguage  String   @default("en")
-  audioLanguage      String   @default("en")
-  subtitleLanguage   String   @default("en")
-  autoplayNext       Boolean  @default(true)
-  autoplayPreviews   Boolean  @default(true)
-  updatedAt          DateTime @updatedAt
+  id                String   @id @default(uuid())
+  profileId         String   @unique
+  interfaceLanguage String   @default("en")
+  audioLanguage     String   @default("en")
+  subtitleLanguage  String   @default("en")
+  autoplayNext      Boolean  @default(true)
+  autoplayPreviews  Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+  profile           Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
-// =========================================================================
-// 6. CONTENT CORE METADATA
-// =========================================================================
-
 model Content {
-  id               String          @id @default(uuid())
-  title            String
-  slug             String          @unique 
-  description      String?
-  storyline        String?         @db.Text
-  releaseYear      Int?
-  status           ContentStatus   @default(DRAFT)
-  maturityRatingId String
-  maturityRating   MaturityRating  @relation(fields: [maturityRatingId], references: [id], onDelete: Restrict)
-  
-  // External Providers
-  imdbId           String?         @unique
-  tmdbId           Int?            @unique
-  tvdbId           String?         @unique
-  traktId          Int?            @unique
-
-  // Engine Metrics
-  popularityScore  Float           @default(0.0)
-  viewCount        BigInt          @default(0)
-  watchSeconds     BigInt          @default(0)
-  playCount        Int             @default(0)
-
-  // Creator Relations
-  createdById      String
-  createdBy        User            @relation("ContentCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedById      String
-  updatedBy        User            @relation("ContentUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
-  
-  publishedAt      DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  // Structural Variants
-  movies           Movie[]
-  show             Show?
-
-  // Join Connectors
-  categories       ContentCategory[]
-  collections      CollectionItem[]
-  languages        ContentLanguage[]
-  studios          ContentStudio[]
-  productionCos    ContentProductionCompany[]
-  countries        ContentCountry[]
-  awards           Award[]
-  images           ImageAsset[]
-  trailers         Trailer[]
-  cast             Cast[]
-  crew             Crew[]
-  myListItems      MyListItem[]
-  ratings          Rating[]
-  targetedRecomms  RecommendationScore[] @relation("TargetContent")
-  sourcedRecomms   RecommendationScore[] @relation("SourceContent")
+  id                  String                     @id @default(uuid())
+  title               String
+  slug                String                     @unique
+  description         String?
+  storyline           String?
+  releaseYear         Int?
+  status              ContentStatus              @default(DRAFT)
+  accessType          ContentAccessType          @default(FREE)
+  requiredPlanId      String?
+  rentalPrice         Decimal?                   @db.Decimal(12, 2)
+  rentalDurationHours Int?                       @default(48)
+  purchasePrice       Decimal?                   @db.Decimal(12, 2)
+  currency            String                     @default("KES")
+  isMonetized         Boolean                    @default(true)
+  maturityRatingId    String
+  imdbId              String?                    @unique
+  tmdbId              Int?                       @unique
+  tvdbId              String?                    @unique
+  traktId             Int?                       @unique
+  popularityScore     Float                      @default(0.0)
+  viewCount           BigInt                     @default(0)
+  watchSeconds        BigInt                     @default(0)
+  playCount           Int                        @default(0)
+  createdById         String
+  updatedById         String
+  publishedAt         DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  featuredOrder       Int                        @default(0)
+  isFeatured          Boolean                    @default(false)
+  awards              Award[]
+  cast                Cast[]
+  collections         CollectionItem[]
+  createdBy           User                       @relation("ContentCreator", fields: [createdById], references: [id])
+  maturityRating      MaturityRating             @relation(fields: [maturityRatingId], references: [id])
+  updatedBy           User                       @relation("ContentUpdater", fields: [updatedById], references: [id])
+  requiredPlan        SubscriptionPlan?          @relation("RequiredPlan", fields: [requiredPlanId], references: [id])
+  categories          ContentCategory[]
+  countries           ContentCountry[]
+  languages           ContentLanguage[]
+  productionCos       ContentProductionCompany[]
+  studios             ContentStudio[]
+  crew                Crew[]
+  images              ImageAsset[]
+  movies              Movie[]
+  myListItems         MyListItem[]
+  ratings             Rating[]
+  sourcedRecomms      RecommendationScore[]      @relation("SourceContent")
+  targetedRecomms     RecommendationScore[]      @relation("TargetContent")
+  show                Show?
+  trailers            Trailer[]
+  rentals             Rental[]
+  ownerships          ContentOwnership[]
+  creatorEarnings     CreatorEarning[]
 
   @@index([title])
   @@index([status])
+  @@index([accessType])
   @@index([createdById])
+  @@index([isFeatured])
 }
 
-// =========================================================================
-// 7. SUBSURFACE SUB-METADATA SUB-TYPES (MOVIES, SHOWS, SEASONS, EPISODES)
-// =========================================================================
-
 model Movie {
-  id             String   @id @default(uuid())
-  contentId      String
-  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  
-  // Cut Customizations (e.g., "Theatrical Cut", "Director's Cut", "Unrated")
-  cutVariant     String   @default("Theatrical")
-  durationTotal  Int      
-
-  // Structural isolation separating metadata from the physical playback resource
-  videoId        String   @unique
-  video          Video    @relation(fields: [videoId], references: [id], onDelete: Restrict)
+  id            String  @id @default(uuid())
+  contentId     String
+  cutVariant    String  @default("Theatrical")
+  durationTotal Int
+  videoId       String  @unique
+  content       Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  video         Video   @relation(fields: [videoId], references: [id])
 
   @@index([contentId])
 }
 
 model Show {
-  id             String   @id @default(uuid())
-  contentId      String   @unique
-  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-
-  seasons        Season[]
+  id        String   @id @default(uuid())
+  contentId String   @unique
+  seasons   Season[]
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
 }
 
 model Season {
   id           String       @id @default(uuid())
   seasonNumber Int
-  title        String?      
+  title        String?
   slug         String       @unique
   description  String?
   showId       String
-  show         Show         @relation(fields: [showId], references: [id], onDelete: Cascade)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-
   episodes     Episode[]
   images       ImageAsset[]
+  show         Show         @relation(fields: [showId], references: [id], onDelete: Cascade)
 
   @@unique([showId, seasonNumber])
   @@index([showId])
 }
 
 model Episode {
-  id            String   @id @default(uuid())
-  episodeNumber Int
-  title         String   
-  slug          String   @unique
-  description   String?
-  releaseDate   DateTime?
-  seasonId      String
-  season        Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-  
-  // Chained Linear Playlist Preloading Links
-  nextEpisodeId String?  @unique
-  nextEpisode   Episode? @relation("EpisodeChaining", fields: [nextEpisodeId], references: [id], onDelete: SetNull)
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Structural isolation separating metadata from the physical playback resource
-  videoId       String   @unique
-  video         Video    @relation(fields: [videoId], references: [id], onDelete: Restrict)
-
-  // Inverse relation for chained preloading
-  previousEpisode Episode? @relation("EpisodeChaining")
+  id              String    @id @default(uuid())
+  episodeNumber   Int
+  title           String
+  slug            String    @unique
+  description     String?
+  releaseDate     DateTime?
+  seasonId        String
+  nextEpisodeId   String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  videoId         String    @unique
+  nextEpisode     Episode?  @relation("EpisodeChaining", fields: [nextEpisodeId], references: [id])
+  previousEpisode Episode?  @relation("EpisodeChaining")
+  season          Season    @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  video           Video     @relation(fields: [videoId], references: [id])
 
   @@unique([seasonId, episodeNumber])
   @@index([seasonId])
 }
 
-// =========================================================================
-// 8. PERSONNEL & CORPORATE ORG REGISTRIES
-// =========================================================================
-
 model Person {
-  id         String    @id @default(uuid())
-  name       String
-  slug       String    @unique 
-  biography  String?   @db.Text
-  avatarUrl  String?
-  deletedAt  DateTime? 
-  createdAt  DateTime  @default(now())
-
-  castRoles  Cast[]
-  crewRoles  Crew[]
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  biography String?
+  avatarUrl String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  castRoles Cast[]
+  crewRoles Crew[]
 
   @@index([name])
 }
@@ -440,24 +733,20 @@ model ProductionCompany {
 }
 
 model Country {
-  id          String           @id @default(uuid())
-  isoAlpha2   String           @unique 
-  name        String           @unique
-  contents    ContentCountry[]
+  id        String           @id @default(uuid())
+  isoAlpha2 String           @unique
+  name      String           @unique
+  contents  ContentCountry[]
 }
 
-// =========================================================================
-// 9. EXPLICIT JOIN TABLES FOR PERFORMANCES & CONTRIBUTIONS
-// =========================================================================
-
 model Cast {
-  id         String   @id @default(uuid())
-  character  String   
-  displayOrder Int    @default(0) 
-  personId   String
-  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  contentId  String
-  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  id           String  @id @default(uuid())
+  character    String
+  displayOrder Int     @default(0)
+  personId     String
+  contentId    String
+  content      Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  person       Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([personId])
   @@index([contentId])
@@ -465,21 +754,17 @@ model Cast {
 }
 
 model Crew {
-  id         String   @id @default(uuid())
-  job        String   
-  department String   
+  id         String  @id @default(uuid())
+  job        String
+  department String
   personId   String
-  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
   contentId  String
-  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  content    Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  person     Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([personId])
   @@index([contentId])
 }
-
-// =========================================================================
-// 10. EDITORIAL TAXONOMIES & HOMEPAGE ROW DYNAMIC SHELF LAYOUT CONFIGS
-// =========================================================================
 
 model Category {
   id        String            @id @default(uuid())
@@ -491,46 +776,39 @@ model Category {
 
 model Collection {
   id          String           @id @default(uuid())
-  name        String           
+  name        String
   slug        String           @unique
   description String?
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
-
   items       CollectionItem[]
   homeRows    HomepageRow[]
 }
 
 model HomepageRow {
-  id             String         @id @default(uuid())
-  title          String         
-  displayOrder   Int            @unique 
-  renderStyle    RowRenderStyle @default(STANDARD_POSTER)
-  sourceType     RowDataSource  @default(CURATED_COLLECTION)
-  isActive       Boolean        @default(true)
-  
-  // Nullable if the row is powered by an automated dynamic engine path (e.g., TRENDING, RECOMMENDED)
-  collectionId   String?
-  collection     Collection?    @relation(fields: [collectionId], references: [id], onDelete: SetNull)
-  
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id           String         @id @default(uuid())
+  title        String
+  displayOrder Int            @unique
+  renderStyle  RowRenderStyle @default(STANDARD_POSTER)
+  sourceType   RowDataSource  @default(CURATED_COLLECTION)
+  isActive     Boolean        @default(true)
+  collectionId String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  categoryId   String?
+  collection   Collection?    @relation(fields: [collectionId], references: [id])
 
   @@index([displayOrder])
   @@index([sourceType])
 }
 
-// =========================================================================
-// 11. EXPLICIT RELATIONSHIP TABLES (ADD METADATA STAMPS & CUSTOM POSITIONS)
-// =========================================================================
-
 model ContentCategory {
   contentId  String
-  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
   categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   isPrimary  Boolean  @default(false)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@id([contentId, categoryId])
   @@index([contentId])
@@ -539,11 +817,11 @@ model ContentCategory {
 
 model CollectionItem {
   collectionId String
-  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   contentId    String
-  content      Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  displayOrder Int        @default(0) 
+  displayOrder Int        @default(0)
   isFeatured   Boolean    @default(false)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  content      Content    @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@id([collectionId, contentId])
   @@index([collectionId])
@@ -553,19 +831,19 @@ model CollectionItem {
 
 model ContentLanguage {
   contentId  String
-  content    Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
   languageId String
-  language   LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Cascade)
   isDubbed   Boolean          @default(false)
   isSubbed   Boolean          @default(true)
+  content    Content          @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  language   LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Cascade)
 
   @@id([contentId, languageId])
 }
 
 model ContentStudio {
   contentId String
-  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
   studioId  String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
   studio    Studio  @relation(fields: [studioId], references: [id], onDelete: Cascade)
 
   @@id([contentId, studioId])
@@ -573,8 +851,8 @@ model ContentStudio {
 
 model ContentProductionCompany {
   contentId           String
-  content             Content           @relation(fields: [contentId], references: [id], onDelete: Cascade)
   productionCompanyId String
+  content             Content           @relation(fields: [contentId], references: [id], onDelete: Cascade)
   productionCompany   ProductionCompany @relation(fields: [productionCompanyId], references: [id], onDelete: Cascade)
 
   @@id([contentId, productionCompanyId])
@@ -582,8 +860,8 @@ model ContentProductionCompany {
 
 model ContentCountry {
   contentId String
-  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
   countryId String
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
   country   Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
 
   @@id([contentId, countryId])
@@ -592,108 +870,86 @@ model ContentCountry {
 model Award {
   id        String   @id @default(uuid())
   contentId String
-  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  academy   String   
+  academy   String
   year      Int
-  category  String   
+  category  String
   isWinner  Boolean  @default(false)
   createdAt DateTime @default(now())
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@index([contentId])
 }
 
-// =========================================================================
-// 12. MARKETING ASSETS & MULTILANGUAGE MEDIA SPECIFICATIONS
-// =========================================================================
-
 model ImageAsset {
   id           String           @id @default(uuid())
-  url          String           
+  url          String
   type         AssetType        @default(POSTER)
   width        Int?
   height       Int?
-  displayOrder Int              @default(0) 
-  
+  displayOrder Int              @default(0)
   languageId   String
-  language     LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Restrict)
-
   contentId    String?
-  content      Content?         @relation(fields: [contentId], references: [id], onDelete: Cascade)
   seasonId     String?
-  season       Season?          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
-
   createdAt    DateTime         @default(now())
+  content      Content?         @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  language     LanguageRegistry @relation(fields: [languageId], references: [id])
+  season       Season?          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
 
   @@index([contentId])
   @@index([seasonId])
 }
 
 model Trailer {
-  id             String   @id @default(uuid())
-  title          String
-  hlsManifestUrl String
+  id              String   @id @default(uuid())
+  title           String
+  hlsManifestUrl  String
   durationSeconds Int?
-  contentId      String
-  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
+  contentId       String
+  createdAt       DateTime @default(now())
+  content         Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@index([contentId])
 }
 
-// =========================================================================
-// 13. PHYSICAL STREAM EXECUTABLE ENGINE (The Bitstream Wrapper Core)
-// =========================================================================
-
 model Video {
-  id              String   @id @default(uuid())
+  id              String          @id @default(uuid())
   durationSeconds Int
-
-  // Interactive Playback Timeline Meta Markers (in seconds)
-  introStart      Int?     @default(0)  
-  introEnd        Int?     @default(0)  
-  recapStart      Int?     @default(0)  
-  recapEnd        Int?     @default(0)
-  creditsStart    Int?     
-  creditsEnd      Int?     
-
   createdAt       DateTime        @default(now())
+  introEnd        Int?            @default(0)
+  introStart      Int?            @default(0)
+  creditsEnd      Int?
+  creditsStart    Int?
+  recapEnd        Int?            @default(0)
+  recapStart      Int?            @default(0)
   updatedAt       DateTime        @updatedAt
-
-  // Inverse Decoupled Structural Links
-  movie           Movie?
-  episode         Episode?
-  sources         VideoSource[]
-  subtitles       SubtitleTrack[]
   audioTracks     AudioTrack[]
-  watchHistory    WatchHistory[]
   downloads       Download[]
+  episode         Episode?
+  movie           Movie?
+  subtitles       SubtitleTrack[]
+  sources         VideoSource[]
+  watchHistory    WatchHistory[]
 }
 
 model VideoSource {
-  id              String               @id @default(uuid())
-  type            VideoSourceType      @default(HLS)
-  url             String               
-  resolution      VideoResolution      @default(P1080)
-  bitrate         Int?                 // Encoding throughput metric bits per second
-  
-  // Granular Playback & Hardware Encoding Metadata
-  codec           String               // e.g., "avc1.64002a", "hvc1.2.4.L153.B0" (HEVC)
-  audioCodec      String               // e.g., "mp4a.40.2" (AAC), "ec-3" (Dolby Digital Plus)
-  fps             Float                // e.g., 23.976, 24.0, 60.0
-  hdr             HDRFormat            @default(SDR)
-  aspectRatio     String               // e.g., "16:9", "2.39:1"
-  
-  videoId         String
-  video           Video                @relation(fields: [videoId], references: [id], onDelete: Cascade)
-
-  // High-Scale Multi-DRM Security Payloads
-  widevineKeyId   String?
-  widevineLicenseUrl String?
-  fairplayAssetId String?
+  id                     String               @id @default(uuid())
+  type                   VideoSourceType      @default(HLS)
+  url                    String
+  resolution             VideoResolution      @default(P1080)
+  bitrate                Int?
+  codec                  String
+  audioCodec             String
+  fps                    Float
+  hdr                    HDRFormat            @default(SDR)
+  aspectRatio            String
+  videoId                String
+  widevineKeyId          String?
+  widevineLicenseUrl     String?
+  fairplayAssetId        String?
   fairplayCertificateUrl String?
-  playreadyHeader String?
-
-  regions         RegionAvailability[]
+  playreadyHeader        String?
+  regions                RegionAvailability[]
+  video                  Video                @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@index([videoId])
 }
@@ -701,11 +957,11 @@ model VideoSource {
 model SubtitleTrack {
   id         String           @id @default(uuid())
   languageId String
-  language   LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Restrict)
-  label      String           
-  url        String           
-  isCC       Boolean          @default(false) 
+  label      String
+  url        String
+  isCC       Boolean          @default(false)
   videoId    String
+  language   LanguageRegistry @relation(fields: [languageId], references: [id])
   video      Video            @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@index([videoId])
@@ -714,59 +970,54 @@ model SubtitleTrack {
 model AudioTrack {
   id            String           @id @default(uuid())
   languageId    String
-  language      LanguageRegistry @relation(fields: [languageId], references: [id], onDelete: Restrict)
-  label         String           
-  url           String?          
-  isDescriptive Boolean          @default(false) 
+  label         String
+  url           String?
+  isDescriptive Boolean          @default(false)
   videoId       String
+  language      LanguageRegistry @relation(fields: [languageId], references: [id])
   video         Video            @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@index([videoId])
 }
 
 model RegionAvailability {
-  id             String       @id @default(uuid())
-  countryCode    String       // ISO 3166-1 alpha-2 standard country codes (e.g., "US", "DE")
-  isAllowed      Boolean      @default(true) 
-  expiresAt      DateTime?    
-  videoSourceId  String
-  videoSource    VideoSource  @relation(fields: [videoSourceId], references: [id], onDelete: Cascade)
+  id            String      @id @default(uuid())
+  countryCode   String
+  isAllowed     Boolean     @default(true)
+  expiresAt     DateTime?
+  videoSourceId String
+  videoSource   VideoSource @relation(fields: [videoSourceId], references: [id], onDelete: Cascade)
 
   @@unique([countryCode, videoSourceId])
   @@index([videoSourceId])
 }
 
-// =========================================================================
-// 14. TELEMETRY LOGGING, BOOKMARKS, RECOMMS, & DOWNLOAD SYSTEMS
-// =========================================================================
-
 model WatchHistory {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   profileId   String
-  profile     Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   videoId     String
-  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  
-  lastTime    Int      @default(0)   
-  isFinished  Boolean  @default(false) 
-  completedAt DateTime? 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  lastTime    Int       @default(0)
+  isFinished  Boolean   @default(false)
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  profile     Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, videoId])
   @@index([profileId])
   @@index([videoId])
-  @@index([updatedAt]) 
+  @@index([updatedAt])
 }
 
 model MyListItem {
   id           String   @id @default(uuid())
   profileId    String
-  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   contentId    String
-  content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  displayOrder Int      @default(0) 
+  displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
+  content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  profile      Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, contentId])
   @@index([profileId])
@@ -777,11 +1028,11 @@ model Rating {
   id        String      @id @default(uuid())
   value     RatingValue
   profileId String
-  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
   contentId String
-  content   Content     @relation(fields: [contentId], references: [id], onDelete: Cascade)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  content   Content     @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, contentId])
   @@index([profileId])
@@ -791,69 +1042,30 @@ model Rating {
 model RecommendationScore {
   id              String   @id @default(uuid())
   profileId       String
-  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   targetContentId String
-  targetContent   Content  @relation("TargetContent", fields: [targetContentId], references: [id], onDelete: Cascade)
-  predictedScore  Float    
-  reasonCode      String?  
-  sourceContentId String?  
-  sourceContent   Content? @relation("SourceContent", fields: [sourceContentId], references: [id], onDelete: SetNull)
+  predictedScore  Float
+  reasonCode      String?
+  sourceContentId String?
   updatedAt       DateTime @updatedAt
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sourceContent   Content? @relation("SourceContent", fields: [sourceContentId], references: [id])
+  targetContent   Content  @relation("TargetContent", fields: [targetContentId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, targetContentId])
-  @@index([profileId, predictedScore]) 
+  @@index([profileId, predictedScore])
 }
 
 model Download {
   id         String   @id @default(uuid())
   profileId  String
-  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   videoId    String
-  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  
-  deviceUuid String   
-  authToken  String   
-  expiresAt  DateTime 
+  deviceUuid String
+  authToken  String
+  expiresAt  DateTime
   createdAt  DateTime @default(now())
+  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  video      Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
 
   @@unique([profileId, videoId, deviceUuid])
   @@index([profileId])
-}
-
-// =========================================================================
-// 15. CREATOR MONETIZATION & PAYOUT SYSTEM
-// =========================================================================
-
-model EarningsEvent {
-  id          String   @id @default(uuid())
-  creatorId   String
-  contentId   String
-  
-  // The amount earned in the smallest currency unit (e.g., 0.50 USD)
-  amount      Decimal  @db.Decimal(10, 2)
-  
-  // Describes the source (e.g., "SUBSCRIPTION_SHARE", "BONUS")
-  sourceType  String
-  
-  // Link to the watch history entry that triggered this
-  watchHistoryId String? @unique
-  
-  createdAt   DateTime @default(now())
-
-  @@index([creatorId])
-  @@index([createdAt])
-}
-
-model CreatorPayout {
-  id          String   @id @default(uuid())
-  creatorId   String
-  
-  amount      Decimal  @db.Decimal(10, 2)
-  status      String   @default("PENDING") // PENDING, PROCESSING, PAID, FAILED
-  
-  // Payout metadata (e.g., "Monthly Payout July 2026")
-  description String?
-  
-  paidAt      DateTime?
-  createdAt   DateTime @default(now())
 }

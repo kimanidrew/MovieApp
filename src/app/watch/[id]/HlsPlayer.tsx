@@ -49,17 +49,46 @@ export default function HlsPlayer(props: HlsPlayerProps) {
   const [isQualityOpen, setIsQualityOpen] = useState(false);
   const [showControls, setShowControls] = useState(true);
 
+  // New Recommendation State
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+
   const [actionAnimation, setActionAnimation] = useState<{ type: "play" | "pause" | "forward" | "rewind"; key: number } | null>(null);
 
-  // Scene fade transition state flag
   const [isSceneFading, setIsSceneFading] = useState(false);
 
   const introStart = props.introStart !== undefined && props.introStart !== null ? parseInt(props.introStart.toString(), 10) : 0;
   const introEnd = props.introEnd !== undefined && props.introEnd !== null ? parseInt(props.introEnd.toString(), 10) : 0;
 
-  // ========================
-  // UNIFIED WATCH HISTORY LOGS SAVE
-  // ========================
+  const getActiveProfileId = (): string | null => {
+    try {
+      const savedProfileId = localStorage.getItem("customer_active_profile_id");
+      if (savedProfileId) return savedProfileId;
+
+      const cookieMatch = document.cookie
+        .split(';')
+        .map((item) => item.trim())
+        .find((item) => item.startsWith('profile_id='));
+      if (cookieMatch) return decodeURIComponent(cookieMatch.slice('profile_id='.length));
+    } catch (e) {
+      console.error("Failed retrieving profile id", e);
+    }
+    return null;
+  };
+
+  // Helper to fetch recommendations
+  const fetchRecommendations = async () => {
+    try {
+      const profileId = getActiveProfileId();
+      const res = await fetch(`/api/recommendations?videoId=${props.videoId}&profileId=${profileId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRecommendations(data.recommendations || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch recommendations", e);
+    }
+  };
+
   const saveHistory = useCallback((t: number, d: number) => {
     if (!props.videoId || d <= 0) return;
     try {
@@ -73,11 +102,23 @@ export default function HlsPlayer(props: HlsPlayerProps) {
     } catch (e) {
       console.error("Failed writing watch history logs", e);
     }
+
+    const profileId = getActiveProfileId();
+    if (profileId && props.videoId) {
+      const isFinished = d > 0 && t >= d - 5;
+      fetch("/api/watch-history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId,
+          videoId: props.videoId,
+          lastTime: Math.floor(t),
+          isFinished,
+        }),
+      }).catch((err) => console.error("Watch history sync error:", err));
+    }
   }, [props.videoId]);
 
-  // ========================
-  // ANIMATION TIMELINE LOOPER LOOP
-  // ========================
   const loop = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -105,46 +146,38 @@ export default function HlsPlayer(props: HlsPlayerProps) {
     rafRef.current = requestAnimationFrame(loop);
   }, [saveHistory, introStart, introEnd]);
 
-  // ========================
-  // SKIP INTRO (WITH SCENE TRANSITION)
-  // ========================
   const handleSkipIntro = () => {
     const v = videoRef.current;
     if (!v) return;
 
-    setIsSceneFading(true); // 👈 1. Trigger dark backdrop cover layer
+    setIsSceneFading(true);
 
     setTimeout(() => {
-      v.currentTime = introEnd; // 👈 2. Warp video timestamp behind cover
+      v.currentTime = introEnd;
       setShowSkipButton(false);
       triggerAnimation("forward");
 
-      // 3. Smoothly fade video into view after rendering frame positions
       setTimeout(() => {
         setIsSceneFading(false);
       }, 150);
     }, 250); 
   };
 
-  // ========================
-  // RESUME VIDEO (WITH SCENE TRANSITION)
-  // ========================
   const restoreVideo = () => {
     const v = videoRef.current;
     if (!v || resumeTime === null) return;
 
-    setIsSceneFading(true); // 👈 1. Trigger dark backdrop cover layer
+    setIsSceneFading(true);
     const targetTime = resumeTime;
     setResumeTime(null); 
 
     setTimeout(() => {
-      v.currentTime = targetTime; // 👈 2. Warp video timestamp behind cover
+      v.currentTime = targetTime;
       
       v.play()
         .then(() => setIsPlaying(true))
         .catch((err) => console.log("User action play engagement blocked:", err));
 
-      // 3. Smoothly fade video into view after rendering frame positions
       setTimeout(() => {
         setIsSceneFading(false);
       }, 150);
@@ -257,9 +290,6 @@ export default function HlsPlayer(props: HlsPlayerProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPlaying, isFullscreen, isQualityOpen, resetControlsTimeout]);
 
-  // ========================
-  // INTRINSIC HLS INITIALIZATION ENGINE
-  // ========================
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !props.src) return;
@@ -337,6 +367,14 @@ export default function HlsPlayer(props: HlsPlayerProps) {
     const onPause = () => {
       setIsPlaying(false);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (video) saveHistory(video.currentTime, video.duration || 0);
+    };
+
+    const onEnded = () => {
+      setIsPlaying(false);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (video) saveHistory(video.duration || 0, video.duration || 0);
+      fetchRecommendations(); // <--- Automatic Trigger
     };
 
     const onWaiting = () => setIsBuffering(true);
@@ -345,14 +383,17 @@ export default function HlsPlayer(props: HlsPlayerProps) {
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onEnded);
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("playing", onPlaying);
     video.addEventListener("loadedmetadata", onLoaded);
 
     return () => {
       if (video) {
+        saveHistory(video.currentTime, video.duration || 0);
         video.removeEventListener("play", onPlay);
         video.removeEventListener("pause", onPause);
+        video.removeEventListener("ended", onEnded);
         video.removeEventListener("waiting", onWaiting);
         video.removeEventListener("playing", onPlaying);
         video.removeEventListener("loadedmetadata", onLoaded);
@@ -370,7 +411,6 @@ export default function HlsPlayer(props: HlsPlayerProps) {
       onMouseMove={resetControlsTimeout}
       style={{ cursor: showControls ? "default" : "none", position: "relative", width: "100%", height: "100vh", background: "#000", overflow: "hidden" }}
     >
-      {/* 🎬 CINEMATIC SCENE TRANSITION OVERLAY LAYER */}
       <div className={`scene-fade-overlay ${isSceneFading ? "fade-black" : ""}`} />
 
       <div 
@@ -387,7 +427,6 @@ export default function HlsPlayer(props: HlsPlayerProps) {
         style={{ width: "100%", height: "100%", objectFit: "contain" }}
       />
 
-      {/* Ripple Animation Layers */}
       {actionAnimation && (
         <div key={actionAnimation.key} className={`action-ripple-container alignment-${actionAnimation.type}`} style={{ zIndex: 2 }}>
           {["play", "pause"].includes(actionAnimation.type) ? (
@@ -413,6 +452,7 @@ export default function HlsPlayer(props: HlsPlayerProps) {
         restoreVideo={restoreVideo}
         closeResume={closeResume}
         handleSkipIntro={handleSkipIntro}
+        recommendations={recommendations} // Pass to Overlay
       />
 
       <PlayerControls
@@ -467,6 +507,7 @@ export default function HlsPlayer(props: HlsPlayerProps) {
       <style>{playerStyles}</style>
 
       <style>{`
+        /* ... existing styles ... */
         .controls-hidden .netflix-header,
         .controls-hidden .netflix-controls {
           opacity: 0 !important;
@@ -513,7 +554,6 @@ export default function HlsPlayer(props: HlsPlayerProps) {
         }
         .ripple-transparent-icon-circle svg { width: 50px; height: 50px; }
 
-        /* Cinema crossfade layout overlay rules */
         .scene-fade-overlay {
           position: absolute;
           inset: 0;

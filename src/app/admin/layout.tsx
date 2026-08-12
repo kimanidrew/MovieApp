@@ -1,47 +1,47 @@
-import { cookies, headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { jwtVerify } from "jose"; 
+import { cookies } from "next/headers";
+import { jwtVerify } from "jose";
 import prisma from "@/lib/prisma";
+import { getJwtSecretKey } from "@/lib/auth";
 import AdminNavbar from "@/components/Navbar/AdminNavbar";
-
-// Your production allowed admin IP address
-const ALLOWED_ADMIN_IP = "62.8.66.213"; 
-
-// Localhost identifiers used during development
-const LOCALHOST_IPS = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
+import { ADMIN_ROLES } from "@/lib/admin-auth";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const reqHeaders = await headers();
-  
-  // 1. Extract client IP securely
-  const clientIp = 
-    reqHeaders.get("x-forwarded-for")?.split(",")[0].trim() || 
-    reqHeaders.get("x-real-ip") || 
-    "";
+  // The middleware already handles auth redirection for admin routes.
+  // This layout only needs to render the admin shell UI.
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get("admin_token")?.value;
 
-  // 2. Determine if running in local development mode
-  const isDevelopment = process.env.NODE_ENV === "development";
+  // If there IS an admin token, verify it's valid
+  if (adminToken) {
+    try {
+      const { payload } = await jwtVerify(adminToken, getJwtSecretKey());
+      const sessionRef = payload.sessionRef as string;
 
-  // 3. Strict IP restriction verification
-  const isAllowedIp = clientIp === ALLOWED_ADMIN_IP;
-  const isLocalAccess = isDevelopment && LOCALHOST_IPS.includes(clientIp);
+      if (sessionRef) {
+        const session = await prisma.deviceSession.findUnique({
+          where: { refreshToken: sessionRef },
+          include: { user: true },
+        });
 
-  if (!isAllowedIp && !isLocalAccess) {
-    // Helpful log in your terminal so you can see exactly what IP Next.js is catching
-    console.log(`[Admin Blocked] Unauthorized IP attempt caught: ${clientIp}`);
-    notFound(); 
+        if (session?.user && session.user.isActive && ADMIN_ROLES.includes(session.user.role as any)) {
+          return (
+            <>
+              <AdminNavbar />
+              <div style={{ paddingTop: "65px" }}>{children}</div>
+            </>
+          );
+        }
+      }
+    } catch (error) {
+      // Invalid token - let middleware handle the redirect
+    }
   }
 
-  // 4. Existing JWT Authorization logic goes here...
-
-  return (
-    <>
-      <AdminNavbar />
-      {children}
-    </>
-  );
+  // If no valid admin session, just render children without the admin navbar.
+  // The middleware will redirect /admin/* (except /admin/login) to /admin/login.
+  return <>{children}</>;
 }
