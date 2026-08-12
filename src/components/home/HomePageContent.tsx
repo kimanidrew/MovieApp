@@ -32,7 +32,7 @@ export default function HomePageContent({ data }: HomePageContentProps) {
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
-          margin-top: 2rem;
+          margin-top: -2rem;
           position: relative;
           z-index: 5;
         }
@@ -40,7 +40,7 @@ export default function HomePageContent({ data }: HomePageContentProps) {
         @media (max-width: 768px) {
           .sections {
             gap: 0.25rem;
-            margin-top: 1rem;
+            margin-top: -1rem;
           }
         }
       `}</style>
