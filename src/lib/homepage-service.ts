@@ -186,9 +186,12 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
       viewAllHref: getViewAllHref(row.sourceType, row.categoryId),
     }));
 
- 
+  // 6. Determine featured content
+  const featured = await getFeaturedContent();
+
   return {
     profile: profileData,
+    featured,
     sections,
   };
 }

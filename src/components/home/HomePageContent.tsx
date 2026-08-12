@@ -17,9 +17,11 @@ export default function HomePageContent({ data }: HomePageContentProps) {
     <main className="homepage" aria-label="Home">
       <HeroBanner content={data.featured} />
       <div className="sections">
-        {data.sections.map((section, idx) => (
-          <ContentRow key={section.id} section={section} />
-        ))}
+          {data.sections
+          .filter((section) => section.renderStyle !== "HERO_BILLBOARD")
+          .map((section) => (
+            <ContentRow key={section.id} section={section} />
+          ))}
       </div>
 
       <style jsx>{`
