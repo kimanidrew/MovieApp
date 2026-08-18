@@ -33,7 +33,7 @@ export default function ConsumerNavbar() {
         try {
           const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
           const data = await res.json();
-          setSearchResults(data);
+setSearchResults(data.results || []);
         } catch (err) {
           console.error("Search failed", err);
         }
@@ -98,12 +98,29 @@ export default function ConsumerNavbar() {
               
               {searchResults.length > 0 && (
                 <div className="search-dropdown">
-                  {searchResults.map((item) => (
-                    <Link href={`/${item.type === 'MOVIE' ? 'movies' : 'shows'}/${item.id}`} key={item.id} className="search-item" onClick={() => setIsSearchOpen(false)}>
-                      <img src={item.thumbnailUrl} alt={item.title} />
-                      <span>{item.title}</span>
-                    </Link>
-                  ))}
+                  {searchResults.map((item, idx) => {
+                    let href = "/movies/" + item.id;
+                    const ct = item.contentType || item.type || "";
+                    if (ct === "SHOW") href = "/shows/" + item.id;
+                    else if (ct === "GENRE") href = "/genre/" + (item.slug || (item.title || "").toLowerCase());
+                    else if (ct === "PERSON") href = "/search?q=" + encodeURIComponent(item.title || "");
+
+                    return (
+                      <Link href={href} key={item.id + "-" + idx} className="search-item" onClick={() => setIsSearchOpen(false)}>
+                        {item.thumbnailUrl ? (
+                          <img src={item.thumbnailUrl} alt={item.title} />
+                        ) : (
+                          <div style={{ width: "50px", height: "30px", background: "rgba(255,255,255,0.1)", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.6rem", color: "#888" }}>
+                            {ct === "GENRE" ? "G" : ct === "PERSON" ? "P" : "M"}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden" }}>
+                          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 500 }}>{item.title}</span>
+                          <span style={{ fontSize: "0.7rem", color: "#777" }}>{ct} {item.releaseYear ? "· " + item.releaseYear : ""}</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>

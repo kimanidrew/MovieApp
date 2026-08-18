@@ -40,8 +40,7 @@ export default async function MoviesPage() {
         description: content.description || "",
         releaseYear: content.releaseYear || 0,
         maturityRating: content.maturityRating?.code || "NR",
-        // Serialized to ISO String to match Video interface requirement
-        createdAt: content.createdAt.toISOString(), 
+        createdAt: content.createdAt.toISOString(),
         thumbnailUrl: randomImage("POSTER"),
         backdropUrl: randomImage("BACKDROP"),
         trailerUrl: content.trailers[0]?.hlsManifestUrl ?? movieData?.video?.sources[0]?.url ?? null,
@@ -65,7 +64,6 @@ export default async function MoviesPage() {
 
   return (
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <PageBackground overlayOpacity={0.82} />
       <ContentPageClient items={movies} categories={categories} type="movies" />
     </main>
   );

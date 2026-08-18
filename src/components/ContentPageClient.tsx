@@ -3,14 +3,15 @@
 import React, { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import PageHeader from "@/components/PageHeader";
-import VideoGrid from "@/components/Grids/VideoGrid";
 import Hero from "./Hero";
+import GenreRows from "./GenreRows";
 import { Video } from "@/types/video";
 
 interface ContentPageClientProps {
   items: Video[];
   categories: string[];
   type: "movies" | "shows" | "home";
+  title?: string;
 }
 
 /**
@@ -71,7 +72,7 @@ function Spotlight({ items, excludedId }: { items: Video[]; excludedId: string |
   );
 }
 
-export default function ContentPageClient({ items, categories, type }: ContentPageClientProps) {
+export default function ContentPageClient({ items, categories, type, title }: ContentPageClientProps) {
   const [selectedTabs, setSelectedTabs] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -105,7 +106,7 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
   return (
     <section className="pageContainer">
       <PageHeader 
-        title={type === "movies" ? "Movies" : "Shows"}
+        title={title || (type === "movies" ? "Movies" : type === "shows" ? "Shows" : "Browse")}
         subtitle={type === "movies" ? "Browse our premium movie library." : "Browse our premium TV series library."}
         searchPlaceholder={`Search ${type === "movies" ? "movies" : "shows"}, artists e.t.c`}
         searchValue={search}
@@ -130,7 +131,7 @@ export default function ContentPageClient({ items, categories, type }: ContentPa
           </div>
         </div>
         
-        <VideoGrid videos={filteredItems} type={type} />
+        <GenreRows items={filteredItems} type={type} />
       </div>
 
       <style jsx global>{`

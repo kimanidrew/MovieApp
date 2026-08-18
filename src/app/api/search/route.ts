@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     const results = await prisma.content.findMany({
       where: {
-        status: "PUBLISHED",
+        status: { in: ["PUBLISHED", "READY"] },
         OR: [
           {
             title: {

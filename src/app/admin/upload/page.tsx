@@ -1,439 +1,286 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import HeaderTabs from "./components/HeaderTabs";
 import TmdbSearch from "./components/TmdbSearch";
 import TitleInformationForm from "./components/TitleInformationForm";
-import TvSeasonEpisodeForm from "./components/TvSeasonEpisodeForm";
 import GraphicAssetsUploader from "./components/GraphicAssetsUploader";
 import TrailerUploader from "./components/TrailerUploader";
 import MainVideoUploader from "./components/MainVideoUploader";
-import { Check, ChevronLeft, ChevronRight, Film, Image as ImageIcon, PlayCircle, UploadCloud, Star, Loader2 } from "lucide-react";
+import VideoDetailsForm from "./components/VideoDetailsForm";
+import CastCrewForm from "./components/CastCrewForm";
+import SubtitlesForm from "./components/SubtitlesForm";
+import ProductionInfoForm from "./components/ProductionInfoForm";
+import AwardsForm from "./components/AwardsForm";
+import TvSeasonEpisodeForm from "./components/TvSeasonEpisodeForm";
+import { CheckCircle, AlertTriangle } from "lucide-react";
 
-// Wizard step definitions
-const STEPS = [
-  { id: 1, label: "Search & Select", icon: Film },
-  { id: 2, label: "Title Details", icon: Star },
-  { id: 3, label: "Images", icon: ImageIcon },
-  { id: 4, label: "Trailers", icon: PlayCircle },
-  { id: 5, label: "Main Video", icon: UploadCloud },
-  { id: 6, label: "Review & Publish", icon: Check },
-];
+const emptyFormData: Record<string, any> = {
+  title: "", slug: "", description: "", storyline: "", releaseYear: "",
+  maturityRatingCode: "", tmdbId: "", keywords: [], originalLanguage: "en",
+  spokenLanguages: [], popularityScore: 0, voteAverage: 0, voteCount: 0,
+  runtime: "", status: "", homepage: "", imdbId: "",
+};
 
-export default function AdminUploadPanel() {
+export default function AdminUploadPage() {
   const [activeTab, setActiveTab] = useState<"MOVIE" | "SHOW">("MOVIE");
-  const [currentStep, setCurrentStep] = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [maturityOptions, setMaturityOptions] = useState<any[]>([]);
-
-  // State to hold metadata of an existing show selected from DB
-  const [selectedShowMeta, setSelectedShowMeta] = useState<any>(null);
-
-  useEffect(() => {
-    fetch("/api/admin/metadata/ratings")
-      .then((res) => res.json())
-      .then((data) => setMaturityOptions(data))
-      .catch(console.error);
-  }, []);
-
-  const [formData, setFormData] = useState({
-    title: "", slug: "", description: "", storyline: "", 
-    releaseYear: "2026", maturityRatingCode: "TV-MA", 
-    tmdbId: "", keywords: [] as string[],
-  });
-
-  // Featured content controls
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [featuredOrder, setFeaturedOrder] = useState(0);
-
+  const [formData, setFormData] = useState<any>({ ...emptyFormData });
   const [categories, setCategories] = useState<string[]>([]);
-  const [imageAssets, setImageAssets] = useState<Array<{ url: string; type: "POSTER" | "BACKDROP"; displayOrder: number }>>([]);
-  const [trailerTracks, setTrailerTracks] = useState<Array<{ title: string; hlsManifestUrl: string }>>([]);
-  
-  const [isExistingShow, setIsExistingShow] = useState(false);
-  const [selectedExistingShowId, setSelectedExistingShowId] = useState("");
+  const [imageAssets, setImageAssets] = useState<any[]>([]);
+  const [trailerTracks, setTrailerTracks] = useState<any[]>([]);
+  const [mainVideoFile, setMainVideoFile] = useState<File | null>(null);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState("");
+  const [videoDetails, setVideoDetails] = useState<any>({});
+  const [cast, setCast] = useState<any[]>([]);
+  const [crew, setCrew] = useState<any[]>([]);
+  const [subtitles, setSubtitles] = useState<any[]>([]);
+  const [productionInfo, setProductionInfo] = useState<any>({});
+  const [awards, setAwards] = useState<any[]>([]);
+  const [selectedTmdbItem, setSelectedTmdbItem] = useState<any>(null);
   const [showConfig, setShowConfig] = useState({
     seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "",
   });
+  const [isExistingShow, setIsExistingShow] = useState(false);
+  const [selectedExistingShowId, setSelectedExistingShowId] = useState("");
+  const [selectedShowMeta, setSelectedShowMeta] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [maturityOptions, setMaturityOptions] = useState<any[]>([]);
 
-  const [mainVideoFile, setMainVideoFile] = useState<File | null>(null);
-  const [uploadedVideoUrl, setUploadedVideoUrl] = useState("");
+  useEffect(() => {
+    fetch("/api/admin/metadata/ratings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setMaturityOptions(data);
+        else if (data?.ratings) setMaturityOptions(data.ratings);
+      })
+      .catch(() => {});
+  }, []);
 
-  const resetForm = () => {
-    setFormData({
-      title: "", slug: "", description: "", storyline: "", 
-      releaseYear: "2026", maturityRatingCode: "TV-MA", 
-      tmdbId: "", keywords: [],
-    });
-    setCategories([]); 
-    setImageAssets([]); 
-    setTrailerTracks([]);
-    setMainVideoFile(null); 
-    setUploadedVideoUrl("");
-    setIsExistingShow(false);
-    setSelectedExistingShowId("");
-    setSelectedShowMeta(null);
-    setShowConfig({
-      seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "",
-    });
-    setIsFeatured(false);
-    setFeaturedOrder(0);
-    setCurrentStep(1);
+  const updateFormData = useCallback((updater: any) => {
+    if (typeof updater === "function") {
+      setFormData((prev: any) => updater(prev));
+    } else {
+      setFormData(updater);
+    }
+  }, []);
+
+  const handleTypeSwitch = (type: "MOVIE" | "SHOW") => {
+    setActiveTab(type);
+    setSaveStatus(null);
+  };
+
+  const ensureSlug = () => {
+    if (!formData.slug && formData.title) {
+      const slug = formData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      setFormData((prev: any) => ({ ...prev, slug }));
+      return slug;
+    }
+    return formData.slug;
+  };
+
+  const buildPayload = () => {
+    const slug = ensureSlug();
+    const base: Record<string, any> = {
+      type: activeTab,
+      title: formData.title,
+      slug: slug || `content-${Date.now()}`,
+      description: formData.description || "",
+      storyline: formData.storyline || "",
+      releaseYear: formData.releaseYear || "2026",
+      maturityRatingCode: formData.maturityRatingCode || "TV-MA",
+      tmdbId: formData.tmdbId || "",
+      categories,
+      images: imageAssets,
+      trailers: trailerTracks,
+      imdbId: formData.imdbId || "",
+      originalLanguage: formData.originalLanguage || "en",
+      spokenLanguages: formData.spokenLanguages || [],
+      popularityScore: Number(formData.popularityScore || 0),
+      voteAverage: Number(formData.voteAverage || 0),
+      voteCount: Number(formData.voteCount || 0),
+      runtime: formData.runtime || "",
+      status: formData.status || "Released",
+      homepage: formData.homepage || "",
+      keywords: formData.keywords || [],
+      cast, crew, videoDetails, subtitles, productionInfo, awards,
+      isFeatured: false, featuredOrder: 0,
+    };
+
+    if (activeTab === "MOVIE") {
+      return { ...base, movieVideoUrl: uploadedVideoUrl || "", movieDuration: videoDetails.durationSeconds || "7200" };
+    }
+
+    return {
+      ...base,
+      episodeVideoUrl: uploadedVideoUrl || "",
+      episodeDuration: videoDetails.durationSeconds || "2700",
+      seasonNumber: showConfig.seasonNumber || "1",
+      episodeNumber: showConfig.episodeNumber || "1",
+      episodeTitle: showConfig.episodeTitle || "",
+      episodeDescription: showConfig.episodeDescription || "",
+      isExistingShow,
+      existingShowId: isExistingShow ? selectedExistingShowId : "",
+    };
   };
 
   const commitCompleteAssetToDb = async () => {
-    setSaving(true);
-    try {
-      const payload = {
-        ...formData,
-        type: activeTab,
-        categories,
-        images: imageAssets,
-        trailers: trailerTracks,
-        movieVideoUrl: activeTab === "MOVIE" ? uploadedVideoUrl : undefined,
-        movieDuration: activeTab === "MOVIE" ? "7200" : undefined,
-        ...showConfig,
-        episodeVideoUrl: activeTab === "SHOW" ? uploadedVideoUrl : undefined,
-        episodeDuration: activeTab === "SHOW" ? "2700" : undefined,
-        isExistingShow,
-        existingShowId: selectedExistingShowId,
-        isFeatured,
-        featuredOrder,
-      };
+    if (!formData.title) {
+      setSaveStatus({ ok: false, message: "At least a title is required to save content." });
+      return;
+    }
 
-      const saveRes = await fetch("/api/admin/media/save", {
+    setSaving(true);
+    setSaveStatus(null);
+    try {
+      const payload = buildPayload();
+      const res = await fetch("/api/admin/media/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const resData = await saveRes.json();
-      if (!saveRes.ok) throw new Error(resData.error || "Failed to save");
 
-      alert("Content added to library successfully!");
-      resetForm();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save content");
+
+      setSaveStatus({ ok: true, message: "Content saved successfully to the catalog!" });
+      setTimeout(() => {
+        setFormData({ ...emptyFormData });
+        setCategories([]); setImageAssets([]); setTrailerTracks([]);
+        setMainVideoFile(null); setUploadedVideoUrl(""); setVideoDetails({});
+        setCast([]); setCrew([]); setSubtitles([]);
+        setProductionInfo({}); setAwards([]); setSelectedTmdbItem(null);
+        setShowConfig({ seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "" });
+        setSaveStatus(null);
+      }, 2500);
     } catch (err: any) {
-      alert(`Could not save title: ${err.message}`);
+      setSaveStatus({ ok: false, message: err?.message || "Failed to save content." });
     } finally {
       setSaving(false);
     }
   };
 
-  // Validation per step
-  const canProceedFromStep = (step: number): boolean => {
-    switch (step) {
-      case 1:
-        // Must have a title selected (from TMDB or manual)
-        return formData.title !== "" || (activeTab === "SHOW" && isExistingShow && selectedExistingShowId !== "");
-      case 2:
-        return formData.title !== "" && formData.slug !== "";
-      case 3:
-        return true; // Images are optional
-      case 4:
-        return true; // Trailers are optional
-      case 5:
-        return uploadedVideoUrl !== ""; // Must have main video uploaded
-      default:
-        return true;
-    }
-  };
-
-  const goNext = () => {
-    if (!canProceedFromStep(currentStep)) {
-      alert("Please complete the required fields for this step before continuing.");
-      return;
-    }
-    setCurrentStep(Math.min(currentStep + 1, STEPS.length));
-  };
-
-  const goBack = () => {
-    setCurrentStep(Math.max(currentStep - 1, 1));
-  };
-
-  const goToStep = (step: number) => {
-    // Only allow going back to previous steps freely
-    if (step < currentStep) {
-      setCurrentStep(step);
-      return;
-    }
-    // For forward navigation, validate each intermediate step
-    for (let s = currentStep; s < step; s++) {
-      if (!canProceedFromStep(s)) {
-        alert(`Please complete Step ${s} (${STEPS[s-1].label}) first.`);
-        return;
-      }
-    }
-    setCurrentStep(step);
-  };
+  const isFormValid = Boolean(formData.title);
 
   return (
     <div className="workspace-container">
       <div className="layout-max-wrapper">
-        <HeaderTabs activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); resetForm(); }} />
+        <HeaderTabs activeTab={activeTab} setActiveTab={handleTypeSwitch} />
 
-        {/* Wizard Progress Bar */}
-        <div className="wizard-progress-container">
-          {STEPS.map((step, idx) => {
-            const StepIcon = step.icon;
-            const isComplete = currentStep > step.id;
-            const isActive = currentStep === step.id;
-            return (
-              <React.Fragment key={step.id}>
-                {idx > 0 && <div className={`wizard-connector ${isComplete ? "complete" : ""}`} />}
-                <button
-                  className={`wizard-step-btn ${isActive ? "active" : ""} ${isComplete ? "complete" : ""}`}
-                  onClick={() => goToStep(step.id)}
-                  disabled={saving}
-                >
-                  <span className="wizard-step-icon">
-                    {isComplete ? <Check size={14} /> : <StepIcon size={14} />}
-                  </span>
-                  <span className="wizard-step-label">{step.label}</span>
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </div>
+        {saveStatus && (
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: "0.75rem",
+              padding: "0.75rem 1rem", borderRadius: "0.5rem", marginBottom: "1.5rem",
+              background: saveStatus.ok ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+              border: `1px solid ${saveStatus.ok ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
+            }}
+          >
+            {saveStatus.ok
+              ? <CheckCircle size={18} style={{ color: "#10b981", flexShrink: 0 }} />
+              : <AlertTriangle size={18} style={{ color: "#ef4444", flexShrink: 0 }} />}
+            <span style={{ fontSize: "0.875rem", color: saveStatus.ok ? "#10b981" : "#ef4444", fontWeight: 500 }}>
+              {saveStatus.message}
+            </span>
+          </div>
+        )}
 
-        {/* Step Content */}
-        <div className="wizard-step-content">
-          {/* STEP 1: TMDB Search & Select */}
-          {currentStep === 1 && (
-            <div className="wizard-step-panel">
-              <div className="wizard-step-header">
-                <h2>Step 1: Search & Select Content</h2>
-                <p>Search TMDB to auto-fill metadata, or enter details manually in the next step.</p>
-              </div>
-              {(!isExistingShow || activeTab === "MOVIE") && (
-                <TmdbSearch 
-                  activeTab={activeTab}
-                  setFormData={setFormData}
-                  setCategories={setCategories}
-                  setImageAssets={setImageAssets}
-                  setTrailerTracks={setTrailerTracks}
-                />
-              )}
-              {activeTab === "SHOW" && (
-                <TvSeasonEpisodeForm
-                  showConfig={showConfig}
-                  setShowConfig={setShowConfig}
-                  isExistingShow={isExistingShow}
-                  selectedExistingShowId={selectedExistingShowId}
-                  setSelectedExistingShowId={setSelectedExistingShowId}
-                  setSelectedShowMeta={setSelectedShowMeta}
-                  parentTmdbId={isExistingShow ? selectedShowMeta?.tmdbId : formData.tmdbId}
-                  setIsExistingShow={(val: boolean) => {
-                    setIsExistingShow(val);
-                    if (!val) {
-                      setSelectedShowMeta(null);
-                      setSelectedExistingShowId("");
-                    }
-                  }}
-                />
-              )}
-            </div>
-          )}
+        <TmdbSearch
+          activeTab={activeTab}
+          setFormData={updateFormData}
+          setCategories={setCategories}
+          setImageAssets={setImageAssets}
+          setTrailerTracks={setTrailerTracks}
+          setSelectedTmdbItem={setSelectedTmdbItem}
+          setCast={setCast}
+          setCrew={setCrew}
+          setProductionInfo={setProductionInfo}
+        />
 
-          {/* STEP 2: Title Details */}
-          {currentStep === 2 && (
-            <div className="wizard-step-panel">
-              <div className="wizard-step-header">
-                <h2>Step 2: Title Information</h2>
-                <p>Review and edit the title metadata, categories, and featured settings.</p>
-              </div>
-              {(!isExistingShow || activeTab === "MOVIE") && (
-                <TitleInformationForm
-                  formData={formData}
-                  setFormData={setFormData}
-                  categories={categories}
-                  setCategories={setCategories}
-                  maturityOptions={maturityOptions}
-                />
-              )}
+        <div className="split-grid-layout">
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <TitleInformationForm
+              formData={formData}
+              setFormData={setFormData}
+              categories={categories}
+              setCategories={setCategories}
+              maturityOptions={maturityOptions}
+            />
+            <GraphicAssetsUploader imageAssets={imageAssets} setImageAssets={setImageAssets} />
+            <TrailerUploader trailerTracks={trailerTracks} setTrailerTracks={setTrailerTracks} />
 
-              {/* Featured Content Controls */}
-              <div className="panel-card-glass">
-                <h2 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "1.25rem", marginTop: 0, display: "flex", alignItems: "center" }}>
-                  <span className="step-number-badge">★</span> Featured Content
-                </h2>
-                <div className="panel-grid-inner">
-                  <div>
-                    <div className="input-group-wrapper">
-                      <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={isFeatured}
-                          onChange={(e) => setIsFeatured(e.target.checked)}
-                          style={{ width: "16px", height: "16px" }}
-                        />
-                        Mark as Featured
-                      </label>
-                      <p className="input-help-tip">Featured content appears in the hero billboard and featured rows on the homepage.</p>
-                    </div>
-                  </div>
-                  {isFeatured && (
-                    <div>
-                      <div className="input-group-wrapper">
-                        <label>Featured Order</label>
-                        <input
-                          type="number"
-                          value={featuredOrder}
-                          onChange={(e) => setFeaturedOrder(Number(e.target.value))}
-                          placeholder="0"
-                          className="input-text-field"
-                        />
-                        <p className="input-help-tip">Lower numbers appear first. 0 is the highest priority.</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Graphic Assets */}
-          {currentStep === 3 && (
-            <div className="wizard-step-panel">
-              <div className="wizard-step-header">
-                <h2>Step 3: Poster & Backdrop Images</h2>
-                <p>Upload poster and backdrop images. These will be used across the app for cards and hero banners.</p>
-              </div>
-              <GraphicAssetsUploader imageAssets={imageAssets} setImageAssets={setImageAssets} />
-            </div>
-          )}
-
-          {/* STEP 4: Trailers */}
-          {currentStep === 4 && (
-            <div className="wizard-step-panel">
-              <div className="wizard-step-header">
-                <h2>Step 4: Trailers & Promotional Tracks</h2>
-                <p>Upload trailer videos or add YouTube links for promotional content.</p>
-              </div>
-              <TrailerUploader trailerTracks={trailerTracks} setTrailerTracks={setTrailerTracks} />
-            </div>
-          )}
-
-          {/* STEP 5: Main Video */}
-          {currentStep === 5 && (
-            <div className="wizard-step-panel">
-              <div className="wizard-step-header">
-                <h2>Step 5: Main Video Media</h2>
-                <p>Upload the main video file for this {activeTab === "MOVIE" ? "movie" : "episode"}. This is the final required step.</p>
-              </div>
-              <MainVideoUploader
-                mainVideoFile={mainVideoFile}
-                setMainVideoFile={setMainVideoFile}
-                uploadedVideoUrl={uploadedVideoUrl}
-                setUploadedVideoUrl={setUploadedVideoUrl}
-                commitCompleteAssetToDb={commitCompleteAssetToDb}
-                saving={saving}
-                isFormValid={ (isExistingShow ? selectedExistingShowId !== "" : formData.title !== "") && uploadedVideoUrl !== "" }
+            {activeTab === "SHOW" && (
+              <TvSeasonEpisodeForm
+                showConfig={showConfig}
+                setShowConfig={setShowConfig}
+                isExistingShow={isExistingShow}
+                setIsExistingShow={setIsExistingShow}
+                selectedExistingShowId={selectedExistingShowId}
+                setSelectedExistingShowId={setSelectedExistingShowId}
+                parentTmdbId={formData.tmdbId}
+                setSelectedShowMeta={setSelectedShowMeta}
               />
-            </div>
-          )}
+            )}
 
-          {/* STEP 6: Review & Publish */}
-          {currentStep === 6 && (
-            <div className="wizard-step-panel">
-              <div className="wizard-step-header">
-                <h2>Step 6: Review & Publish</h2>
-                <p>Review all the information before publishing to the catalog.</p>
-              </div>
-              <div className="panel-card-glass">
-                <h3 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "1rem" }}>Content Summary</h3>
-                <div className="review-summary-grid">
-                  <div className="review-item">
-                    <span className="review-label">Type</span>
-                    <span className="review-value">{activeTab}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Title</span>
-                    <span className="review-value">{formData.title || "—"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Slug</span>
-                    <span className="review-value">{formData.slug || "—"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Release Year</span>
-                    <span className="review-value">{formData.releaseYear || "—"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Maturity Rating</span>
-                    <span className="review-value">{formData.maturityRatingCode || "—"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">TMDB ID</span>
-                    <span className="review-value">{formData.tmdbId || "—"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Categories</span>
-                    <span className="review-value">{categories.length > 0 ? categories.join(", ") : "—"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Featured</span>
-                    <span className="review-value">{isFeatured ? `Yes (Order: ${featuredOrder})` : "No"}</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Poster Images</span>
-                    <span className="review-value">{imageAssets.filter(i => i.type === "POSTER").length} uploaded</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Backdrop Images</span>
-                    <span className="review-value">{imageAssets.filter(i => i.type === "BACKDROP").length} uploaded</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Trailers</span>
-                    <span className="review-value">{trailerTracks.length} linked</span>
-                  </div>
-                  <div className="review-item">
-                    <span className="review-label">Main Video</span>
-                    <span className="review-value">{uploadedVideoUrl ? "Uploaded ✓" : "Missing!"}</span>
-                  </div>
-                  {activeTab === "SHOW" && (
-                    <>
-                      <div className="review-item">
-                        <span className="review-label">Season</span>
-                        <span className="review-value">{showConfig.seasonNumber}</span>
-                      </div>
-                      <div className="review-item">
-                        <span className="review-label">Episode</span>
-                        <span className="review-value">{showConfig.episodeNumber} - {showConfig.episodeTitle || "Untitled"}</span>
-                      </div>
-                    </>
-                  )}
+            <VideoDetailsForm videoDetails={videoDetails} setVideoDetails={setVideoDetails} />
+            <CastCrewForm cast={cast} setCast={setCast} crew={crew} setCrew={setCrew} />
+            <SubtitlesForm
+              subtitles={subtitles}
+              setSubtitles={setSubtitles}
+              videoDetails={videoDetails}
+              setVideoDetails={setVideoDetails}
+            />
+            <ProductionInfoForm productionInfo={productionInfo} setProductionInfo={setProductionInfo} />
+            <AwardsForm awards={awards} setAwards={setAwards} />
+          </div>
+
+          <div>
+            <MainVideoUploader
+              mainVideoFile={mainVideoFile}
+              setMainVideoFile={setMainVideoFile}
+              uploadedVideoUrl={uploadedVideoUrl}
+              setUploadedVideoUrl={setUploadedVideoUrl}
+              commitCompleteAssetToDb={commitCompleteAssetToDb}
+              saving={saving}
+              isFormValid={isFormValid}
+            />
+
+            <div className="panel-card-glass" style={{ marginTop: "1.5rem" }}>
+              <h3 style={{ fontSize: "0.8rem", color: "#a1a1aa", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 0.75rem 0" }}>
+                Quick Summary
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.8rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#71717a" }}>Title</span>
+                  <span style={{ color: formData.title ? "#fafafa" : "#71717a", fontWeight: 500 }}>
+                    {formData.title || "—"}
+                  </span>
                 </div>
-
-                {!uploadedVideoUrl && (
-                  <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#fca5a5", padding: "0.75rem 1rem", borderRadius: "0.5rem", marginTop: "1rem", fontSize: "0.85rem" }}>
-                    ⚠️ Main video is not uploaded yet. Go back to Step 5 to upload the video file.
-                  </div>
-                )}
-
-                <button 
-                  onClick={commitCompleteAssetToDb} 
-                  disabled={saving || !uploadedVideoUrl}
-                  className="btn-execution-commit"
-                  style={{ marginTop: "1.5rem", width: "100%" }}
-                >
-                  {saving ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> : "Publish to Catalog"}
-                </button>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#71717a" }}>Type</span>
+                  <span style={{ color: "#fafafa", fontWeight: 500 }}>{activeTab === "MOVIE" ? "Movie" : "TV Show"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#71717a" }}>Categories</span>
+                  <span style={{ color: categories.length ? "#fafafa" : "#71717a", fontWeight: 500 }}>{categories.length || 0}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#71717a" }}>Images</span>
+                  <span style={{ color: imageAssets.length ? "#fafafa" : "#71717a", fontWeight: 500 }}>{imageAssets.length || 0}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#71717a" }}>Video</span>
+                  <span style={{ color: uploadedVideoUrl ? "#10b981" : "#71717a", fontWeight: 500 }}>
+                    {uploadedVideoUrl ? "✓ Attached" : "Pending"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#71717a" }}>Cast</span>
+                  <span style={{ color: cast.length ? "#fafafa" : "#71717a", fontWeight: 500 }}>{cast.length || 0}</span>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="wizard-nav-buttons">
-          {currentStep > 1 && (
-            <button onClick={goBack} className="btn-secondary" disabled={saving}>
-              <ChevronLeft size={16} /> Back
-            </button>
-          )}
-          {currentStep < STEPS.length && (
-            <button onClick={goNext} className="btn-primary" disabled={saving}>
-              Continue <ChevronRight size={16} />
-            </button>
-          )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, Layers, Loader2 } from "lucide-react";
 
 interface ShowConfig {
   seasonNumber: string;
@@ -24,7 +24,7 @@ export default function TvSeasonEpisodeForm({
     if (!dbSearchQuery.trim()) { setDbResults([]); setShowDbDropdown(false); return; }
     const delay = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/admin/media/search-shows?q=${encodeURIComponent(dbSearchQuery)}`);
+        const res = await fetch("/api/admin/media/search-shows?q=" + encodeURIComponent(dbSearchQuery));
         const data = await res.json();
         setDbResults(data.results || []);
         setShowDbDropdown(true);
@@ -49,54 +49,53 @@ export default function TvSeasonEpisodeForm({
     setDbSearchQuery("");
   };
 
-// Inside TvSeasonEpisodeForm.tsx
-useEffect(() => {
-  // If the parent ID changes (e.g., user selects a new show from TmdbSearch), 
-  // you might want to clear the episode fields or trigger a re-fetch
-  console.log("Parent TMDB ID updated:", parentTmdbId);
-}, [parentTmdbId]);
+  useEffect(() => {
+    console.log("Parent TMDB ID updated:", parentTmdbId);
+  }, [parentTmdbId]);
 
-const fetchTmdbMetadata = async () => {
-  // Use the prop passed directly, rather than local state if it's cleaner
-  const targetId = parentTmdbId || localSelectedMeta?.tmdbId;
-  
-  if (!targetId) {
-    alert("TMDB ID not found. Please select a show first.");
-    return;
-  }
-
-  setIsFetching(true);
-  try {
-    const res = await fetch(`/api/admin/media/fetch-episode?tmdbId=${targetId}&season=${showConfig.seasonNumber}&episode=${showConfig.episodeNumber}`);
+  const fetchTmdbMetadata = async () => {
+    const targetId = parentTmdbId || localSelectedMeta?.tmdbId;
     
-    if (!res.ok) {
-       throw new Error("Episode not found on TMDB");
+    if (!targetId) {
+      alert("TMDB ID not found. Please select a show first.");
+      return;
     }
-    
-    const data = await res.json();
-    setShowConfig((prev: ShowConfig) => ({ 
-      ...prev, 
-      episodeTitle: data.title || "", 
-      episodeDescription: data.description || "" 
-    }));
-  } catch (err) { 
-    console.error(err);
-    alert("Could not fetch episode data. Verify the Season/Episode number.");
-  } finally { 
-    setIsFetching(false); 
-  }
-};
+
+    setIsFetching(true);
+    try {
+      const res = await fetch("/api/admin/media/fetch-episode?tmdbId=" + targetId + "&season=" + showConfig.seasonNumber + "&episode=" + showConfig.episodeNumber);
+      
+      if (!res.ok) {
+        throw new Error("Episode not found on TMDB");
+      }
+      
+      const data = await res.json();
+      setShowConfig((prev: ShowConfig) => ({ 
+        ...prev, 
+        episodeTitle: data.title || "", 
+        episodeDescription: data.description || "" 
+      }));
+    } catch (err: any) { 
+      console.error(err);
+      alert("Could not fetch episode data. Verify the Season/Episode number.");
+    } finally { 
+      setIsFetching(false); 
+    }
+  };
 
   return (
     <div className="panel-card-glass active-step">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
-        <h2 style={{ fontSize: "0.9rem", fontWeight: 600, margin: 0 }}>TV Season & Episode Mapping</h2>
+        <h2 style={{ fontSize: "0.9rem", fontWeight: 600, margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Layers size={16} /> TV Season & Episode Mapping
+        </h2>
         <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button onClick={() => setIsExistingShow(false)} className={`category-badge-pill ${!isExistingShow ? "state-active" : ""}`} style={{ background: !isExistingShow ? "#e11d48" : "transparent" }}>New Show</button>
-          <button onClick={() => setIsExistingShow(true)} className={`category-badge-pill ${isExistingShow ? "state-active" : ""}`} style={{ background: isExistingShow ? "#e11d48" : "transparent" }}>Add to Existing</button>
+          <button onClick={() => setIsExistingShow(false)} className={"category-badge-pill state-active"} style={{ background: !isExistingShow ? "#e11d48" : "transparent" }}>New Show</button>
+          <button onClick={() => setIsExistingShow(true)} className={"category-badge-pill state-active"} style={{ background: isExistingShow ? "#e11d48" : "transparent" }}>Add to Existing</button>
         </div>
       </div>
 
+      {/* Existing Show Selection */}
       {isExistingShow && (
         <div style={{ marginBottom: "1.5rem" }}>
           {selectedExistingShowId ? (
@@ -105,6 +104,7 @@ const fetchTmdbMetadata = async () => {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#fafafa" }}>{localSelectedMeta?.title}</div>
                 <div style={{ fontSize: "0.75rem", color: "#71717a" }}>Released: {localSelectedMeta?.releaseYear}</div>
+                <div style={{ fontSize: "0.7rem", color: "#10b981", marginTop: "0.25rem" }}>✓ Show data will be shared - only episode details needed below</div>
               </div>
               <button onClick={() => { setSelectedExistingShowId(""); setLocalSelectedMeta(null); setSelectedShowMeta(null); }} className="btn-badge-remove" style={{ padding: "0.5rem", width: "auto", height: "auto" }}>Change Show</button>
             </div>
@@ -145,7 +145,7 @@ const fetchTmdbMetadata = async () => {
         </div>
         <div className="grid-col-full">
           <button type="button" onClick={fetchTmdbMetadata} className="btn-secondary" disabled={isFetching} style={{ marginBottom: "1rem" }}>
-            {isFetching ? "Fetching..." : "Auto-fill Title & Description from TMDB"}
+            {isFetching ? <Loader2 style={{ width: "0.9rem", height: "0.9rem", animation: "spin 1s linear infinite" }} /> : "Auto-fill Episode from TMDB"}
           </button>
         </div>
         <div className="grid-col-full">
@@ -160,6 +160,14 @@ const fetchTmdbMetadata = async () => {
             <textarea placeholder="Episode summary..." value={showConfig.episodeDescription} onChange={(e) => setShowConfig({ ...showConfig, episodeDescription: e.target.value })} className="input-text-field" rows={3} />
           </div>
         </div>
+
+        {isExistingShow && selectedExistingShowId && (
+          <div className="grid-col-full" style={{ background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "0.75rem 1rem", borderRadius: "0.5rem" }}>
+            <p style={{ fontSize: "0.8rem", color: "#10b981", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              ⚡ Adding episode to existing show - show title, images, categories, and trailer data will be shared automatically.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

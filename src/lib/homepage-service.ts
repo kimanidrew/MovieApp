@@ -41,6 +41,18 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
   const allCategories = await prisma.category.findMany({ orderBy: { name: "asc" as const } });
   const recommendationRows = await getPersonalizedRecommendationRows(profileId);
 
+  // 3b. Fetch all active collections to show as homepage sections
+  const allCollections = await prisma.collection.findMany({
+    where: { isActive: true },
+    orderBy: { createdAt: "desc" as const },
+    include: {
+      items: {
+        orderBy: { displayOrder: "asc" as const },
+        take: 15,
+      },
+    },
+  });
+
   const mixedRows: any[] = [];
 
   // ALWAYS add a Billboard row so hero content shows on the homepage
@@ -63,11 +75,28 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
     mixedRows.push(featuredRow);
   }
 
+  // Add all active collections as homepage rows
+  allCollections.forEach((collection, idx) => {
+    if (collection.items.length === 0) return;
+    mixedRows.push({
+      id: `collection-${collection.id}`,
+      title: collection.name,
+      displayOrder: 60 + idx,
+      renderStyle: "STANDARD_POSTER" as RowRenderStyle,
+      sourceType: "CURATED_COLLECTION" as RowDataSource,
+      isActive: true,
+      categoryId: null,
+      collectionId: collection.id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
   allCategories.forEach((cat, index) => {
     mixedRows.push({
       id: `cat-${cat.id}`,
       title: cat.name,
-      displayOrder: 100 + index,
+      displayOrder: 150 + index,
       renderStyle: "STANDARD_POSTER" as RowRenderStyle,
       sourceType: "CATEGORY_ROW" as RowDataSource,
       isActive: true,

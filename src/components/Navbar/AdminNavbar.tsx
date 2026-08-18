@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { LayoutDashboard, Upload, ListVideo, Users, Star, LogOut, Home } from "lucide-react";
+import { LayoutDashboard, Upload, ListVideo, Users, Star, LogOut, Home, Layers } from "lucide-react";
 
 export default function AdminNavbar() {
   const { adminUser, logout } = useAuth();
@@ -34,6 +34,7 @@ export default function AdminNavbar() {
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/upload", label: "Upload", icon: Upload },
     { href: "/admin/content", label: "Catalog", icon: ListVideo },
+    { href: "/admin/collections", label: "Collections", icon: Layers },
     { href: "/admin/users", label: "Users", icon: Users },
   ];
 
