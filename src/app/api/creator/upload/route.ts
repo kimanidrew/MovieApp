@@ -144,11 +144,11 @@ export async function POST(request: Request) {
               updatedById: activeUploader.id,
             },
           });
-          await tx.show.create({ data: { contentId: showContent.id } });
+                              await tx.show.create({ data: { contentId: showContent!.id } });
           if (resolvedCategories.length > 0) {
             await tx.contentCategory.createMany({
               data: resolvedCategories.map((cat, idx) => ({
-                contentId: showContent.id,
+                contentId: showContent!.id,
                 categoryId: cat.id,
                 isPrimary: idx === 0,
               })),
@@ -180,8 +180,8 @@ export async function POST(request: Request) {
           });
         }
 
-        const show = await tx.show.findUniqueOrThrow({ where: { contentId: showContent.id } });
-        const baseSlug = showContent.slug || slug;
+                const show = await tx.show.findUniqueOrThrow({ where: { contentId: showContent!.id } });
+        const baseSlug = showContent!.slug || slug;
 
         let season = await tx.season.findFirst({
           where: { showId: show.id, seasonNumber: Number(seasonNumber || 1) },
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
         });
 
         const episodeSlug = `${baseSlug}-s${seasonNumber || 1}-e${episodeNumber || 1}`.toLowerCase();
-        const finalEpisodeTitle = episodeTitle || `${showContent.title} - S${seasonNumber || 1} E${episodeNumber || 1}`;
+        const finalEpisodeTitle = episodeTitle || `${showContent!.title} - S${seasonNumber || 1} E${episodeNumber || 1}`;
 
         const episode = await tx.episode.upsert({
           where: { slug: episodeSlug },
@@ -220,7 +220,7 @@ export async function POST(request: Request) {
           },
         });
 
-        return { contentId: showContent.id, episodeId: episode.id, slug };
+        return { contentId: showContent!.id, episodeId: episode.id, slug };
       });
       return NextResponse.json({ success: true, data: dbResult });
     }
