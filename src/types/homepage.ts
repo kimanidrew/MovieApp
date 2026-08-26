@@ -12,6 +12,7 @@ export interface HomepageItem extends Video {
   progress?: number;
   duration?: number;
   rating?: number;
+  popularityScore?: number;
   isInMyList?: boolean;
 }
 

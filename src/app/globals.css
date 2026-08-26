@@ -261,5 +261,96 @@ button,
   animation: fadeIn 0.8s ease forwards;
 }
 
+/* ============================================
+   GLOBAL SMOOTH MOTION & ANIMATIONS
+   ============================================ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes pageRise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInFast {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(229, 9, 20, 0.3); }
+  50% { box-shadow: 0 0 24px rgba(229, 9, 20, 0.6); }
+}
+
+.animate-page-rise { animation: pageRise 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.animate-fade-in { animation: fadeInFast 0.5s ease forwards; }
+.animate-scale-in { animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.animate-slide-left { animation: slideInLeft 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+.animate-slide-right { animation: slideInRight 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+.hover-glow { transition: box-shadow 0.3s ease, transform 0.3s ease; }
+.hover-glow:hover {
+  box-shadow: 0 8px 30px rgba(229, 9, 20, 0.35);
+  transform: translateY(-2px);
+}
+
+.zoom-on-hover { transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.zoom-on-hover:hover { transform: scale(1.05); }
+
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeIn 0.5s ease forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+.stagger-children > *:nth-child(9) { animation-delay: 0.45s; }
+.stagger-children > *:nth-child(10) { animation-delay: 0.5s; }
+
+.text-gradient-animated {
+  background: linear-gradient(90deg, #e50914, #ff7575, #e50914);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerGradient 3s linear infinite;
+}
+
+@keyframes shimmerGradient {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 
         

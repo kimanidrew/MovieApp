@@ -4,7 +4,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import ContentCard from "./ContentCard";
 import { HomepageSection } from "@/types/homepage";
-import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight, Flame, Sparkles, PlayCircle, Star } from "lucide-react";
 
 interface ContentRowProps {
   section: HomepageSection;
@@ -23,11 +23,28 @@ export default function ContentRow({ section }: ContentRowProps) {
   };
 
   const title = section.subtitle || section.title;
+  const styleKey = (section.renderStyle || "STANDARD_POSTER").toUpperCase();
+
+  const renderIcon = () => {
+    switch (styleKey) {
+      case "TOP_10_NUMERIC":
+        return <Flame size={18} className="row-icon top10-icon" />;
+      case "FEATURED_CARD":
+        return <Sparkles size={18} className="row-icon featured-icon" />;
+      case "CONTINUE_WATCHING":
+        return <PlayCircle size={18} className="row-icon continue-icon" />;
+      case "WIDE_BACKDROP":
+        return <Star size={16} className="row-icon wide-icon" />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <section className="content-row" aria-label={title}>
+    <section className={`content-row row-style-${styleKey.toLowerCase()}`} aria-label={title}>
       <div className="row-header">
         <div className="row-heading">
+          {renderIcon()}
           <h2 className="row-title">{title}</h2>
         </div>
         <div className="row-actions">
@@ -57,7 +74,7 @@ export default function ContentRow({ section }: ContentRowProps) {
       </div>
 
       <div className="scroll-container-wrapper">
-        <div className="scroll-container" ref={scrollRef}>
+        <div className={`scroll-container style-${styleKey.toLowerCase()}`} ref={scrollRef}>
           {section.items.map((item, idx) => (
             <div key={item.id} className="card-item-wrapper">
               <ContentCard content={item} style={section.renderStyle} index={idx} />
@@ -68,7 +85,7 @@ export default function ContentRow({ section }: ContentRowProps) {
 
       <style jsx>{`
         .content-row {
-          padding: 0;
+          padding: 0.5rem 0;
           animation: rowFadeIn 0.6s ease forwards;
           width: 100%;
           overflow: hidden;
@@ -78,26 +95,35 @@ export default function ContentRow({ section }: ContentRowProps) {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-bottom: 0.75rem;
+          margin-bottom: 0.5rem;
           padding: 0 4%;
           gap: 1rem;
         }
 
         .row-heading {
           display: flex;
-          align-items: baseline;
-          gap: 1rem;
+          align-items: center;
+          gap: 0.5rem;
           flex-wrap: wrap;
           min-width: 0;
         }
 
         .row-title {
           color: #fff;
-          font-size: 1.4rem;
-          font-weight: 600;
+          font-size: 1.35rem;
+          font-weight: 700;
           margin: 0;
+          letter-spacing: -0.2px;
           text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
         }
+
+        :global(.row-icon) {
+          flex-shrink: 0;
+        }
+        :global(.top10-icon) { color: #e50914; }
+        :global(.featured-icon) { color: #fbbf24; }
+        :global(.continue-icon) { color: #3b82f6; }
+        :global(.wide-icon) { color: #ec4899; }
 
         .row-actions {
           display: flex;
@@ -130,7 +156,7 @@ export default function ContentRow({ section }: ContentRowProps) {
           height: 32px;
           border-radius: 50%;
           border: 1px solid rgba(255, 255, 255, 0.2);
-          background: rgba(0, 0, 0, 0.5);
+          background: rgba(0, 0, 0, 0.6);
           color: #fff;
           display: flex;
           align-items: center;
@@ -140,11 +166,11 @@ export default function ContentRow({ section }: ContentRowProps) {
           backdrop-filter: blur(4px);
         }
         .scroll-btn:hover {
-          background: rgba(255, 255, 255, 0.15);
-          border-color: rgba(255, 255, 255, 0.4);
+          background: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.5);
+          transform: scale(1.05);
         }
 
-        /* Netflix-style edge-to-edge overflow scrolling with padding buffers for hover scale clipping */
         .scroll-container-wrapper {
           position: relative;
           width: 100%;
@@ -152,11 +178,10 @@ export default function ContentRow({ section }: ContentRowProps) {
 
         .scroll-container {
           display: flex;
-          gap: 0.75rem;
           overflow-x: auto;
           scroll-snap-type: x mandatory;
           scrollbar-width: none;
-          padding: 1rem 4%;
+          padding: 0.8rem 4%;
           scroll-padding-left: 4%;
           -webkit-overflow-scrolling: touch;
         }
@@ -164,24 +189,29 @@ export default function ContentRow({ section }: ContentRowProps) {
           display: none;
         }
 
+        .scroll-container.style-standard_poster { gap: 0.85rem; }
+        .scroll-container.style-wide_backdrop { gap: 1rem; }
+        .scroll-container.style-top_10_numeric { gap: 0.4rem; padding-top: 1.2rem; }
+        .scroll-container.style-featured_card { gap: 1.25rem; padding-top: 1rem; }
+        .scroll-container.style-continue_watching { gap: 1rem; }
+
         .card-item-wrapper {
           flex-shrink: 0;
         }
 
         @keyframes rowFadeIn {
-          from { opacity: 0; transform: translateY(20px); }
+          from { opacity: 0; transform: translateY(15px); }
           to { opacity: 1; transform: translateY(0); }
         }
 
         @media (max-width: 768px) {
           .row-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
           }
-          .row-title { font-size: 1.2rem; }
+          .row-title { font-size: 1.15rem; }
           .scroll-buttons { display: none; }
-          .row-actions { width: 100%; justify-content: space-between; }
         }
       `}</style>
     </section>

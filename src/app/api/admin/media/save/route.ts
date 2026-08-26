@@ -64,11 +64,12 @@ export async function POST(request: Request) {
     // 4. Resolve cast & crew persons
     const resolvedCast = await Promise.all(
       (cast || []).map(async (c: any) => {
-        const personSlug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const name = c.name?.trim() || "Unknown";
+        const personSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || `person-${Date.now()}`;
         const person = await prisma.person.upsert({
           where: { slug: personSlug },
           update: {},
-          create: { name: c.name, slug: personSlug },
+          create: { name, slug: personSlug },
         });
         return { person, character: c.character || "", displayOrder: c.displayOrder || 0 };
       })
@@ -76,11 +77,12 @@ export async function POST(request: Request) {
 
     const resolvedCrew = await Promise.all(
       (crew || []).map(async (c: any) => {
-        const personSlug = c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const name = c.name?.trim() || "Unknown";
+        const personSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || `person-${Date.now()}`;
         const person = await prisma.person.upsert({
           where: { slug: personSlug },
           update: {},
-          create: { name: c.name, slug: personSlug },
+          create: { name, slug: personSlug },
         });
         return { person, job: c.job || "Actor", department: c.department || "Acting" };
       })
@@ -132,6 +134,110 @@ export async function POST(request: Request) {
       updatedById: activeUploader.id,
     };
 
+    // Helper to attach all relational records to a created Content record
+    const attachContentRelations = async (tx: any, contentId: string) => {
+      if (resolvedCategories.length > 0) {
+        await tx.contentCategory.createMany({
+          data: resolvedCategories.map((cat, idx) => ({
+            contentId,
+            categoryId: cat.id,
+            isPrimary: idx === 0,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (resolvedLanguages.length > 0) {
+        await tx.contentLanguage.createMany({
+          data: resolvedLanguages.map((lang) => ({
+            contentId,
+            languageId: lang.id,
+            isDubbed: false,
+            isSubbed: true,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (resolvedCast.length > 0) {
+        await tx.cast.createMany({
+          data: resolvedCast.map((c) => ({
+            contentId,
+            personId: c.person.id,
+            character: c.character,
+            displayOrder: c.displayOrder,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (resolvedCrew.length > 0) {
+        await tx.crew.createMany({
+          data: resolvedCrew.map((c) => ({
+            contentId,
+            personId: c.person.id,
+            job: c.job,
+            department: c.department,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (resolvedStudios.length > 0) {
+        await tx.contentStudio.createMany({
+          data: resolvedStudios.map((s) => ({
+            contentId,
+            studioId: s.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (resolvedCompanies.length > 0) {
+        await tx.contentProductionCompany.createMany({
+          data: resolvedCompanies.map((c) => ({
+            contentId,
+            productionCompanyId: c.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (resolvedCountries.length > 0) {
+        await tx.contentCountry.createMany({
+          data: resolvedCountries.map((c: any) => ({
+            contentId,
+            countryId: c.id,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (awards && awards.length > 0) {
+        await tx.award.createMany({
+          data: awards.map((a: any) => ({
+            contentId,
+            academy: a.academy,
+            year: Number(a.year),
+            category: a.category,
+            isWinner: a.isWinner || false,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (collectionIds && collectionIds.length > 0) {
+        await tx.collectionItem.createMany({
+          data: collectionIds.map((colId: string) => ({
+            contentId,
+            collectionId: colId,
+            displayOrder: 0,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    };
+
     // =========================================================================
     // MOVIE TRANSACTION PIPELINE
     // =========================================================================
@@ -140,65 +246,12 @@ export async function POST(request: Request) {
         const content = await tx.content.create({
           data: {
             ...commonContentData,
-            title, slug,
-            categories: {
-              create: resolvedCategories.map((cat, idx) => ({
-                category: { connect: { id: cat.id } },
-                isPrimary: idx === 0,
-              })),
-            },
-            languages: {
-              create: resolvedLanguages.map((lang) => ({
-                language: { connect: { id: lang.id } },
-                isDubbed: false,
-                isSubbed: true,
-              })),
-            },
-            cast: {
-              create: resolvedCast.map((c) => ({
-                person: { connect: { id: c.person.id } },
-                character: c.character,
-                displayOrder: c.displayOrder,
-              })),
-            },
-            crew: {
-              create: resolvedCrew.map((c) => ({
-                person: { connect: { id: c.person.id } },
-                job: c.job,
-                department: c.department,
-              })),
-            },
-            studios: {
-              create: resolvedStudios.map((s) => ({
-                studio: { connect: { id: s.id } },
-              })),
-            },
-            productionCos: {
-              create: resolvedCompanies.map((c) => ({
-                productionCompany: { connect: { id: c.id } },
-              })),
-            },
-            countries: {
-              create: resolvedCountries.map((c: any) => ({
-                country: { connect: { id: c.id } },
-              })),
-            },
-            awards: {
-              create: (awards || []).map((a: any) => ({
-                academy: a.academy,
-                year: Number(a.year),
-                category: a.category,
-                isWinner: a.isWinner || false,
-              })),
-            },
-            collections: {
-              create: (collectionIds || []).map((colId: string) => ({
-                collection: { connect: { id: colId } },
-                displayOrder: 0,
-              })),
-            },
+            title,
+            slug,
           },
         });
+
+        await attachContentRelations(tx, content.id);
 
         const durationSec = Number(movieDuration || runtime || videoDetails.durationSeconds || 7200);
         
@@ -301,65 +354,10 @@ export async function POST(request: Request) {
               ...commonContentData,
               title: title || "Untitled Show",
               slug: slug || `show-${Date.now()}`,
-              categories: {
-                create: resolvedCategories.map((cat, idx) => ({
-                  category: { connect: { id: cat.id } },
-                  isPrimary: idx === 0,
-                })),
-              },
-              languages: {
-                create: resolvedLanguages.map((lang) => ({
-                  language: { connect: { id: lang.id } },
-                  isDubbed: false,
-                  isSubbed: true,
-                })),
-              },
-              cast: {
-                create: resolvedCast.map((c) => ({
-                  person: { connect: { id: c.person.id } },
-                  character: c.character,
-                  displayOrder: c.displayOrder,
-                })),
-              },
-              crew: {
-                create: resolvedCrew.map((c) => ({
-                  person: { connect: { id: c.person.id } },
-                  job: c.job,
-                  department: c.department,
-                })),
-              },
-              studios: {
-                create: resolvedStudios.map((s) => ({
-                  studio: { connect: { id: s.id } },
-                })),
-              },
-              productionCos: {
-                create: resolvedCompanies.map((c) => ({
-                  productionCompany: { connect: { id: c.id } },
-                })),
-              },
-              countries: {
-                create: resolvedCountries.map((c: any) => ({
-                  country: { connect: { id: c.id } },
-                })),
-              },
-              awards: {
-                create: (awards || []).map((a: any) => ({
-                  academy: a.academy,
-                  year: Number(a.year),
-                  category: a.category,
-                  isWinner: a.isWinner || false,
-                })),
-              },
-              collections: {
-                create: (collectionIds || []).map((colId: string) => ({
-                  collection: { connect: { id: colId } },
-                  displayOrder: 0,
-                })),
-              },
             },
           });
           await tx.show.create({ data: { contentId: showContent.id } });
+          await attachContentRelations(tx, showContent.id);
         }
 
         // Save Images (only for new shows, skip for existing)

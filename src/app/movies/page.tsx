@@ -1,20 +1,18 @@
 import React from "react";
 import prisma from "@/lib/prisma";
-import PageBackground from "@/components/PageBackground";
-import ContentPageClient from "@/components/ContentPageClient";
-import { Video } from "@/types/video";
+import LibraryPageClient from "@/components/LibraryPageClient";
+import { HomepageItem } from "@/types/homepage";
+import { GenreOption } from "@/components/GenreSelector";
 
 export const dynamic = "force-dynamic";
 
 export default async function MoviesPage() {
-  let movies: Video[] = [];
-  let categories: string[] = [];
+  let movies: HomepageItem[] = [];
+  let genres: GenreOption[] = [];
 
   try {
     const rawContent = await prisma.content.findMany({
-      where: {
-        movies: { some: {} }
-      },
+      where: { movies: { some: {} } },
       include: {
         images: true,
         trailers: true,
@@ -25,13 +23,13 @@ export default async function MoviesPage() {
       },
     });
 
-    movies = rawContent.map((content): Video => {
+    const allCategories = await prisma.category.findMany({ orderBy: { name: "asc" } });
+
+    movies = rawContent.map((content): HomepageItem => {
       const movieData = content.movies[0];
-      
-      const randomImage = (type: string) => {
-        const filtered = content.images.filter((i) => i.type === type);
-        return filtered.length > 0 ? filtered[Math.floor(Math.random() * filtered.length)].url : "";
-      };
+      const poster = content.images.filter((i) => i.type === "POSTER");
+      const backdrop = content.images.filter((i) => i.type === "BACKDROP");
+      const pick = (arr: any[]) => (arr.length ? arr[Math.floor(Math.random() * arr.length)].url : "");
 
       return {
         id: content.id,
@@ -41,30 +39,33 @@ export default async function MoviesPage() {
         releaseYear: content.releaseYear || 0,
         maturityRating: content.maturityRating?.code || "NR",
         createdAt: content.createdAt.toISOString(),
-        thumbnailUrl: randomImage("POSTER"),
-        backdropUrl: randomImage("BACKDROP"),
-        trailerUrl: content.trailers[0]?.hlsManifestUrl ?? movieData?.video?.sources[0]?.url ?? null,
+        thumbnailUrl: pick(poster),
+        backdropUrl: pick(backdrop),
+        trailerUrl: content.trailers[0]?.hlsManifestUrl ?? null,
         categories: content.categories.map((x) => x.category.name),
         cast: content.cast.map((c) => ({ name: c.person.name, character: c.character, displayOrder: c.displayOrder })),
         isTvShow: false,
-        videoSources: movieData?.video?.sources.map((s) => ({
-          url: s.url,
-          quality: s.resolution || "1080p",
-        })) || [],
+        popularityScore: Number(content.popularityScore || 0),
+        rating: Number(content.popularityScore || 0),
+        duration: movieData?.durationTotal || undefined,
       };
     });
 
-    // Randomize the order of movies
-    movies.sort(() => Math.random() - 0.5);
+    // Filter genres to ONLY those that actually have movies
+    const movieGenres = new Set<string>();
+    movies.forEach((m) => m.categories?.forEach((c) => movieGenres.add(c.toLowerCase())));
+    genres = allCategories
+      .filter((cat) => movieGenres.has(cat.name.toLowerCase()))
+      .map((cat) => ({ name: cat.name, slug: cat.slug }));
 
-    categories = Array.from(new Set(movies.flatMap((m) => m.categories))).sort();
+    movies.sort(() => Math.random() - 0.5);
   } catch (err) {
     console.error("Error fetching movies:", err);
   }
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <ContentPageClient items={movies} categories={categories} type="movies" />
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#000" }}>
+      <LibraryPageClient items={movies} genres={genres} type="movies" title="Movies" />
     </main>
   );
 }

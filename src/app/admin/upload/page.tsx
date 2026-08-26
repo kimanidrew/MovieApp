@@ -195,6 +195,11 @@ export default function AdminUploadPage() {
           setCast={setCast}
           setCrew={setCrew}
           setProductionInfo={setProductionInfo}
+          isExistingShow={isExistingShow}
+          setIsExistingShow={setIsExistingShow}
+          selectedExistingShowId={selectedExistingShowId}
+          setSelectedExistingShowId={setSelectedExistingShowId}
+          setSelectedShowMeta={setSelectedShowMeta}
         />
 
         <div className="split-grid-layout">
@@ -219,6 +224,7 @@ export default function AdminUploadPage() {
                 setSelectedExistingShowId={setSelectedExistingShowId}
                 parentTmdbId={formData.tmdbId}
                 setSelectedShowMeta={setSelectedShowMeta}
+                selectedShowMeta={selectedShowMeta}
               />
             )}
 

@@ -69,55 +69,132 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
     updatedAt: new Date(),
   });
 
-  // Add a "Featured" row from admin-set featured content
+  // 1. Continue Watching Row (displayOrder: 1 -> Always the first row below Hero Banner)
+  mixedRows.push({
+    id: "continue-watching-row",
+    title: "Continue Watching",
+    displayOrder: 1,
+    renderStyle: "CONTINUE_WATCHING" as any,
+    sourceType: "CONTINUE_WATCHING" as RowDataSource,
+    isActive: true,
+    categoryId: null,
+    collectionId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  // 2. Top 10 Today Row (displayOrder: 10)
+  mixedRows.push({
+    id: "top-10-row",
+    title: "Top 10 Movies & Shows Today",
+    displayOrder: 10,
+    renderStyle: "TOP_10_NUMERIC" as any,
+    sourceType: "TRENDING" as RowDataSource,
+    isActive: true,
+    categoryId: null,
+    collectionId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  // 3. Featured Spotlight Row (displayOrder: 20)
   const featuredRow = await getFeaturedRow();
   if (featuredRow) {
+    featuredRow.renderStyle = "FEATURED_CARD" as any;
+    featuredRow.title = "Featured Spotlight";
+    featuredRow.displayOrder = 20;
     mixedRows.push(featuredRow);
   }
 
-  // Add all active collections as homepage rows
-  allCollections.forEach((collection, idx) => {
-    if (collection.items.length === 0) return;
-    mixedRows.push({
-      id: `collection-${collection.id}`,
-      title: collection.name,
-      displayOrder: 60 + idx,
-      renderStyle: "STANDARD_POSTER" as RowRenderStyle,
-      sourceType: "CURATED_COLLECTION" as RowDataSource,
-      isActive: true,
-      categoryId: null,
-      collectionId: collection.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+  // 4. Popular Releases Row (displayOrder: 30)
+  mixedRows.push({
+    id: "popular-wide-row",
+    title: "Popular Releases",
+    displayOrder: 30,
+    renderStyle: "WIDE_BACKDROP" as any,
+    sourceType: "POPULAR" as RowDataSource,
+    isActive: true,
+    categoryId: null,
+    collectionId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 
-  allCategories.forEach((cat, index) => {
-    mixedRows.push({
-      id: `cat-${cat.id}`,
-      title: cat.name,
-      displayOrder: 150 + index,
-      renderStyle: "STANDARD_POSTER" as RowRenderStyle,
-      sourceType: "CATEGORY_ROW" as RowDataSource,
-      isActive: true,
-      categoryId: cat.id,
-      collectionId: null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    // Insert "Because You Watched" row at index * 3 (i.e. after every 3rd category)
-    if ((index + 1) % 3 === 0 && recommendationRows.length > 0) {
-      mixedRows.push(recommendationRows.shift());
+  // 5. Separate collections into Top 10 collections vs general collections
+  const collectionRows: any[] = [];
+  allCollections.forEach((collection, idx) => {
+    if (collection.items.length === 0) return;
+    const isTop10Collection = collection.name.trim().toLowerCase().startsWith("top 10");
+    if (isTop10Collection) {
+      mixedRows.push({
+        id: `collection-${collection.id}`,
+        title: collection.name,
+        displayOrder: 10,
+        renderStyle: "TOP_10_NUMERIC" as any,
+        sourceType: "CURATED_COLLECTION" as RowDataSource,
+        isActive: true,
+        categoryId: null,
+        collectionId: collection.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    } else {
+      const styles = ["STANDARD_POSTER", "WIDE_BACKDROP", "FEATURED_CARD"];
+      collectionRows.push({
+        id: `collection-${collection.id}`,
+        title: collection.name,
+        renderStyle: styles[idx % styles.length] as any,
+        sourceType: "CURATED_COLLECTION" as RowDataSource,
+        isActive: true,
+        categoryId: null,
+        collectionId: collection.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
   });
 
-  // Append any remaining recommendation rows at the end
-  while (recommendationRows.length > 0) {
-    mixedRows.push(recommendationRows.shift());
+  // 6. Build category rows
+  const categoryRows = allCategories.map((cat, index) => ({
+    id: `cat-${cat.id}`,
+    title: cat.name,
+    renderStyle: index % 2 === 0 ? "STANDARD_POSTER" : "WIDE_BACKDROP",
+    sourceType: "CATEGORY_ROW" as RowDataSource,
+    isActive: true,
+    categoryId: cat.id,
+    collectionId: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
+
+  // 7. Interleave Categories, Collections, and "Because You Watched" Recommendations into a unified feed
+  const interleavedFeed: any[] = [];
+  let catIdx = 0;
+  let colIdx = 0;
+  let recIdx = 0;
+  const recList = [...recommendationRows];
+
+  while (catIdx < categoryRows.length || colIdx < collectionRows.length || recIdx < recList.length) {
+    if (catIdx < categoryRows.length) interleavedFeed.push(categoryRows[catIdx++]);
+    if (colIdx < collectionRows.length) interleavedFeed.push(collectionRows[colIdx++]);
+    if (catIdx < categoryRows.length) interleavedFeed.push(categoryRows[catIdx++]);
+    if (recIdx < recList.length) interleavedFeed.push(recList[recIdx++]);
   }
 
-  const allRows = [...staticRows, ...mixedRows];
+  // Assign displayOrder starting at 50 for the interleaved feed
+  interleavedFeed.forEach((row, i) => {
+    row.displayOrder = 50 + i * 5;
+    mixedRows.push(row);
+  });
+
+  // Filter out any static DB rows that duplicate dynamic sourceTypes in mixedRows
+  const mixedSourceTypes = new Set(mixedRows.map(r => r.sourceType));
+  const filteredStaticRows = staticRows.filter(r => !mixedSourceTypes.has(r.sourceType as any));
+
+  // Combine and sort strictly by displayOrder ascending
+  const allRows = [...filteredStaticRows, ...mixedRows].sort(
+    (a, b) => (a.displayOrder || 999) - (b.displayOrder || 999)
+  );
 
   // 4. Resolve all rows into sections
   const resolvedRows = await Promise.all(
@@ -193,6 +270,15 @@ export async function getHomepageData(profileId: string): Promise<HomepageData> 
               break;
           }
         }
+
+        // Check if row is a Top 10 section or collection starting with 'Top 10'
+        const isTop10Section = row.renderStyle === "TOP_10_NUMERIC" || row.title?.trim().toLowerCase().startsWith("top 10");
+        if (isTop10Section) {
+          row.renderStyle = "TOP_10_NUMERIC";
+          content = content
+            .sort((a: HomepageItem, b: HomepageItem) => (b.popularityScore || b.rating || 0) - (a.popularityScore || a.rating || 0))
+            .slice(0, 10);
+        }
       } catch (error) {
         console.error(`Error loading row ${row.title}:`, error);
       }
@@ -241,6 +327,8 @@ function mapContentToVideo(c: any): HomepageItem {
     description: c.description || "",
     releaseYear: c.releaseYear || 0,
     maturityRating: c.maturityRating?.code || "NR",
+    rating: Number(c.popularityScore || 0),
+    popularityScore: Number(c.popularityScore || 0),
     createdAt: c.createdAt?.toISOString() || new Date().toISOString(),
     thumbnailUrl: poster,
     backdropUrl: backdrop,

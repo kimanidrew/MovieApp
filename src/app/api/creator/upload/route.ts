@@ -75,14 +75,19 @@ export async function POST(request: Request) {
             maturityRatingId: maturityRating.id,
             createdById: activeUploader.id,
             updatedById: activeUploader.id,
-            categories: {
-              create: resolvedCategories.map((cat, idx) => ({
-                category: { connect: { id: cat.id } },
-                isPrimary: idx === 0,
-              })),
-            },
           },
         });
+
+        if (resolvedCategories.length > 0) {
+          await tx.contentCategory.createMany({
+            data: resolvedCategories.map((cat, idx) => ({
+              contentId: content.id,
+              categoryId: cat.id,
+              isPrimary: idx === 0,
+            })),
+            skipDuplicates: true,
+          });
+        }
 
         const video = await tx.video.create({ data: { durationSeconds: Number(durationSeconds || 7200) } });
         const videoType = videoUrl && videoUrl.includes(".m3u8") ? VideoSourceType.HLS : VideoSourceType.MP4;
@@ -137,15 +142,19 @@ export async function POST(request: Request) {
               maturityRatingId: maturityRating.id,
               createdById: activeUploader.id,
               updatedById: activeUploader.id,
-              categories: {
-                create: resolvedCategories.map((cat, idx) => ({
-                  category: { connect: { id: cat.id } },
-                  isPrimary: idx === 0,
-                })),
-              },
             },
           });
           await tx.show.create({ data: { contentId: showContent.id } });
+          if (resolvedCategories.length > 0) {
+            await tx.contentCategory.createMany({
+              data: resolvedCategories.map((cat, idx) => ({
+                contentId: showContent.id,
+                categoryId: cat.id,
+                isPrimary: idx === 0,
+              })),
+              skipDuplicates: true,
+            });
+          }
         }
 
         // Save Images

@@ -21,26 +21,42 @@ export async function GET(request: Request) {
         id: true,
         slug: true,
         title: true,
-        tmdbId: true,
+        description: true,
+        storyline: true,
         releaseYear: true,
+        tmdbId: true,
+        imdbId: true,
+        popularityScore: true,
+        maturityRating: { select: { code: true } },
+        categories: { select: { category: { select: { name: true } } } },
+        images: { select: { url: true, type: true, displayOrder: true } },
+        cast: { select: { character: true, displayOrder: true, person: { select: { name: true } } } },
+        crew: { select: { job: true, department: true, person: { select: { name: true } } } },
+        trailers: { select: { title: true, hlsManifestUrl: true } },
         show: { select: { id: true } },
-        images: {
-          where: { type: "POSTER" },
-          take: 1,
-          select: { url: true }
-        }
       },
-      take: 5,
+      take: 8,
     });
 
     const formattedShows = shows.map((item) => ({
       id: item.show?.id,
       contentId: item.id,
-      tmdbId: item.tmdbId,
+      tmdbId: item.tmdbId ? item.tmdbId.toString() : "",
+      imdbId: item.imdbId || "",
       slug: item.slug,
       title: item.title,
-      releaseYear: item.releaseYear,
-      posterUrl: item.images[0]?.url || "",
+      description: item.description || "",
+      storyline: item.storyline || "",
+      releaseYear: item.releaseYear ? item.releaseYear.toString() : "2026",
+      maturityRatingCode: item.maturityRating?.code || "TV-MA",
+      popularityScore: item.popularityScore || 0,
+      posterUrl: item.images.find((img) => img.type === "POSTER")?.url || item.images[0]?.url || "",
+      backdropUrl: item.images.find((img) => img.type === "BACKDROP")?.url || "",
+      categories: item.categories.map((c) => c.category.name),
+      images: item.images.map((img) => ({ url: img.url, type: img.type, displayOrder: img.displayOrder })),
+      cast: item.cast.map((c) => ({ name: c.person.name, character: c.character, displayOrder: c.displayOrder })),
+      crew: item.crew.map((c) => ({ name: c.person.name, job: c.job, department: c.department })),
+      trailers: item.trailers.map((t) => ({ title: t.title, hlsManifestUrl: t.hlsManifestUrl })),
     }));
 
     return NextResponse.json({ results: formattedShows });

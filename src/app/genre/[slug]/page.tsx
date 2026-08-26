@@ -1,21 +1,21 @@
 import React from "react";
 import prisma from "@/lib/prisma";
-import PageBackground from "@/components/PageBackground";
-import ContentPageClient from "@/components/ContentPageClient";
-import { Video } from "@/types/video";
+import LibraryPageClient from "@/components/LibraryPageClient";
+import { HomepageItem } from "@/types/homepage";
+import { GenreOption } from "@/components/GenreSelector";
 
 export const dynamic = "force-dynamic";
 
-export default async function GenrePage({ params }: { params: { slug: string } }) {
-  let items: Video[] = [];
-  let categories: string[] = [];
-  let genreName = params.slug.replace(/-/g, " ");
+export default async function GenrePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  let items: HomepageItem[] = [];
+  let genres: GenreOption[] = [];
 
   try {
     const rawContent = await prisma.content.findMany({
       where: {
         status: { in: ["PUBLISHED", "READY"] },
-        categories: { some: { category: { slug: params.slug } } },
+        categories: { some: { category: { slug } } },
       },
       include: {
         images: true,
@@ -28,7 +28,10 @@ export default async function GenrePage({ params }: { params: { slug: string } }
       },
     });
 
-    items = rawContent.map((c: any): Video => {
+    const allCategories = await prisma.category.findMany({ orderBy: { name: "asc" } });
+    genres = allCategories.map((cat) => ({ name: cat.name, slug: cat.slug }));
+
+    items = rawContent.map((c: any): HomepageItem => {
       const movie = c.movies?.[0];
       const show = c.show;
       const poster = c.images.find((i: any) => i.type === "POSTER")?.url || "";
@@ -53,6 +56,8 @@ export default async function GenrePage({ params }: { params: { slug: string } }
         })) || [],
         isTvShow: !!show,
         seasonCount: show?.seasons.length || 0,
+        popularityScore: Number(c.popularityScore || 0),
+        rating: Number(c.popularityScore || 0),
         videoSources: movie?.video?.sources?.map((s: any) => ({
           url: s.url,
           quality: s.resolution || "1080p",
@@ -60,15 +65,17 @@ export default async function GenrePage({ params }: { params: { slug: string } }
       };
     });
 
-    categories = Array.from(new Set(items.flatMap((i) => i.categories))).sort();
+    items.sort(() => Math.random() - 0.5);
   } catch (err) {
     console.error("Error fetching genre content:", err);
   }
 
+  const genreName = slug.replace(/-/g, " ");
+  const title = genreName.charAt(0).toUpperCase() + genreName.slice(1);
+
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <PageBackground overlayOpacity={0.82} />
-      <ContentPageClient items={items} categories={categories} type="home" title={genreName.charAt(0).toUpperCase() + genreName.slice(1)} />
+    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#000" }}>
+      <LibraryPageClient items={items} genres={genres} type="home" title={title} currentSlug={slug} />
     </main>
   );
 }
