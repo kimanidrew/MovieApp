@@ -55,7 +55,10 @@ export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, upl
 
   const applyManualUrl = () => {
     const url = manualVideoUrl.trim();
-    if (!/^https?:\\/\\//i.test(url)) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error();
+    } catch {
       setError("Enter a valid HTTP or HTTPS video URL.");
       return;
     }
