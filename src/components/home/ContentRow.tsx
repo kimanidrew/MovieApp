@@ -85,7 +85,7 @@ export default function ContentRow({ section }: ContentRowProps) {
 
       <style jsx>{`
         .content-row {
-          padding: 0.5rem 0;
+          padding: 1.35rem 0 0.8rem;
           animation: rowFadeIn 0.6s ease forwards;
           width: 100%;
           overflow: hidden;
@@ -95,7 +95,7 @@ export default function ContentRow({ section }: ContentRowProps) {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.85rem;
           padding: 0 4%;
           gap: 1rem;
         }
@@ -110,8 +110,8 @@ export default function ContentRow({ section }: ContentRowProps) {
 
         .row-title {
           color: #fff;
-          font-size: 1.35rem;
-          font-weight: 700;
+          font-size: 1.15rem;
+          font-weight: 750;
           margin: 0;
           letter-spacing: -0.2px;
           text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -120,10 +120,10 @@ export default function ContentRow({ section }: ContentRowProps) {
         :global(.row-icon) {
           flex-shrink: 0;
         }
-        :global(.top10-icon) { color: #e50914; }
+        :global(.top10-icon) { color: #f4b400; }
         :global(.featured-icon) { color: #fbbf24; }
-        :global(.continue-icon) { color: #3b82f6; }
-        :global(.wide-icon) { color: #ec4899; }
+        :global(.continue-icon) { color: #e68a00; }
+        :global(.wide-icon) { color: #d97706; }
 
         .row-actions {
           display: flex;
@@ -154,9 +154,9 @@ export default function ContentRow({ section }: ContentRowProps) {
         .scroll-btn {
           width: 32px;
           height: 32px;
-          border-radius: 50%;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          background: rgba(0, 0, 0, 0.6);
+          border-radius: 12px;
+          border: 1px solid rgba(244, 180, 0, 0.16);
+          background: rgba(255, 255, 255, 0.035);
           color: #fff;
           display: flex;
           align-items: center;
