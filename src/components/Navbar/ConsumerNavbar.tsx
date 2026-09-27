@@ -82,9 +82,9 @@ export default function ConsumerNavbar() {
                 {activeProfile && (
                   <>
                     <li><Link href="/" className={isActive("/") ? "active" : ""}>Home</Link></li>
-                    <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Collections</Link></li>
-                    <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Movies</Link></li>
-                    <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My Movies</Link></li>
+                    <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Discover</Link></li>
+                    <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Cinema</Link></li>
+                    <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>Library</Link></li>
                   </>
                 )}
               </ul>
@@ -98,7 +98,7 @@ export default function ConsumerNavbar() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search African movies, directors, genres..."
+                placeholder="Find a story, filmmaker or place..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
@@ -203,18 +203,18 @@ export default function ConsumerNavbar() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-radius: 10px;
-          background: transparent;
-          border: 1px solid transparent;
+          border-radius: 20px;
+          background: rgba(8, 8, 7, 0.72);
+          border: 1px solid rgba(244, 180, 0, 0.10);
           transition: all 0.35s ease;
           height: 60px;
         }
 
         .navbar.scrolled .nav-container {
-          background: rgba(0, 0, 0, 0.88);
+          background: rgba(8, 8, 7, 0.94);
           backdrop-filter: blur(24px);
           -webkit-backdrop-filter: blur(24px);
-          border-color: rgba(255, 255, 255, 0.12);
+          border-color: rgba(244, 180, 0, 0.18);
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
         
@@ -239,7 +239,7 @@ export default function ConsumerNavbar() {
           padding-bottom: 4px;
         }
         .nav-links a:hover { color: #fff; }
-        .nav-links a.active { color: #fff; border-bottom: 2px solid #f4b400; font-weight: 600; }
+        .nav-links a.active { color: #fff; border-bottom: 0; color: #f4b400; font-weight: 600; }
         
         .search-active-box {
           flex-grow: 1;
