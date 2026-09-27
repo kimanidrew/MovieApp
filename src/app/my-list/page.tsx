@@ -262,5 +262,3 @@ const styles = `
   @media(max-width:720px){ .library-shell{padding:7rem 1rem 4rem}.library-intro{display:block;padding-bottom:2rem}.library-toolbar{align-items:flex-start;flex-direction:column}.library-search{width:100%}.library-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem .75rem}.title{font-size:.95rem}.card-footer{font-size:.6rem}.play-chip{opacity:1;transform:none;width:34px;height:34px} }
   @media(max-width:430px){ .library-grid{grid-template-columns:1fr}.artwork{aspect-ratio:16/9} }
 `;
-
-export default MyListPage;
