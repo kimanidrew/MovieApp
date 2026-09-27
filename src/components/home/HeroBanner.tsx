@@ -212,8 +212,8 @@ export default function HeroBanner({ content }: HeroBannerProps) {
         .hero-container {
           position: relative;
           width: 100%;
-          height: 80vh;
-          min-height: 550px;
+          height: 76vh;
+          min-height: 560px;
           max-height: 900px;
           background-color: #000;
           overflow: hidden;
@@ -267,12 +267,12 @@ export default function HeroBanner({ content }: HeroBannerProps) {
           pointer-events: none;
         }
 
-        /* Netflix-style Multi-layered Gradients */
+        /* Tidpix editorial cinematic layers */
         .gradient-overlay-left {
           position: absolute;
           inset: 0;
           z-index: 3;
-          background: linear-gradient(77deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 45%, transparent 85%);
+          background: linear-gradient(90deg, rgba(7,7,7,0.92) 0%, rgba(7,7,7,0.60) 38%, rgba(7,7,7,0.08) 78%, transparent 100%);
           pointer-events: none;
         }
 
@@ -280,7 +280,7 @@ export default function HeroBanner({ content }: HeroBannerProps) {
           position: absolute;
           inset: 0;
           z-index: 3;
-          background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.7) 85%, #000 100%);
+          background: linear-gradient(180deg, transparent 52%, rgba(7,7,7,0.58) 78%, #070707 100%);
           pointer-events: none;
         }
 
@@ -288,7 +288,7 @@ export default function HeroBanner({ content }: HeroBannerProps) {
           position: absolute;
           inset: 0;
           z-index: 3;
-          background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 20%);
+          background: linear-gradient(180deg, rgba(7,7,7,0.68) 0%, transparent 25%);
           pointer-events: none;
         }
 
@@ -302,7 +302,7 @@ export default function HeroBanner({ content }: HeroBannerProps) {
         }
 
         .hero-title { 
-          font-size: 3.5rem; 
+          font-size: clamp(2.8rem, 5vw, 5rem); 
           font-weight: 800; 
           color: #fff; 
           margin-bottom: 1rem; 
@@ -375,13 +375,13 @@ export default function HeroBanner({ content }: HeroBannerProps) {
           text-decoration: none; 
           transition: transform 0.2s, background 0.2s; 
         }
-        .play-button:hover { background: rgba(255,255,255,0.75); transform: scale(1.02); }
+        .play-button:hover { background: #ffd45a; transform: scale(1.02); }
         
         .info-button { 
           display: flex; 
           align-items: center; 
           gap: 12px; 
-          background: rgba(109,109,110,0.7); 
+          background: rgba(255,255,255,0.07); 
           color: #fff; 
           padding: 0.9rem 2rem; 
           border-radius: 8px; 
@@ -393,7 +393,7 @@ export default function HeroBanner({ content }: HeroBannerProps) {
           text-decoration: none; 
           backdrop-filter: blur(8px);
         }
-        .info-button:hover { background: rgba(109,109,110,0.5); transform: scale(1.02); }
+        .info-button:hover { background: rgba(244,180,0,0.12); transform: scale(1.02); }
 
         .hero-controls {
           position: absolute;
@@ -408,7 +408,7 @@ export default function HeroBanner({ content }: HeroBannerProps) {
           width: 50px; 
           height: 50px; 
           border-radius: 50%; 
-          border: 1px solid rgba(255,255,255,0.3); 
+          border: 1px solid rgba(244,180,0,0.35); 
           background: rgba(0,0,0,0.4); 
           color: white; 
           cursor: pointer; 
