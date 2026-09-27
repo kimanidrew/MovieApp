@@ -76,15 +76,15 @@ export default function ConsumerNavbar() {
         <div className="nav-container">
           {/* LEFT: Brand & Links */}
           <div className="nav-left">
-            <Link href="/" className="nav-brand">MFLIX</Link>
+            <Link href="/" className="nav-brand" >Tidpix</Link>
             {!isSearchOpen && customerUser && (
               <ul className="nav-links">
                 {activeProfile && (
                   <>
                     <li><Link href="/" className={isActive("/") ? "active" : ""}>Home</Link></li>
-                    <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Shows</Link></li>
+                    <li><Link href="/shows" className={isActive("/shows") ? "active" : ""}>Collections</Link></li>
                     <li><Link href="/movies" className={isActive("/movies") ? "active" : ""}>Movies</Link></li>
-                    <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My List</Link></li>
+                    <li><Link href="/my-list" className={isActive("/my-list") ? "active" : ""}>My Movies</Link></li>
                   </>
                 )}
               </ul>
@@ -98,7 +98,7 @@ export default function ConsumerNavbar() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search movies, TV shows, genres..."
+                placeholder="Search African movies, directors, genres..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
@@ -221,7 +221,7 @@ export default function ConsumerNavbar() {
         .nav-left { display: flex; align-items: center; gap: 2.5rem; flex-shrink: 0; }
         
         .nav-brand {
-          background: linear-gradient(90deg, #e50914, #ff7575);
+          background: linear-gradient(90deg, #f4b400, #e68a00);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           font-weight: 900;
@@ -239,7 +239,7 @@ export default function ConsumerNavbar() {
           padding-bottom: 4px;
         }
         .nav-links a:hover { color: #fff; }
-        .nav-links a.active { color: #fff; border-bottom: 2px solid #e50914; font-weight: 600; }
+        .nav-links a.active { color: #fff; border-bottom: 2px solid #f4b400; font-weight: 600; }
         
         .search-active-box {
           flex-grow: 1;
@@ -281,7 +281,7 @@ export default function ConsumerNavbar() {
           align-items: center;
           transition: transform 0.2s ease;
         }
-        .search-toggle-btn:hover { transform: scale(1.1); color: #e50914; }
+        .search-toggle-btn:hover { transform: scale(1.1); color: #f4b400; }
         
         .search-dropdown {
           position: absolute;
@@ -346,7 +346,7 @@ export default function ConsumerNavbar() {
           margin-top: 4px;
           background: rgba(229, 9, 20, 0.15);
           border: 1px solid rgba(229, 9, 20, 0.3);
-          color: #e50914;
+          color: #f4b400;
           font-size: 0.82rem;
           font-weight: 600;
           border-radius: 8px;
@@ -354,7 +354,7 @@ export default function ConsumerNavbar() {
           text-align: center;
           transition: all 0.2s ease;
         }
-        .view-all-results-btn:hover { background: #e50914; color: #fff; }
+        .view-all-results-btn:hover { background: #f4b400; color: #fff; }
         
         .nav-right { display: flex; align-items: center; gap: 1.5rem; flex-shrink: 0; }
         .profile-trigger-btn { background: transparent; border: none; display: flex; align-items: center; cursor: pointer; }
@@ -375,11 +375,11 @@ export default function ConsumerNavbar() {
         .dropdown-item:hover { background: rgba(255,255,255,0.1); }
         .text-danger { color: #f87171; }
         .login-btn {
-          background: #e50914; color: #fff; padding: 6px 16px;
+          background: #f4b400; color: #fff; padding: 6px 16px;
           border-radius: 6px; font-size: 0.85rem; font-weight: 600;
           text-decoration: none; transition: all 0.2s ease;
         }
-        .login-btn:hover { background: #ff0f1a; transform: scale(1.05); }
+        .login-btn:hover { background: #e6a900; transform: scale(1.05); }
       `}</style>
     </nav>
   );
