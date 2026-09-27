@@ -76,133 +76,144 @@ export default function VideoDetailsPage({ video, allVideos, type }: VideoDetail
 
   return (
     <main className="details-page">
-      <section className="hero">
-        <div className="hero-top-gradient" />
-        <div className="hero-left-gradient" />
-        <img 
-          className={`hero-image ${isPlaying ? "hidden" : "pulse"}`} 
-          src={normalizeUrl(video.backdropUrl || video.thumbnailUrl)} 
-          alt={video.title} 
+      <section className="story-hero">
+        <img
+          className={`hero-art ${isPlaying ? "hero-art-hidden" : ""}`}
+          src={normalizeUrl(video.backdropUrl || video.thumbnailUrl)}
+          alt={video.title}
         />
-        
-        <div className={`video-wrapper ${isPlaying ? "visible" : ""}`}>
+
+        <div className="hero-wash" />
+        <div className="hero-grid" />
+
+        <div className="story-copy">
+          <div className="eyebrow">
+            <span className="eyebrow-mark" />
+            {type === "show" ? "SERIES" : "AFRICAN CINEMA"}
+          </div>
+
+          <h1 className="title">{video.title}</h1>
+
+          <div className="meta-line">
+            <span>{video.releaseYear}</span>
+            <span className="meta-dot">•</span>
+            <span>{video.maturityRating}</span>
+            {type === "show" && video.seasons?.length ? (
+              <>
+                <span className="meta-dot">•</span>
+                <span>{video.seasons.length} {video.seasons.length === 1 ? "season" : "seasons"}</span>
+              </>
+            ) : null}
+          </div>
+
+          <p className="description hero-description">{video.description}</p>
+
+          <div className="hero-actions">
+            <Link href={type === "show" && firstEpisode ? `/watch/${video.id}?season=${activeSeason}&ep=${firstEpisode.episodeNumber}` : `/watch/${video.id}`}>
+              <span className="primary-action"><Play size={17} fill="currentColor" /> Watch now</span>
+            </Link>
+            <button className={`secondary-action ${inMyList ? "selected" : ""}`} onClick={toggleMyList}>
+              {inMyList ? <Check size={17} /> : <Plus size={17} />} {inMyList ? "In library" : "Save to library"}
+            </button>
+            {youtubeId && (
+              <button className="icon-action" onClick={toggleMute} aria-label={isMuted ? "Unmute trailer" : "Mute trailer"}>
+                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
+            )}
+          </div>
+
+          {video.categories?.length ? (
+            <div className="genres">
+              {video.categories.map((genre) => <span key={genre} className="genre-chip">{genre}</span>)}
+            </div>
+          ) : null}
+        </div>
+
+        <div className={`trailer-frame ${isPlaying ? "visible" : ""}`}>
           {youtubeId && (
-            <YouTube 
-              videoId={youtubeId} 
-              opts={{ 
-                playerVars: { 
-                  autoplay: 1, 
-                  controls: 0, 
-                  modestbranding: 1, 
-                  loop: 0, 
-                  mute: 1, 
-                  rel: 0, 
-                  playsinline: 1 
-                } 
-              }} 
+            <YouTube
+              videoId={youtubeId}
+              opts={{ playerVars: { autoplay: 1, controls: 0, modestbranding: 1, loop: 0, mute: 1, rel: 0, playsinline: 1 } }}
               onReady={(event) => { playerRef.current = event.target; }}
               onStateChange={(event) => {
                 if (event.data === 1) setIsPlaying(true);
                 if (event.data === 0) { setIsPlaying(false); setHasPlayed(true); }
               }}
-              className="youtube-player" 
+              className="youtube-player"
             />
           )}
         </div>
 
-        {!isPlaying && hasPlayed && (
-          <button className="replay-btn" onClick={replayTrailer}>
-            <RotateCcw size={32} />
-          </button>
+        {hasPlayed && !isPlaying && (
+          <button className="replay-btn" onClick={replayTrailer} aria-label="Replay trailer"><RotateCcw size={18} /></button>
         )}
-
-        <div className="hero-overlay" />
-        <div className="hero-vignette" />
-        
-        <div className="hero-content">
-          <span className="netflix-badge">{type === "show" ? "TV SHOW" : "MOVIE"}</span>
-          <h1 className="title">{video.title}</h1>
-          
-          <div className="meta-container">
-            <div className="meta-top">
-                <span className="rating">{video.maturityRating}</span>
-                {type === "show" && video.seasons && (
-                    <span className="season-count">
-                        {video.seasons.length} {video.seasons.length === 1 ? "Season" : "Seasons"}
-                    </span>
-                )}
-            </div>
-            <div className="meta-bottom">
-                <span className="year-box">{video.releaseYear}</span>
-                <span className="quality">HD</span>
-                <span className="quality">5.1</span>
-            </div>
-          </div>
-
-          <div className="hero-buttons">
-            <Link href={type === "show" && firstEpisode ? `/watch/${video.id}?season=${activeSeason}&ep=${firstEpisode.episodeNumber}` : `/watch/${video.id}`}>
-              <div className="play-button">
-                <Play size={24} fill="currentColor" />
-                <span>Play</span>
-              </div>
-            </Link>
-            <button className="circle-btn" onClick={toggleMyList}>{inMyList ? <Check size={24} /> : <Plus size={24} />}</button>
-            <button className="circle-btn" onClick={toggleMute}>{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
-          </div>
-        </div>
       </section>
 
       <section className="content">
-        <div className="details-stack">
-          {video.categories?.length ? (
-            <div className="genres" style={{ marginBottom: '20px' }}>
-              {video.categories.map((genre) => <span key={genre} className="genre-chip">{genre}</span>)}
-            </div>
-          ) : null}
-          <p className="description">{video.description}</p>
+        <div className="story-layout">
+          <div className="story-panel">
+            <div className="panel-kicker">THE STORY</div>
+            <p className="description">{video.description}</p>
+          </div>
+          <div className="facts-panel">
+            <div><span>Format</span><strong>{type === "show" ? "Series" : "Feature film"}</strong></div>
+            <div><span>Release</span><strong>{video.releaseYear}</strong></div>
+            <div><span>Rating</span><strong>{video.maturityRating}</strong></div>
+          </div>
         </div>
 
         {type === "show" && seasons.length > 0 && activeSeason !== null && (
-          <div className="tv-section">
-            <h3 className="section-title">Episodes</h3>
-            <select className="season-select" onChange={(e) => setActiveSeason(Number(e.target.value))} value={activeSeason}>
-              {seasons.map((season) => <option key={season.id} value={season.seasonNumber}>Season {season.seasonNumber}</option>)}
-            </select>
+          <section className="tv-section">
+            <div className="section-heading">
+              <div>
+                <span className="panel-kicker">WATCH IN ORDER</span>
+                <h2>Episodes</h2>
+              </div>
+              <select className="season-select" onChange={(e) => setActiveSeason(Number(e.target.value))} value={activeSeason}>
+                {seasons.map((season) => <option key={season.id} value={season.seasonNumber}>Season {season.seasonNumber}</option>)}
+              </select>
+            </div>
             <div className="episodes-list">
               {sortedEpisodes.map((ep) => (
                 <Link href={`/watch/${video.id}?season=${activeSeason}&ep=${ep.episodeNumber}`} key={ep.id}>
                   <div className="episode-item">
-                    <span className="ep-index">{ep.episodeNumber}</span>
+                    <span className="ep-index">{String(ep.episodeNumber).padStart(2, "0")}</span>
                     <div className="ep-details">
-                        <div className="ep-header"><p className="ep-title">{ep.title}</p></div>
-                        <p className="ep-desc">{ep.description}</p>
+                      <p className="ep-title">{ep.title}</p>
+                      <p className="ep-desc">{ep.description}</p>
                     </div>
+                    <span className="episode-arrow">→</span>
                   </div>
                 </Link>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         <section className="recommendations">
-          <div className="section-header"><h2>More Like This</h2></div>
+          <div className="section-heading">
+            <div>
+              <span className="panel-kicker">KEEP EXPLORING</span>
+              <h2>Stories you may like</h2>
+            </div>
+            <span className="section-rule" />
+          </div>
           <div className="recommend-grid">
             {relatedVideos.map((item) => (
-              <Link href={`/watch/${item.id}`} key={item.id} className="recommend-card">
+              <Link href={`/movies/${item.id}`} key={item.id} className="recommend-card">
                 <div className="recommend-image-wrapper">
                   <img src={normalizeUrl(item.backdropUrl || item.thumbnailUrl || "")} alt={item.title} className="recommend-image" />
-                  <div className="recommend-gradient" />
-                  <div className="recommend-play"><Play size={34} fill="currentColor" /></div>
-                </div>
-                <div className="recommend-content">
-                  <h4 className="recommend-title">{item.title}</h4>
+                  <div className="recommend-content">
+                    <span>{item.releaseYear}</span>
+                    <h3>{item.title}</h3>
+                  </div>
+                  <span className="recommend-arrow">↗</span>
                 </div>
               </Link>
             ))}
           </div>
         </section>
       </section>
-
       <style jsx>{`
         .details-page { background: #000; min-height: 100vh; color: white; padding-bottom: 60px; }
         .hero { position: relative; height: 100vh; overflow: hidden; background: #000; }
