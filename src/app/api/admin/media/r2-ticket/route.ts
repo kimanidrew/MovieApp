@@ -24,6 +24,7 @@ const ASSET_RULES = {
   BACKDROP: { folder: "images/backdrops", prefix: "image/" },
   VIDEO: { folder: "videos/streams", prefix: "video/" },
   TRAILER: { folder: "videos/trailers", prefix: "video/" },
+  SUBTITLE: { folder: "subtitles", prefix: "text/" },
 } as const;
 
 type AssetType = keyof typeof ASSET_RULES;
@@ -54,14 +55,15 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!contentType.toLowerCase().startsWith(rule.prefix)) {
+    const subtitleTypeAllowed = assetType === "SUBTITLE" && ["text/vtt", "text/plain", "application/x-subrip", "application/octet-stream"].includes(contentType.toLowerCase());
+    if (!contentType.toLowerCase().startsWith(rule.prefix) && !subtitleTypeAllowed) {
       return NextResponse.json(
         { error: assetType === "VIDEO" || assetType === "TRAILER" ? "Please select a video file." : "Please select an image file." },
         { status: 415 }
       );
     }
 
-    const maxBytes = assetType === "POSTER" || assetType === "BACKDROP"
+    const maxBytes = assetType === "POSTER" || assetType === "BACKDROP" || assetType === "SUBTITLE"
       ? 20 * 1024 * 1024
       : 10 * 1024 * 1024 * 1024;
 
