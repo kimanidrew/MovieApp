@@ -13,7 +13,7 @@ import SubtitlesForm from "./components/SubtitlesForm";
 import ProductionInfoForm from "./components/ProductionInfoForm";
 import AwardsForm from "./components/AwardsForm";
 import TvSeasonEpisodeForm from "./components/TvSeasonEpisodeForm";
-import { CheckCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertTriangle, Loader2 } from "lucide-react";
 
 const emptyFormData: Record<string, any> = {
   title: "", slug: "", description: "", storyline: "", releaseYear: "",
@@ -37,9 +37,7 @@ export default function AdminUploadPage() {
   const [productionInfo, setProductionInfo] = useState<any>({});
   const [awards, setAwards] = useState<any[]>([]);
   const [selectedTmdbItem, setSelectedTmdbItem] = useState<any>(null);
-  const [showConfig, setShowConfig] = useState({
-    seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "",
-  });
+  const [showConfig, setShowConfig] = useState({ seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "" });
   const [isExistingShow, setIsExistingShow] = useState(false);
   const [selectedExistingShowId, setSelectedExistingShowId] = useState("");
   const [selectedShowMeta, setSelectedShowMeta] = useState<any>(null);
@@ -54,39 +52,36 @@ export default function AdminUploadPage() {
         if (Array.isArray(data)) setMaturityOptions(data);
         else if (data?.ratings) setMaturityOptions(data.ratings);
       })
-      .catch(() => {});
+      .catch(() => setSaveStatus({ ok: false, message: "Could not load maturity ratings. You can still complete the other fields." }));
   }, []);
 
   const updateFormData = useCallback((updater: any) => {
-    if (typeof updater === "function") {
-      setFormData((prev: any) => updater(prev));
-    } else {
-      setFormData(updater);
-    }
+    setFormData((prev: any) => typeof updater === "function" ? updater(prev) : updater);
   }, []);
 
   const handleTypeSwitch = (type: "MOVIE" | "SHOW") => {
+    if (saving) return;
     setActiveTab(type);
     setSaveStatus(null);
   };
 
+  const slugify = (value: string) =>
+    value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
   const ensureSlug = () => {
-    if (!formData.slug && formData.title) {
-      const slug = formData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-      setFormData((prev: any) => ({ ...prev, slug }));
-      return slug;
-    }
-    return formData.slug;
+    const slug = formData.slug?.trim() || slugify(formData.title || "");
+    if (slug && slug !== formData.slug) setFormData((prev: any) => ({ ...prev, slug }));
+    return slug;
   };
 
   const buildPayload = () => {
     const slug = ensureSlug();
     const base: Record<string, any> = {
       type: activeTab,
-      title: formData.title,
+      title: formData.title.trim(),
       slug: slug || `content-${Date.now()}`,
-      description: formData.description || "",
-      storyline: formData.storyline || "",
+      description: formData.description?.trim() || "",
+      storyline: formData.storyline?.trim() || "",
       releaseYear: formData.releaseYear || "2026",
       maturityRatingCode: formData.maturityRatingCode || "TV-MA",
       tmdbId: formData.tmdbId || "",
@@ -124,14 +119,37 @@ export default function AdminUploadPage() {
     };
   };
 
+  const resetForm = () => {
+    setFormData({ ...emptyFormData });
+    setCategories([]); setImageAssets([]); setTrailerTracks([]);
+    setMainVideoFile(null); setUploadedVideoUrl(""); setVideoDetails({});
+    setCast([]); setCrew([]); setSubtitles([]); setProductionInfo({}); setAwards([]);
+    setSelectedTmdbItem(null); setIsExistingShow(false); setSelectedExistingShowId(""); setSelectedShowMeta(null);
+    setShowConfig({ seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "" });
+  };
+
   const commitCompleteAssetToDb = async () => {
-    if (!formData.title) {
-      setSaveStatus({ ok: false, message: "At least a title is required to save content." });
+    const title = formData.title?.trim();
+    if (!title) {
+      setSaveStatus({ ok: false, message: "Add a title before saving this release." });
+      return;
+    }
+
+    if (activeTab === "SHOW" && isExistingShow && !selectedExistingShowId) {
+      setSaveStatus({ ok: false, message: "Select the existing TV show before saving this episode." });
+      return;
+    }
+
+    const season = Number(showConfig.seasonNumber);
+    const episode = Number(showConfig.episodeNumber);
+    if (activeTab === "SHOW" && (!Number.isInteger(season) || season < 1 || !Number.isInteger(episode) || episode < 1)) {
+      setSaveStatus({ ok: false, message: "Season and episode numbers must be positive whole numbers." });
       return;
     }
 
     setSaving(true);
     setSaveStatus(null);
+
     try {
       const payload = buildPayload();
       const res = await fetch("/api/admin/media/save", {
@@ -140,48 +158,42 @@ export default function AdminUploadPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save content");
+      let data: any = {};
+      try { data = await res.json(); } catch { /* handled by generic error */ }
+      if (!res.ok) throw new Error(data.error || "The catalog could not be saved.");
 
-      setSaveStatus({ ok: true, message: "Content saved successfully to the catalog!" });
-      setTimeout(() => {
-        setFormData({ ...emptyFormData });
-        setCategories([]); setImageAssets([]); setTrailerTracks([]);
-        setMainVideoFile(null); setUploadedVideoUrl(""); setVideoDetails({});
-        setCast([]); setCrew([]); setSubtitles([]);
-        setProductionInfo({}); setAwards([]); setSelectedTmdbItem(null);
-        setShowConfig({ seasonNumber: "1", episodeNumber: "1", episodeTitle: "", episodeDescription: "" });
+      const label = activeTab === "MOVIE" ? "movie" : "episode";
+      setSaveStatus({ ok: true, message: `Tidpix ${label} saved successfully to the catalog.` });
+      window.setTimeout(() => {
+        resetForm();
         setSaveStatus(null);
       }, 2500);
     } catch (err: any) {
-      setSaveStatus({ ok: false, message: err?.message || "Failed to save content." });
+      setSaveStatus({ ok: false, message: err?.message || "The catalog could not be saved. Please try again." });
     } finally {
       setSaving(false);
     }
   };
 
-  const isFormValid = Boolean(formData.title);
+  const isFormValid = Boolean(formData.title?.trim());
 
   return (
     <div className="workspace-container">
       <div className="layout-max-wrapper">
         <HeaderTabs activeTab={activeTab} setActiveTab={handleTypeSwitch} />
 
+        <div className="upload-intro-banner">
+          <div>
+            <strong>Publish to Tidpix</strong>
+            <span>Search TMDB to auto-fill metadata, add artwork and media, review the details, then save the release.</span>
+          </div>
+          <div className="upload-flow-hint"><span>1</span> Metadata <b>→</b><span>2</span> Artwork <b>→</b><span>3</span> Video <b>→</b><span>4</span> Publish</div>
+        </div>
+
         {saveStatus && (
-          <div
-            style={{
-              display: "flex", alignItems: "center", gap: "0.75rem",
-              padding: "0.75rem 1rem", borderRadius: "0.5rem", marginBottom: "1.5rem",
-              background: saveStatus.ok ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-              border: `1px solid ${saveStatus.ok ? "rgba(16, 185, 129, 0.2)" : "rgba(239, 68, 68, 0.2)"}`,
-            }}
-          >
-            {saveStatus.ok
-              ? <CheckCircle size={18} style={{ color: "#10b981", flexShrink: 0 }} />
-              : <AlertTriangle size={18} style={{ color: "#ef4444", flexShrink: 0 }} />}
-            <span style={{ fontSize: "0.875rem", color: saveStatus.ok ? "#10b981" : "#ef4444", fontWeight: 500 }}>
-              {saveStatus.message}
-            </span>
+          <div className={`save-status-banner ${saveStatus.ok ? "success" : "error"}`} role="status">
+            {saveStatus.ok ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+            <span>{saveStatus.message}</span>
           </div>
         )}
 
@@ -203,14 +215,8 @@ export default function AdminUploadPage() {
         />
 
         <div className="split-grid-layout">
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-            <TitleInformationForm
-              formData={formData}
-              setFormData={setFormData}
-              categories={categories}
-              setCategories={setCategories}
-              maturityOptions={maturityOptions}
-            />
+          <div>
+            <TitleInformationForm formData={formData} setFormData={setFormData} categories={categories} setCategories={setCategories} maturityOptions={maturityOptions} />
             <GraphicAssetsUploader imageAssets={imageAssets} setImageAssets={setImageAssets} />
             <TrailerUploader trailerTracks={trailerTracks} setTrailerTracks={setTrailerTracks} />
 
@@ -230,12 +236,7 @@ export default function AdminUploadPage() {
 
             <VideoDetailsForm videoDetails={videoDetails} setVideoDetails={setVideoDetails} />
             <CastCrewForm cast={cast} setCast={setCast} crew={crew} setCrew={setCrew} />
-            <SubtitlesForm
-              subtitles={subtitles}
-              setSubtitles={setSubtitles}
-              videoDetails={videoDetails}
-              setVideoDetails={setVideoDetails}
-            />
+            <SubtitlesForm subtitles={subtitles} setSubtitles={setSubtitles} videoDetails={videoDetails} setVideoDetails={setVideoDetails} />
             <ProductionInfoForm productionInfo={productionInfo} setProductionInfo={setProductionInfo} />
             <AwardsForm awards={awards} setAwards={setAwards} />
           </div>
@@ -251,40 +252,21 @@ export default function AdminUploadPage() {
               isFormValid={isFormValid}
             />
 
-            <div className="panel-card-glass" style={{ marginTop: "1.5rem" }}>
-              <h3 style={{ fontSize: "0.8rem", color: "#a1a1aa", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 0.75rem 0" }}>
-                Quick Summary
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", fontSize: "0.8rem" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#71717a" }}>Title</span>
-                  <span style={{ color: formData.title ? "#fafafa" : "#71717a", fontWeight: 500 }}>
-                    {formData.title || "—"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#71717a" }}>Type</span>
-                  <span style={{ color: "#fafafa", fontWeight: 500 }}>{activeTab === "MOVIE" ? "Movie" : "TV Show"}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#71717a" }}>Categories</span>
-                  <span style={{ color: categories.length ? "#fafafa" : "#71717a", fontWeight: 500 }}>{categories.length || 0}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#71717a" }}>Images</span>
-                  <span style={{ color: imageAssets.length ? "#fafafa" : "#71717a", fontWeight: 500 }}>{imageAssets.length || 0}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#71717a" }}>Video</span>
-                  <span style={{ color: uploadedVideoUrl ? "#10b981" : "#71717a", fontWeight: 500 }}>
-                    {uploadedVideoUrl ? "✓ Attached" : "Pending"}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#71717a" }}>Cast</span>
-                  <span style={{ color: cast.length ? "#fafafa" : "#71717a", fontWeight: 500 }}>{cast.length || 0}</span>
-                </div>
+            <div className="panel-card-glass quick-summary-card">
+              <h3>Release summary</h3>
+              <div className="summary-list">
+                <div><span>Title</span><strong>{formData.title || "Not set"}</strong></div>
+                <div><span>Type</span><strong>{activeTab === "MOVIE" ? "Movie" : "TV Episode"}</strong></div>
+                <div><span>Genres</span><strong>{categories.length || 0}</strong></div>
+                <div><span>Artwork</span><strong>{imageAssets.length || 0}</strong></div>
+                <div><span>Trailers</span><strong>{trailerTracks.length || 0}</strong></div>
+                <div><span>Video</span><strong className={uploadedVideoUrl ? "summary-ready" : ""}>{uploadedVideoUrl ? "Ready" : "Optional"}</strong></div>
+                <div><span>Cast</span><strong>{cast.length || 0}</strong></div>
               </div>
+              <button type="button" className="btn-secondary reset-upload-button" onClick={resetForm} disabled={saving}>
+                Clear form
+              </button>
+              <div className="save-reminder"><Loader2 size={14} /> Save only after reviewing the title and media above.</div>
             </div>
           </div>
         </div>
