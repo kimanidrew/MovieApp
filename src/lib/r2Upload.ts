@@ -22,7 +22,7 @@ export async function uploadFileToR2(
   }
   if (isSubtitle) {
     const validMime = ["text/vtt", "text/plain", "application/x-subrip", "application/octet-stream"].includes(file.type);
-    const validExtension = /\\.(vtt|srt|webvtt)$/i.test(file.name);
+    const validExtension = /\.(vtt|srt|webvtt)$/i.test(file.name);
     if (!validMime && !validExtension) throw new Error("Please select a .VTT or .SRT subtitle file.");
   } else if (!isVideo && !file.type.startsWith("image/")) {
     throw new Error("Please select an image file.");
