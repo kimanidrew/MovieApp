@@ -75,7 +75,7 @@
 .interactive-dropzone-box span { font-size:.7rem; color:#71717a; }
 .upload-drop-icon { width:2rem; height:2rem; color:#f4b400; margin-bottom:.15rem; }
 .compact-dropzone { min-height:95px; margin-top:.75rem; }
-.hidden-native-input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; z-index:2; }
+.hidden-native-input { display:none; }
 
 .btn-execution-commit { width:100%; display:flex; align-items:center; justify-content:center; gap:.45rem; margin-top:1rem; padding:.72rem; border:0; border-radius:.5rem; background:#fafafa; color:#09090b; font-weight:700; font-size:.83rem; cursor:pointer; transition:.2s; }
 .btn-execution-commit:hover:not(:disabled) { background:#f4b400; }
