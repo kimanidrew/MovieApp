@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { UploadCloud, CheckCircle, Info, Loader2, ExternalLink } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { UploadCloud, CheckCircle, Info, Loader2, ExternalLink, RefreshCw } from "lucide-react";
 import { uploadFileToR2 } from "@/lib/r2Upload";
 
-interface MainVideoUploaderProps {
+interface Props {
   mainVideoFile: File | null;
   setMainVideoFile: (file: File | null) => void;
   uploadedVideoUrl: string;
@@ -12,50 +12,59 @@ interface MainVideoUploaderProps {
   isFormValid: boolean;
 }
 
-export default function MainVideoUploader({
-  mainVideoFile,
-  setMainVideoFile,
-  uploadedVideoUrl,
-  setUploadedVideoUrl,
-  commitCompleteAssetToDb,
-  saving,
-  isFormValid,
-}: MainVideoUploaderProps) {
+export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, uploadedVideoUrl, setUploadedVideoUrl, commitCompleteAssetToDb, saving, isFormValid }: Props) {
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadStatusText, setUploadStatusText] = useState("");
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [manualVideoUrl, setManualVideoUrl] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const startR2VideoUpload = async () => {
-    if (!mainVideoFile) return;
-    setUploading(true);
-    setUploadProgress(1);
-    setUploadStatusText("Acquiring upload authorization ticket...");
-
-    try {
-      const publicUrl = await uploadFileToR2(mainVideoFile, "VIDEO", (percent) => {
-        // Map 20%->95% to actual upload progress
-        setUploadProgress(Math.min(95, Math.max(15, Math.round(percent * 0.8))));
-        setUploadStatusText(`Uploading to Cloudflare R2... ${percent}%`);
-      });
-
-      setUploadedVideoUrl(publicUrl);
-      setUploadProgress(100);
-      setUploadStatusText("Upload complete! Video saved to Cloudflare R2.");
-    } catch (error: any) {
-      setUploadProgress(0);
-      setUploadStatusText(error?.message || "Upload failed");
-    } finally {
-      setUploading(false);
+  const chooseFile = (file?: File) => {
+    if (!file) return;
+    setError("");
+    setStatus("");
+    setUploadProgress(0);
+    if (!file.type.startsWith("video/")) {
+      setError("Please choose a video file.");
+      return;
     }
+    if (file.size > 10 * 1024 * 1024 * 1024) {
+      setError("Video files must be 10 GB or smaller.");
+      return;
+    }
+    setMainVideoFile(file);
+  };
+
+  const upload = async () => {
+    if (!mainVideoFile) return;
+    setUploading(true); setError(""); setUploadProgress(1); setStatus("Preparing secure upload...");
+    try {
+      const url = await uploadFileToR2(mainVideoFile, "VIDEO", (p) => {
+        setUploadProgress(p);
+        setStatus(p >= 100 ? "Upload complete." : `Uploading to Tidpix storage… ${p}%`);
+      });
+      setUploadedVideoUrl(url);
+      setStatus("Video uploaded and ready to attach.");
+    } catch (e: any) {
+      setError(e?.message || "Video upload failed.");
+      setStatus("");
+      setUploadProgress(0);
+    } finally { setUploading(false); }
   };
 
   const applyManualUrl = () => {
     const url = manualVideoUrl.trim();
-    if (!url) return;
-    setUploadedVideoUrl(url);
-    setUploadProgress(100);
-    setUploadStatusText("Video URL linked manually.");
+    if (!/^https?:\\/\\//i.test(url)) {
+      setError("Enter a valid HTTP or HTTPS video URL.");
+      return;
+    }
+    setError(""); setUploadedVideoUrl(url); setUploadProgress(100); setStatus("Existing video URL linked.");
+  };
+
+  const replace = () => {
+    setUploadedVideoUrl(""); setMainVideoFile(null); setUploadProgress(0); setStatus(""); setError(""); setManualVideoUrl("");
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   const hasVideo = Boolean(uploadedVideoUrl);
@@ -63,109 +72,56 @@ export default function MainVideoUploader({
   return (
     <div className="sticky-sidebar-container">
       <div className={`panel-card-glass ${hasVideo ? "active-step" : ""}`}>
-        <h2 style={{ fontSize: "0.9rem", fontWeight: 600, marginBottom: "1.25rem", marginTop: 0, display: "flex", alignItems: "center" }}>
-          <span className="step-number-badge">3</span> Video Media Stream
-        </h2>
+        <h2 className="upload-section-title"><span className="step-number-badge">3</span> Video Media</h2>
+        <p className="section-helper">Add the full movie or episode. You can upload it to Tidpix storage or link an existing HLS/MP4 stream.</p>
 
-        <div className="interactive-dropzone-box">
-          <input
-            type="file"
-            accept="video/*"
-            disabled={uploading || hasVideo}
-            onChange={(e) => setMainVideoFile(e.target.files?.[0] || null)}
-            className="hidden-native-input"
-          />
-          <UploadCloud style={{ width: "2rem", height: "2rem", color: "#71717a", marginBottom: "0.5rem" }} />
-          <p style={{ fontSize: "0.85rem", color: "#ffffff", margin: 0, fontWeight: 500 }}>
-            {mainVideoFile ? mainVideoFile.name : "Select master source video file"}
-          </p>
-        </div>
+        {!hasVideo && (
+          <div className="interactive-dropzone-box">
+            <input ref={inputRef} type="file" accept="video/*" disabled={uploading} onChange={(e) => chooseFile(e.target.files?.[0])} className="hidden-native-input" />
+            <UploadCloud className="upload-drop-icon" />
+            <strong>{mainVideoFile ? mainVideoFile.name : "Choose a master video"}</strong>
+            <span>MP4, WebM or another browser-supported video format · up to 10 GB</span>
+          </div>
+        )}
 
         {mainVideoFile && !hasVideo && (
-          <button
-            onClick={startR2VideoUpload}
-            disabled={uploading}
-            className="btn-execution-commit"
-            style={{ backgroundColor: "#e11d48", color: "#ffffff" }}
-          >
-            {uploading ? "Uploading..." : "Start Direct R2 Upload"}
+          <button type="button" onClick={upload} disabled={uploading} className="btn-execution-commit tidpix-primary">
+            {uploading ? <><Loader2 size={16} className="spin-icon" /> Uploading…</> : <><UploadCloud size={16} /> Upload video</>}
           </button>
         )}
 
-        {uploadProgress > 0 && (
+        {(uploadProgress > 0 || status) && (
           <div className="pipeline-status-container">
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem" }}>
-              <span style={{ color: "#a1a1aa" }}>{uploadStatusText}</span>
-              <span style={{ color: "#ffffff", fontWeight: 600 }}>{uploadProgress}%</span>
-            </div>
-            <div className="progressbar-track">
-              <div className="progressbar-indicator" style={{ width: `${uploadProgress}%` }} />
-            </div>
+            <div className="upload-status-row"><span>{status}</span><strong>{uploadProgress}%</strong></div>
+            <div className="progressbar-track"><div className="progressbar-indicator" style={{ width: `${uploadProgress}%` }} /></div>
           </div>
         )}
+
+        {error && <div className="upload-error" role="alert">{error}</div>}
 
         {hasVideo && (
-          <div style={{ backgroundColor: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "0.75rem 1rem", borderRadius: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1rem" }}>
-            <CheckCircle style={{ width: "1.25rem", height: "1.25rem", color: "#10b981", flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: "0.85rem", fontWeight: 500, color: "#10b981", margin: 0 }}>
-                Video attached to this title
-              </p>
-              <a
-                href={uploadedVideoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontSize: "0.7rem", color: "#7dd3fc", display: "flex", alignItems: "center", gap: "0.25rem", marginTop: "0.25rem", wordBreak: "break-all" }}
-              >
-                <ExternalLink size={10} /> {uploadedVideoUrl.slice(0, 80)}...
-              </a>
-            </div>
-            <button
-              onClick={() => { setUploadedVideoUrl(""); setMainVideoFile(null); setUploadProgress(0); }}
-              style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "0.75rem", flexShrink: 0 }}
-            >
-              Replace
-            </button>
+          <div className="upload-success">
+            <CheckCircle size={20} />
+            <div><strong>Video ready</strong><a href={uploadedVideoUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={11} /> Open media URL</a></div>
+            <button type="button" onClick={replace} className="link-button"><RefreshCw size={13} /> Replace</button>
           </div>
         )}
 
-        {/* Manual URL option */}
         {!hasVideo && (
-          <>
-            <div style={{ marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid #27272a" }}>
-              <p style={{ fontSize: "0.75rem", color: "#71717a", margin: "0 0 0.5rem 0" }}>
-                Or paste an existing video URL (HLS / MP4):
-              </p>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <input
-                  type="text"
-                  value={manualVideoUrl}
-                  onChange={(e) => setManualVideoUrl(e.target.value)}
-                  placeholder="https://.../stream.m3u8"
-                  className="input-text-field"
-                  style={{ flex: 1 }}
-                />
-                <button onClick={applyManualUrl} className="btn-secondary" style={{ padding: "0.5rem 1rem" }}>
-                  Link
-                </button>
-              </div>
+          <div className="manual-url-box">
+            <label>Or link an existing video</label>
+            <div className="manual-url-row">
+              <input type="url" value={manualVideoUrl} onChange={(e) => setManualVideoUrl(e.target.value)} placeholder="https://example.com/movie.m3u8" className="input-text-field" />
+              <button type="button" onClick={applyManualUrl} className="btn-secondary" disabled={!manualVideoUrl.trim()}>Link URL</button>
             </div>
-          </>
+          </div>
         )}
 
-        <div style={{ marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid #27272a" }}>
-          <button
-            onClick={commitCompleteAssetToDb}
-            disabled={saving}
-            className="btn-execution-commit"
-          >
-            {saving ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> : "Save Title to Catalog"}
+        <div className="save-title-box">
+          <button type="button" onClick={commitCompleteAssetToDb} disabled={saving || !isFormValid} className="btn-execution-commit">
+            {saving ? <><Loader2 size={16} className="spin-icon" /> Saving…</> : "Save to Tidpix catalog"}
           </button>
-
-          <p style={{ display: "flex", gap: "0.35rem", fontSize: "0.75rem", color: "#71717a", marginTop: "0.75rem", lineHeight: "1.3" }}>
-            <Info style={{ width: "0.85rem", height: "0.85rem", flexShrink: 0, color: "#a1a1aa" }} />
-            You can save the title metadata now and attach the video stream later.
-          </p>
+          <p><Info size={14} /> A video is optional for metadata-only catalog entries; you can attach the stream later.</p>
         </div>
       </div>
     </div>
