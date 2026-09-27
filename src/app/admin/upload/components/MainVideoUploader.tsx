@@ -115,30 +115,32 @@ export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, upl
         <p className="section-helper">Add the full movie or episode. You can upload it to Tidpix storage or link an existing HLS/MP4 stream.</p>
 
         {!hasVideo && (
-          <button
-            type="button"
-            className="interactive-dropzone-box"
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            aria-label="Choose master video from computer"
-          >
+          <>
             <input
               ref={inputRef}
+              id="tidpix-master-video"
               type="file"
               accept="video/*,.mp4,.webm,.mov,.mkv"
               disabled={uploading}
               onChange={(e) => {
-                chooseFile(e.target.files?.[0]);
-                e.currentTarget.value = "";
+                const file = e.target.files?.[0];
+                chooseFile(file);
+                e.target.value = "";
               }}
               className="hidden-native-input"
-              tabIndex={-1}
             />
-            <UploadCloud className="upload-drop-icon" />
-            <strong>{mainVideoFile ? mainVideoFile.name : "Choose a master video"}</strong>
-            <span>{mainVideoFile ? "Video selected — click here to choose a different file" : "Click to choose a video from your computer"}</span>
-            <small>MP4, WebM, MOV or another browser-supported video format · up to 10 GB</small>
-          </button>
+            <label
+              htmlFor="tidpix-master-video"
+              className="interactive-dropzone-box"
+              aria-label="Choose master video from computer"
+              style={{ cursor: uploading ? "not-allowed" : "pointer" }}
+            >
+              <UploadCloud className="upload-drop-icon" />
+              <strong>{mainVideoFile ? mainVideoFile.name : "Choose a master video"}</strong>
+              <span>{mainVideoFile ? "Video selected — click here to choose a different file" : "Click to choose a video from your computer"}</span>
+              <small>MP4, WebM, MOV or another browser-supported video format · up to 10 GB</small>
+            </label>
+          </>
         )}
 
         {mainVideoFile && !hasVideo && (
