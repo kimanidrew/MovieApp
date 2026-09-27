@@ -250,6 +250,7 @@ export default function AdminUploadPage() {
               commitCompleteAssetToDb={commitCompleteAssetToDb}
               saving={saving}
               isFormValid={isFormValid}
+              setVideoDetails={setVideoDetails}
             />
 
             <div className="panel-card-glass quick-summary-card">
