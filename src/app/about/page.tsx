@@ -1,37 +1,22 @@
-import React from 'react';
+import React from "react";
 
-export const metadata = {
-  title: 'About Us - MovieFlix',
-  description: 'Built with cutting-edge next-generation adaptive HLS technologies.',
-};
+export const metadata={title:"About Tidpix",description:"Tidpix — Authentically African Movies."};
 
-export default function AboutPage() {
-  return (
-    <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#050505', color: '#fff' }}>
-      
-      <div className="animate-in" style={{ flex: 1, padding: '12rem 4% 8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <h1 style={{ fontSize: '4rem', fontWeight: 800, marginBottom: '2rem', background: 'linear-gradient(to right, #3b82f6, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', letterSpacing: '-1px' }}>
-          Redefining Cinema
-        </h1>
-        
-        <p style={{ maxWidth: '800px', fontSize: '1.3rem', lineHeight: 1.8, color: '#aaa', textAlign: 'center', marginBottom: '4rem' }}>
-          MovieFlix represents the next evolution of digital entertainment. Built with cutting-edge next-generation adaptive HLS technologies natively powered by AI recommendations from Gemini, we deliver a buffer-free, immersive viewing experience worldwide.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', width: '100%', maxWidth: '1100px' }}>
-          {[
-            { title: 'AI Driven', text: 'Smart recommendations built intuitively off your viewing emotion and history.' },
-            { title: 'Zero Buffering', text: 'Adaptive HTTP Live Streaming natively switches resolutions to keep the frame perfect.' },
-            { title: 'Cinematic Visuals', text: 'Stunning premium user interfaces that bring the theatrical feeling directly to your home.' }
-          ].map((feature, i) => (
-            <div key={i} className="hover-card" style={{ background: 'rgba(255,255,255,0.03)', padding: '2.5rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', transition: 'transform 0.3s ease', cursor: 'pointer' }}>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#fff' }}>{feature.title}</h3>
-              <p style={{ color: '#888', lineHeight: 1.6 }}>{feature.text}</p>
-            </div>
-          ))}
-          <style>{`.hover-card:hover { transform: translateY(-10px); }`}</style>
-        </div>
-      </div>
-    </main>
-  );
+export default function AboutPage(){
+ const features=[
+  {title:"African Stories",text:"A home for authentic stories made by African filmmakers and storytellers."},
+  {title:"Discover Cinema",text:"Explore movies from Kenya and across the continent, with rich details about the people behind each film."},
+  {title:"Watch Your Way",text:"Find something new, save movies to your collection and enjoy a focused cinematic viewing experience."}
+ ];
+ return <main style={{minHeight:"100vh",background:"#070707",color:"#fff"}}>
+  <div className="animate-in" style={{padding:"12rem 4% 8rem",display:"flex",flexDirection:"column",alignItems:"center"}}>
+   <div style={{display:"inline-flex",alignItems:"center",gap:10,marginBottom:24,color:"#f4b400",fontWeight:800,letterSpacing:".08em",textTransform:"uppercase"}}><span style={{width:10,height:10,borderRadius:"50%",background:"#f4b400"}}/>Tidpix</div>
+   <h1 style={{fontSize:"clamp(3rem,7vw,5.5rem)",fontWeight:800,marginBottom:"1.5rem",background:"linear-gradient(to right,#f4b400,#e68a00)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",textAlign:"center",letterSpacing:"-2px"}}>Authentically African Movies</h1>
+   <p style={{maxWidth:"820px",fontSize:"1.2rem",lineHeight:1.8,color:"#aaa",textAlign:"center",marginBottom:"4rem"}}>Tidpix is a destination for African cinema — connecting audiences with authentic films, filmmakers and stories from across the continent.</p>
+   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:"1.25rem",width:"100%",maxWidth:"1100px"}}>
+    {features.map(f=><div key={f.title} className="hover-card" style={{background:"rgba(255,255,255,.035)",padding:"2.25rem",borderRadius:"18px",border:"1px solid rgba(244,180,0,.14)",transition:"transform .3s ease,border-color .3s ease"}}><h3 style={{fontSize:"1.35rem",marginBottom:".8rem",color:"#f4b400"}}>{f.title}</h3><p style={{color:"#999",lineHeight:1.7}}>{f.text}</p></div>)}
+   </div>
+  </div>
+  <style>{`.hover-card:hover{transform:translateY(-8px);border-color:rgba(244,180,0,.45)!important}`}</style>
+ </main>;
 }
