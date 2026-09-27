@@ -3,12 +3,13 @@ const MAX_VIDEO_BYTES = 10 * 1024 * 1024 * 1024;
 
 export async function uploadFileToR2(
   file: File,
-  assetType: "VIDEO" | "POSTER" | "BACKDROP" | "TRAILER",
+  assetType: "VIDEO" | "POSTER" | "BACKDROP" | "TRAILER" | "SUBTITLE",
   onProgress?: (percent: number) => void
 ): Promise<string> {
   if (!file) throw new Error("Please choose a file first.");
 
   const isVideo = assetType === "VIDEO" || assetType === "TRAILER";
+  const isSubtitle = assetType === "SUBTITLE";
   const maxBytes = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
 
   if (file.size > maxBytes) {
@@ -19,7 +20,11 @@ export async function uploadFileToR2(
   if (isVideo && !file.type.startsWith("video/")) {
     throw new Error("Please select a video file.");
   }
-  if (!isVideo && !file.type.startsWith("image/")) {
+  if (isSubtitle) {
+    const validMime = ["text/vtt", "text/plain", "application/x-subrip", "application/octet-stream"].includes(file.type);
+    const validExtension = /\\.(vtt|srt|webvtt)$/i.test(file.name);
+    if (!validMime && !validExtension) throw new Error("Please select a .VTT or .SRT subtitle file.");
+  } else if (!isVideo && !file.type.startsWith("image/")) {
     throw new Error("Please select an image file.");
   }
 
