@@ -1,15 +1,15 @@
 :root {
-  --background: #141414;
-  --foreground: #f8fafc;
-  --primary-brand: #3b82f6;
-  --secondary: #ec4899;
-  --tertiary: #8b5cf6;
+  --background: #070707;
+  --foreground: #ffffff;
+  --primary-brand: #f4b400;
+  --secondary: #e68a00;
+  --tertiary: #ffffff;
   --text-muted: #94a3b8;
   --glass-bg: rgba(15, 23, 42, 0.4);
   --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 8px 32px 0 rgba(59, 130, 246, 0.15);
---gradient-brand: linear-gradient(135deg, #3b82f6, #ec4899, #8b5cf6);
---gradient-glow: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(236, 72, 153, 0.3), rgba(6, 182, 212, 0.3));
+  --glass-shadow: 0 8px 32px 0 rgba(244, 180, 0, 0.08);
+--gradient-brand: linear-gradient(135deg, #f4b400, #e68a00);
+--gradient-glow: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(230, 138, 0, 0.14));
 --card-border-radius: 12px;
   --font-main: 'Outfit', sans-serif;
   --player-padding-x: 1.5rem;
@@ -33,7 +33,7 @@
 
 /* The draggable handle */
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #3b82f6, #8b5cf6, #ec4899);
+  background: linear-gradient(180deg, #f4b400, #e68a00);
   border-radius: 5px;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -59,8 +59,8 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   background-image:
-    radial-gradient(ellipse at 20% -20%, rgba(59, 130, 246, 0.15), transparent 50%),
-    radial-gradient(ellipse at 80% 120%, rgba(236, 72, 153, 0.1), transparent 50%);
+    radial-gradient(ellipse at 20% -20%, rgba(244, 180, 0, 0.08), transparent 50%),
+    radial-gradient(ellipse at 80% 120%, rgba(230, 138, 0, 0.06), transparent 50%);
   background-attachment: fixed;
 }
 
@@ -88,7 +88,7 @@ button,
 }
 
 .text-gradient {
-  background: linear-gradient(to right, #3b82f6, #ec4899);
+  background: linear-gradient(to right, #f4b400, #e68a00);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
