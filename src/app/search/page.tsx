@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import PageBackground from "@/components/PageBackground";
 import ContentCard from "@/components/home/ContentCard";
 import Link from "next/link";
-import { Search, Film, Tv, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { HomepageItem } from "@/types/homepage";
 
 export const dynamic = "force-dynamic";
