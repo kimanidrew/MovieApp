@@ -113,17 +113,17 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
             user-select: none;
           }
           .rank-number {
-            font-size: 7.5rem;
+            font-size: 7rem;
             font-weight: 900;
             line-height: 1;
             font-family: system-ui, -apple-system, sans-serif;
             color: #000;
-            -webkit-text-stroke: 3px #555;
-            text-shadow: 0 0 15px rgba(255,255,255,0.2);
+            -webkit-text-stroke: 2px #5b5548;
+            text-shadow: 0 0 18px rgba(244,180,0,0.12);
             transition: all 0.3s ease;
           }
           .top10-container:hover .rank-number {
-            -webkit-text-stroke: 3px #e50914;
+            -webkit-text-stroke: 3px #f4b400;
             color: #111;
             transform: scale(1.08);
           }
@@ -131,7 +131,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
             width: 9rem;
             height: 13.5rem;
             position: relative;
-            border-radius: 8px;
+            border-radius: 14px;
             overflow: hidden;
             background: #111;
             transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.35s ease;
@@ -144,7 +144,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
             z-index: 10;
           }
           .image-wrapper { position: absolute; inset: 0; }
-          .card-image { object-fit: cover; transition: transform 0.5s ease; border-radius: 8px; }
+          .card-image { object-fit: cover; transition: transform 0.5s ease; border-radius: 14px; }
           .top10-container:hover .card-image { transform: scale(1.08); }
           .card-overlay {
             position: absolute;
@@ -165,7 +165,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
           }
           .hover-actions-bottom.visible { opacity: 1; transform: translateY(0); }
           .action-btn {
-            width: 26px; height: 26px; border-radius: 50%;
+            width: 26px; height: 26px; border-radius: 9px;
             border: 1px solid rgba(255,255,255,0.3);
             background: rgba(0,0,0,0.6); color: #fff;
             display: flex; align-items: center; justify-content: center;
@@ -261,7 +261,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
           .featured-container {
             position: relative;
             height: 12.5rem;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
             background: #111;
             border: 1px solid rgba(255, 255, 255, 0.12);
@@ -274,12 +274,12 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
             box-shadow: 0 16px 36px rgba(229, 9, 20, 0.25), 0 4px 20px rgba(0,0,0,0.6);
           }
           .image-wrapper { position: absolute; inset: 0; }
-          .card-image { object-fit: cover; transition: transform 0.6s ease; border-radius: 12px; }
+          .card-image { object-fit: cover; transition: transform 0.6s ease; border-radius: 16px; }
           .featured-container:hover .card-image { transform: scale(1.06); }
           .featured-badge {
             position: absolute; top: 10px; left: 10px; z-index: 5;
             display: flex; align-items: center; gap: 4px;
-            background: rgba(229, 9, 20, 0.9); color: #fff;
+            background: rgba(244, 180, 0, 0.92); color: #fff;
             padding: 3px 8px; border-radius: 20px;
             font-size: 0.55rem; font-weight: 800; letter-spacing: 0.8px;
             backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.2);
@@ -303,7 +303,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
             padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15);
             display: flex; align-items: center; gap: 3px;
           }
-          .meta-tag.maturity { color: #e50914; border-color: #e50914; font-weight: 700; }
+          .meta-tag.maturity { color: #f4b400; border-color: #f4b400; font-weight: 700; }
           .featured-desc {
             color: #bbb; font-size: 0.65rem; line-height: 1.3; margin: 2px 0;
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
@@ -318,13 +318,13 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
           .featured-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
           .btn-play-now {
             display: inline-flex; align-items: center; gap: 4px;
-            background: #e50914; color: #fff; border: none;
+            background: #f4b400; color: #fff; border: none;
             padding: 5px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
             cursor: pointer; transition: all 0.2s ease;
           }
-          .btn-play-now:hover { background: #ff0f1a; transform: scale(1.05); }
+          .btn-play-now:hover { background: #ffd45a; transform: scale(1.05); }
           .btn-icon {
-            width: 28px; height: 28px; border-radius: 50%;
+            width: 28px; height: 28px; border-radius: 9px;
             background: rgba(255,255,255,0.15); color: #fff;
             border: 1px solid rgba(255,255,255,0.25); display: flex;
             align-items: center; justify-content: center; cursor: pointer;
@@ -455,7 +455,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
 
         .card-container {
           position: relative;
-          border-radius: 8px;
+          border-radius: 14px;
           overflow: hidden;
           background: #111;
           isolation: isolate;
@@ -470,12 +470,12 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
 
         .card-container:hover {
           transform: scale(1.06);
-          box-shadow: 0 16px 30px rgba(0, 0, 0, 0.6);
+          box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55);
           z-index: 50;
         }
 
         .image-wrapper { position: absolute; inset: 0; }
-        .card-image { object-fit: cover; transition: transform 0.5s ease; border-radius: 8px; }
+        .card-image { object-fit: cover; transition: transform 0.5s ease; border-radius: 14px; }
         .card-container:hover .card-image { transform: scale(1.08); }
 
         .new-sticker {
@@ -489,7 +489,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
         }
         .new-sticker.hidden { opacity: 0; transform: translateX(-50%) translateY(6px); pointer-events: none; }
         .sticker-new-episode { background: rgba(255, 255, 255, 0.9); color: black; }
-        .sticker-recent { background: rgba(229, 9, 20, 0.9); color: white; }
+        .sticker-recent { background: rgba(244, 180, 0, 0.92); color: #17130a; }
 
         .default-badges {
           position: absolute; top: 6px; left: 6px;
@@ -499,15 +499,15 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
 
         .maturity-badge, .quality-badge {
           background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(6px);
-          border: 1px solid rgba(255, 255, 255, 0.15); color: white;
+          border: 1px solid rgba(255, 255, 255, 0.15); color: #17130a;
           padding: 1px 4px; border-radius: 3px; font-size: 0.55rem; font-weight: 600;
         }
-        .maturity-badge.adult { color: #ff5757; border-color: #ff5757; }
+        .maturity-badge.adult { color: #f59e0b; border-color: #f59e0b; }
 
         .rating-badge {
           position: absolute; top: 6px; right: 6px; z-index: 4;
           display: flex; align-items: center; gap: 2px;
-          background: rgba(0, 0, 0, 0.75); color: #fbbf24;
+          background: rgba(0, 0, 0, 0.75); color: #f4b400;
           padding: 1px 5px; border-radius: 3px; font-size: 0.6rem; font-weight: 600;
           backdrop-filter: blur(4px);
         }
@@ -525,7 +525,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
         }
         .progress-fill {
           height: 100%;
-          background: linear-gradient(90deg, #e50914, #ff5252);
+          background: linear-gradient(90deg, #f4b400, #ff5252);
         }
 
         .hover-info-top {
@@ -558,7 +558,7 @@ export default function ContentCard({ content, style = "STANDARD_POSTER", index 
         .quick-actions { display: flex; gap: 0.3rem; }
 
         .action-btn {
-          width: 24px; height: 24px; border-radius: 50%;
+          width: 24px; height: 24px; border-radius: 9px;
           border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(0, 0, 0, 0.6);
           color: #fff; display: flex; align-items: center; justify-content: center;
           cursor: pointer; transition: all 0.2s ease; backdrop-filter: blur(4px);
