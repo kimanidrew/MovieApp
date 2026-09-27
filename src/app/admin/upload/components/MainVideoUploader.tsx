@@ -10,9 +10,10 @@ interface Props {
   commitCompleteAssetToDb: () => void;
   saving: boolean;
   isFormValid: boolean;
+  setVideoDetails: (details: any) => void;
 }
 
-export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, uploadedVideoUrl, setUploadedVideoUrl, commitCompleteAssetToDb, saving, isFormValid }: Props) {
+export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, uploadedVideoUrl, setUploadedVideoUrl, commitCompleteAssetToDb, saving, isFormValid, setVideoDetails }: Props) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -34,6 +35,32 @@ export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, upl
       return;
     }
     setMainVideoFile(file);
+
+    const objectUrl = URL.createObjectURL(file);
+    const probe = document.createElement("video");
+    probe.preload = "metadata";
+    probe.onloadedmetadata = () => {
+      const duration = Number.isFinite(probe.duration) ? Math.round(probe.duration) : "";
+      const width = probe.videoWidth || 0;
+      const height = probe.videoHeight || 0;
+      const gcd = (a: number, b: number): number => b ? gcd(b, a % b) : a;
+      const ratio = width && height ? `${width / gcd(width, height)}:${height / gcd(width, height)}` : "";
+      const resolution = height >= 4320 ? "UHD_8K" : height >= 2160 ? "UHD_4K" : height >= 1080 ? "P1080" : height >= 720 ? "P720" : height >= 480 ? "P480" : height >= 360 ? "P360" : "P240";
+
+      setVideoDetails((current: any) => ({
+        ...current,
+        durationSeconds: duration,
+        resolution,
+        aspectRatio: ratio || current.aspectRatio || "16:9",
+        sourceFileName: file.name,
+        sourceMimeType: file.type || "video/*",
+        sourceSizeBytes: file.size,
+      }));
+
+      URL.revokeObjectURL(objectUrl);
+    };
+    probe.onerror = () => URL.revokeObjectURL(objectUrl);
+    probe.src = objectUrl;
   };
 
   const upload = async () => {
@@ -45,7 +72,12 @@ export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, upl
         setStatus(p >= 100 ? "Upload complete." : `Uploading to Tidpix storage… ${p}%`);
       });
       setUploadedVideoUrl(url);
-      setStatus("Video uploaded and ready to attach.");
+      setVideoDetails((current: any) => ({
+        ...current,
+        sourceUrl: url,
+        sourceType: "R2",
+      }));
+      setStatus("Video uploaded and metadata/source detected automatically.");
     } catch (e: any) {
       setError(e?.message || "Video upload failed.");
       setStatus("");
@@ -62,11 +94,15 @@ export default function MainVideoUploader({ mainVideoFile, setMainVideoFile, upl
       setError("Enter a valid HTTP or HTTPS video URL.");
       return;
     }
-    setError(""); setUploadedVideoUrl(url); setUploadProgress(100); setStatus("Existing video URL linked.");
+    setError("");
+    setUploadedVideoUrl(url);
+    setVideoDetails((current: any) => ({ ...current, sourceUrl: url, sourceType: "EXTERNAL_URL" }));
+    setUploadProgress(100);
+    setStatus("Existing video URL linked.");
   };
 
   const replace = () => {
-    setUploadedVideoUrl(""); setMainVideoFile(null); setUploadProgress(0); setStatus(""); setError(""); setManualVideoUrl("");
+    setUploadedVideoUrl(""); setMainVideoFile(null); setVideoDetails((current: any) => ({ ...current, sourceUrl: "", sourceFileName: "", sourceMimeType: "", sourceSizeBytes: 0, sourceType: "" })); setUploadProgress(0); setStatus(""); setError(""); setManualVideoUrl("");
     if (inputRef.current) inputRef.current.value = "";
   };
 
